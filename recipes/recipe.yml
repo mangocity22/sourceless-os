@@ -53,4 +53,4 @@ modules:
     system:
       enabled:
           - sourceless-cert-server.service
-          - sourceless-client-boot.service
+          - sourceless-client.service
