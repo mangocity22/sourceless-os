@@ -1,0 +1,13 @@
+[Unit]
+Description=Sourceless OS Certificate Verification Authority
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/chmod +x /usr/bin/sourceless-cert-verify.sh
+ExecStart=/usr/bin/sourceless-cert-verify.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
