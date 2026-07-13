@@ -23,6 +23,11 @@ modules:
         - atim/starship
     install:
       packages:
+        - openssl
+        - gnutls-utils
+        - nftables
+        - policycoreutils-python-utils
+        - tcpdump
         - micro
         - starship
         - fastfetch
