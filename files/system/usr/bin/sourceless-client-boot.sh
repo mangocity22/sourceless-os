@@ -30,7 +30,7 @@ if [ ! -f "$CLIENT_CERT" ]; then
     echo "[Sourceless] Generare identitate unică..."
     
     if [ ! -f "$CLIENT_KEY" ]; then
-        openssl genrsa -out "$CLIENT_KEY" 4096
+        openssl genrsa -out "$CLIENT_KEY" 2048
         chmod 600 "$CLIENT_KEY"
     fi
     
