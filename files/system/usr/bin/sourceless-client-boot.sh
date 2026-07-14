@@ -1,14 +1,11 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.0 - Obscurizată + Înrolare Automată mTLS
+# Versiunea 4.1 - Obscurizată + Auto-mTLS + Anti-Tamper Native Check
 
 CERT_DIR="/etc/sourceless/certs"
 CLIENT_KEY="$CERT_DIR/client.key"
 CLIENT_CERT="$CERT_DIR/client.crt"
 
-# IP-urile mascate în Base64 pentru a bloca "grep-ul" simplu
-# aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlcG9ydA==  -> http://192.168.1.157/api/report
-# aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlZ2lzdGVy -> http://192.168.1.157/api/register
 D_B64="aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlcG9ydA=="
 R_B64="aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlZ2lzdGVy"
 
@@ -37,7 +34,7 @@ if [ ! -f "$CLIENT_CERT" ]; then
     # Generăm cererea de certificat (CSR)
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes"
     
-    # [FIX] Împachetăm payload-ul JSON în mod securizat folosind Python pentru a evita stricarea caracterelor \n
+    # Împachetăm payload-ul JSON securizat
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr)")
     
     # Trimitem CSR-ul la serverul de management pentru semnare
@@ -46,8 +43,8 @@ if [ ! -f "$CLIENT_CERT" ]; then
         -H "Content-Type: application/json" \
         -d "$JSON_PAYLOAD" \
         "$REGISTER_URL")
-    
-    # Extragem certificatul primit înapoi folosind un parser python inline
+        
+    # Extragem certificatul primit înapoi
     CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))")
     
     if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
@@ -61,9 +58,18 @@ if [ ! -f "$CLIENT_CERT" ]; then
     rm -f /tmp/client.csr
 fi
 
-# 3. Logica de verificare a integrității
+# 3. Logica de verificare a integrității (Anti-Tamper & Config Drift)
 STATUS="Integru"
-if [ ! -f "$CLIENT_CERT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
+
+# Verificăm dacă există modificări în /etc față de imaginea curată, ignorând certificatele noastre
+CONFIG_DRIFT=$(ostree admin config-diff | grep -v "/etc/sourceless")
+
+if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
+    STATUS="Modificat"
+    logger -t "sourceless-security" -p user.warn "Tamper detected! Configuration drift in /etc: $CONFIG_DRIFT"
+fi
+
+if [ ! -f "$CLIENT_CERT" ]; then
     STATUS="Modificat"
 fi
 
