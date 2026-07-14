@@ -36,13 +36,15 @@ if [ ! -f "$CLIENT_CERT" ]; then
     
     # Generăm cererea de certificat (CSR)
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes"
-    CSR_CONTENT=$(cat /tmp/client.csr)
+    
+    # [FIX] Împachetăm payload-ul JSON în mod securizat folosind Python pentru a evita stricarea caracterelor \n
+    JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr)")
     
     # Trimitem CSR-ul la serverul de management pentru semnare
     echo "[Sourceless] Solicitare semnare certificat de la autoritate..."
     RESPONSE=$(curl -s -X POST \
         -H "Content-Type: application/json" \
-        -d "{\"hwid\":\"$HWID\", \"csr\":\"$CSR_CONTENT\"}" \
+        -d "$JSON_PAYLOAD" \
         "$REGISTER_URL")
     
     # Extragem certificatul primit înapoi folosind un parser python inline
