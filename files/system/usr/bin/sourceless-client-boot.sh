@@ -61,8 +61,8 @@ fi
 # 3. Logica de verificare a integrității (Anti-Tamper & Config Drift)
 STATUS="Integru"
 
-# Verificăm dacă există modificări în /etc față de imaginea curată, ignorând certificatele noastre
-CONFIG_DRIFT=$(ostree admin config-diff | grep -v "/etc/sourceless")
+# Verificăm modificările în /etc, ignorând certificatele și scriptul de audit
+CONFIG_DRIFT=$(ostree admin config-diff | grep -v -E "/etc/sourceless|/etc/profile.d/sourceless-audit.sh")
 
 if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
     STATUS="Modificat"
