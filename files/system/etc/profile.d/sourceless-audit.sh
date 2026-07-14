@@ -12,4 +12,4 @@ log_command_to_journal() {
 }
 
 # Injectam functia in lantul de executie al promptului Bash
-export PROMPT_COMMAND="log_command_to_journal; $PROMPT_COMMAND"
+export PROMPT_COMMAND='log_command_to_journal; $PROMPT_COMMAND'
