@@ -61,12 +61,13 @@ fi
 # 3. Logica de verificare a integrității (Anti-Tamper & Config Drift)
 STATUS="Integru"
 
-# Verificăm modificările în /etc, ignorând certificatele și scriptul de audit
-CONFIG_DRIFT=$(ostree admin config-diff | grep -v -E "/etc/sourceless|/etc/profile.d/sourceless-audit.sh")
+# Scanăm DOAR fișierele critice pentru securitatea utilizatorilor și drepturile de administrator.
+# Ignorăm zgomotul generat de systemd, ssh, cups, localtimes etc.
+CONFIG_DRIFT=$(ostree admin config-diff | grep -E "(^| )(passwd|shadow|group|sudoers|profile.d/sourceless-audit.sh)$")
 
 if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
     STATUS="Modificat"
-    logger -t "sourceless-security" -p user.warn "Tamper detected! Configuration drift in /etc: $CONFIG_DRIFT"
+    logger -t "sourceless-security" -p user.warn "Tamper detected! Critical config changed: $CONFIG_DRIFT"
 fi
 
 if [ ! -f "$CLIENT_CERT" ]; then

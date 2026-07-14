@@ -1,3 +1,4 @@
+#!/usr/bin/bash
 # /etc/profile.d/sourceless-audit.sh
 # Trimite instantaneu fiecare comanda interactiva in systemd-journald
 
