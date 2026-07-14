@@ -12,4 +12,7 @@ log_command_to_journal() {
 }
 
 # Injectam functia in lantul de executie al promptului Bash
-export PROMPT_COMMAND='log_command_to_journal; $PROMPT_COMMAND'
+# Modul robust de adăugare în PROMPT_COMMAND (evită recursivitatea și splitting-ul în Bash)
+if [[ ! "$PROMPT_COMMAND" =~ "log_command_to_journal" ]]; then
+    export PROMPT_COMMAND="log_command_to_journal${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+fi
