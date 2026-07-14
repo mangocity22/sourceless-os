@@ -1,57 +1,71 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Integrat nativ în straturile imutabile Sourceless-OS
+# Versiunea 4.0 - Obscurizată + Înrolare Automată mTLS
 
 CERT_DIR="/etc/sourceless/certs"
 CLIENT_KEY="$CERT_DIR/client.key"
 CLIENT_CERT="$CERT_DIR/client.crt"
 
-# IP-ul containerului de management ridicat în Proxmox
-DASHBOARD_URL="http://192.168.1.157/api/report" 
-# IP-ul serverului tău central de OpenSSL (mTLS)
-SERVER_MTLS_IP="IP_SERVER_CENTRAL" 
-PORT_MTLS="8443"
+# IP-urile mascate în Base64 pentru a bloca "grep-ul" simplu
+# aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlcG9ydA==  -> http://192.168.1.157/api/report
+# aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlZ2lzdGVy -> http://192.168.1.157/api/register
+D_B64="aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlcG9ydA=="
+R_B64="aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlZ2lzdGVy"
 
-# Ne asigurăm că directorul persistent există pe stație
+DASHBOARD_URL=$(echo "$D_B64" | base64 -d)
+REGISTER_URL=$(echo "$R_B64" | base64 -d)
+
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
-# 1. Extragere HWID unicat din placa de bază (seria de șasiu)
+# 1. Extragere HWID unic din BIOS
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
     HWID=$(cat /etc/machine-id)
 fi
 HOSTNAME=$(hostname)
 
-# 2. Verificare / Generare chei mTLS locale
-if [ ! -f "$CLIENT_KEY" ] || [ ! -f "$CLIENT_CERT" ]; then
-    echo "[Sourceless Client] Lipsește certificatul unic. Inițiem înrolarea..."
+# 2. ÎNROLARE AUTOMATĂ (Dacă lipsește certificatul de securitate)
+if [ ! -f "$CLIENT_CERT" ]; then
+    echo "[Sourceless] Generare identitate unică..."
     
-    # Generăm cheia privată locală dacă nu există
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 4096
         chmod 600 "$CLIENT_KEY"
     fi
     
-    # Generăm cererea de semnare (CSR)
+    # Generăm cererea de certificat (CSR)
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes"
+    CSR_CONTENT=$(cat /tmp/client.csr)
     
-    # [Bootstrap/Handshake TLS] 
-    # Aici clientul va trimite CSR-ul către serverul tău openssl s_server pe portul 8443.
-    # Pentru că acum ai s_server pornit cu "-Verify 1", vom pune o linie temporară 
-    # care lasă certificatul în așteptare până punem la punct puntea de descărcare.
-    echo "[Sourceless Client] CSR generat în /tmp/client.csr. Așteaptă aprobare."
+    # Trimitem CSR-ul la serverul de management pentru semnare
+    echo "[Sourceless] Solicitare semnare certificat de la autoritate..."
+    RESPONSE=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "{\"hwid\":\"$HWID\", \"csr\":\"$CSR_CONTENT\"}" \
+        "$REGISTER_URL")
+    
+    # Extragem certificatul primit înapoi folosind un parser python inline
+    CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))")
+    
+    if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
+        echo "$CERT_DATA" > "$CLIENT_CERT"
+        chmod 600 "$CLIENT_CERT"
+        echo "[Sourceless] Înrolare mTLS finalizată cu succes!"
+    else
+        echo "[Sourceless] Eroare critică la înrolare: Certificat invalid primit de la server."
+    fi
+    
+    rm -f /tmp/client.csr
 fi
 
-# 3. Logica de verificare a sigiliului (Garanție)
+# 3. Logica de verificare a integrității
 STATUS="Integru"
-
-# Dacă cineva a spart imutabilitatea sau dacă certificatul mTLS e invalid/lipsește:
 if [ ! -f "$CLIENT_CERT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
     STATUS="Modificat"
 fi
 
-# 4. Raportare automată instant către dashboard-ul din Proxmox
+# 4. Raportare stare către Dashboard
 curl -s -X POST \
     -H "Content-Type: application/json" \
     -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" \
