@@ -1,0 +1,37 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-unlock
+# Utilitar securizat pentru activarea modului de suport tehnic
+
+# Definim parola master de suport (în producție poate fi o cheie dinamică)
+SUPPORT_KEY="SourcelessSupport!"
+
+echo "=================================================="
+echo "         Sourceless-OS // SUPPORT GATE            "
+echo "=================================================="
+echo "WARNING: Accessing this area breaks the security "
+echo "seal and voids the system warranty immediately."
+echo "=================================================="
+echo ""
+
+# Cerem cheia de securitate
+read -s -p "Enter Support Authorization Key: " USER_KEY
+echo ""
+
+if [ "$USER_KEY" != "$SUPPORT_KEY" ]; then
+    echo "[-] Invalid Authorization Key. Access Denied."
+    # Logăm tentativa eșuată în cutia neagră de audit!
+    logger -t "sourceless-security" -p user.err "FAILED SUPPORT UNLOCK ATTEMPT by USER=$(whoami)"
+    exit 1
+fi
+
+echo "[+] Access Granted. Initiating Support Session..."
+logger -t "sourceless-security" -p user.warn "SUPPORT SESSION ACTIVATED by USER=$(whoami)"
+
+# Creăm un fișier capcană care va forța instantaneu starea "Roșu" în Dashboard!
+sudo touch /etc/sourceless/.tamper_detected
+
+# Lansăm un shell de root pentru tehnician
+sudo /usr/bin/bash
+
+# După ce tehnicianul iese din shell (exit), curățăm capcana dacă vrem să îl facem la loc verde manual
+echo "[+] Support Session Terminated."

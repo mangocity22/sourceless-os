@@ -54,3 +54,7 @@ modules:
       enabled:
           - sourceless-cert-server.service
           - sourceless-client.service
+
+  - type: script
+    scripts:
+      - setup-permissions.sh
