@@ -57,5 +57,4 @@ modules:
 
   - type: script
     scripts:
-      - chmod +x /usr/bin/sourceless-client-boot.sh
-      - chmod +x /usr/bin/sourceless-unlock
+      - setup-permissions.sh
