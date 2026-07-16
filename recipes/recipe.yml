@@ -54,3 +54,8 @@ modules:
       enabled:
           - sourceless-cert-server.service
           - sourceless-client.service
+
+  - type: script
+    scripts:
+      - chmod +x /usr/bin/sourceless-client-boot.sh
+      - chmod +x /usr/bin/sourceless-unlock
