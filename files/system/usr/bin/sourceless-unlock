@@ -1,16 +1,19 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-unlock
-# Utilitar securizat pentru activarea modului de suport tehnic
 
-# 1. Ne asigurăm că tehnicianul a rulat scriptul cu sudo
+# 1. Enforce root execution
 if [ "$EUID" -ne 0 ]; then
     echo "[-] Error: This tool must be run with sudo privileges."
     echo "    Please run: sudo sourceless-unlock"
     exit 1
 fi
 
-# Definim parola master de suport
-SUPPORT_KEY="SourcelessSupport2026!"
+# 2. Algoritmul de Rolling Password
+CURRENT_DATE=$(date +%Y-%m-%d)
+SECRET_SALT="SourcelessSecretSalt2026"
+
+# Generăm cheia unică de 8 caractere pentru ziua de azi
+GENERATED_KEY=$(echo -n "${CURRENT_DATE}-${SECRET_SALT}" | sha256sum | head -c 8)
 
 echo "=================================================="
 echo "         Sourceless-OS // SUPPORT GATE            "
@@ -20,21 +23,21 @@ echo "seal and voids the system warranty immediately."
 echo "=================================================="
 echo ""
 
-# Cerem cheia de securitate
-read -s -p "Enter Support Authorization Key: " USER_KEY
+# Cerem cheia de securitate tehnicianului
+read -s -p "Enter Today's Support Authorization Key: " USER_KEY
 echo ""
 
-if [ "$USER_KEY" != "$SUPPORT_KEY" ]; then
+if [ "$USER_KEY" != "$GENERATED_KEY" ]; then
     echo "[-] Invalid Authorization Key. Access Denied."
-    logger -t "sourceless-security" -p user.err "FAILED SUPPORT UNLOCK ATTEMPT"
+    logger -t "sourceless-security" -p user.err "FAILED SUPPORT UNLOCK ATTEMPT - Wrong Dynamic Key"
     exit 1
 fi
 
 echo "[+] Access Granted. Initiating Support Session..."
-logger -t "sourceless-security" -p user.warn "SUPPORT SESSION ACTIVATED"
+logger -t "sourceless-security" -p user.warn "SUPPORT SESSION ACTIVATED VIA ROLLING KEY"
 
-# Creăm fișierul capcană (fără sudo, pentru că scriptul e deja root!)
+# Creăm fișierul capcană pentru Dashboard
 touch /etc/sourceless/.tamper_detected
 
-# Lansăm shell-ul de root (folosim exec pentru a înlocui procesul curent)
+# Lansăm shell-ul de root
 exec /usr/bin/bash
