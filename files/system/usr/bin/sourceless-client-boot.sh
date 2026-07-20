@@ -95,7 +95,7 @@ if [ "$CMD" = "clear_tamper" ]; then
 fi
 
 SERVER_IP="192.168.1.157"
-HWID=$(cat /etc/machine-id)
+HWID=$(cat /sys/class/dmi/id/product_uuid)
 
 echo "[Sourceless] Se interoghează panoul de control central..."
 RESPONSE=$(curl -s --max-time 5 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
