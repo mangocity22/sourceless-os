@@ -1,8 +1,16 @@
+#!/usr/bin/bash
 # În faza de build a imaginii:
-# Redenumim binarul real al consolei
-mv /usr/bin/konsole /usr/bin/konsole.real
+
+# Verificăm defensiv dacă binarul există și nu a fost deja mutat
+if [ -f /usr/bin/konsole ] && [ ! -f /usr/bin/konsole.real ]; then
+    echo "[Sourceless] Se mută binarul Konsole original..."
+    mv /usr/bin/konsole /usr/bin/konsole.real
+else
+    echo "[Sourceless] Konsole original nu a fost găsit sau a fost deja mutat. Skip."
+fi
 
 # Creăm scriptul capcană inteligent
+echo "[Sourceless] Se generează wrapper-ul de securitate..."
 cat << 'EOF' > /usr/bin/konsole
 #!/usr/bin/bash
 
@@ -17,4 +25,7 @@ else
 fi
 EOF
 
+# Ne asigurăm că scriptul capcană are drepturi de execuție
 chmod +x /usr/bin/konsole
+
+echo "[Sourceless] setup-permissions.sh s-a executat cu succes!"
