@@ -94,4 +94,24 @@ if [ "$CMD" = "clear_tamper" ]; then
     logger -t "sourceless-security" -p user.info "System integrity successfully restored via remote Reinstate command."
 fi
 
+if [ "$CMD" = "start_support" ]; then
+    echo "[Sourceless] Se activează sesiunea de suport la distanță..."
+    
+    # 1. Cream flag-ul din /var/run (care este o zonă temporară în RAM, dispare la restart)
+    touch /var/run/sourceless_support_active
+    
+    # 2. Pornim serviciul RustDesk ca tehnicianul să se poată conecta din Windows
+    systemctl start rustdesk.service
+
+elif [ "$CMD" = "stop_support" ] || [ "$CMD" = "clear_tamper" ]; then
+    echo "[Sourceless] Se închide sesiunea de suport..."
+    
+    # Ștergem flag-ul (Konsole devine din nou complet blocată)
+    rm -f /var/run/sourceless_support_active
+    rm -f /etc/sourceless/.tamper_detected
+    
+    # Oprim serviciul RustDesk ca să nu lăsăm porturi deschise degeaba
+    systemctl stop rustdesk.service
+fi
+
 exit 0
