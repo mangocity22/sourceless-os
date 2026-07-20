@@ -94,6 +94,13 @@ if [ "$CMD" = "clear_tamper" ]; then
     logger -t "sourceless-security" -p user.info "System integrity successfully restored via remote Reinstate command."
 fi
 
+SERVER_IP="192.168.1.157"
+HWID=$(cat /etc/machine-id)
+
+echo "[Sourceless] Se interoghează panoul de control central..."
+RESPONSE=$(curl -s --max-time 5 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
+CMD=$(echo "$RESPONSE" | grep -o '"cmd":"[^"]*' | grep -o '[^"]*$')
+
 if [ "$CMD" = "start_support" ]; then
     echo "[Sourceless] Se activează sesiunea de suport la distanță..."
     
