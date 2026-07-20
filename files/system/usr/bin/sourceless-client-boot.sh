@@ -74,10 +74,24 @@ if [ ! -f "$CLIENT_CERT" ]; then
     STATUS="Modificat"
 fi
 
-# 4. Raportare stare către Dashboard
-curl -s -X POST \
+# 4. Raportare stare către Dashboard și procesare comenzi la distanță
+RESPONSE=$(curl -s -X POST \
     -H "Content-Type: application/json" \
     -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" \
-    "$DASHBOARD_URL" > /dev/null
+    "$DASHBOARD_URL")
+
+# Extragem comanda din răspunsul JSON primit de la server folosind parserul tău nativ cu Python 3
+CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
+
+# Dacă administratorul a apăsat "Reinstate" în Dashboard, serverul ne trimite comanda dedicată
+if [ "$CMD" = "clear_tamper" ]; then
+    echo "[Sourceless] Comandă de Reinstate recepționată. Se resetează integritatea locală..."
+    
+    # Ștergem fizic fișierul capcană creat la deblocare
+    rm -f /etc/sourceless/.tamper_detected
+    
+    # Trimitem un log curat în sistem pentru audit
+    logger -t "sourceless-security" -p user.info "System integrity successfully restored via remote Reinstate command."
+fi
 
 exit 0
