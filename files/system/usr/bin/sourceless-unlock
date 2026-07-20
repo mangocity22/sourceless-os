@@ -9,7 +9,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # 2. Algoritmul de Rolling Password
-CURRENT_DATE=$(date +%Y-%m-%d)
+# Forțăm data în format UTC
+CURRENT_DATE=$(date -u +%Y-%m-%d)
 SECRET_SALT="SourcelessSecretSalt2026"
 
 # Generăm cheia unică de 8 caractere pentru ziua de azi
