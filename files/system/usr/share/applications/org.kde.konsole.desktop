@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Konsole
+Comment=Terminal emulator by KDE
+Exec=konsole
+Icon=utilities-terminal
+Type=Application
+Categories=Qt;KDE;System;TerminalEmulator;
+StartupNotify=true
+X-KDE-StartupWMClass=konsole
+# Această linie o ascunde complet din meniul grafic și din căutări:
+NoDisplay=true
