@@ -28,4 +28,9 @@ EOF
 # Ne asigurăm că scriptul capcană are drepturi de execuție
 chmod +x /usr/bin/konsole
 
+# Forțăm drepturile de execuție pentru toate scripturile administrative Sourceless
+chmod +x /usr/bin/sourceless-unlock
+chmod +x /usr/bin/sourceless-client-boot.sh
+chmod +x /usr/bin/sourceless-cert-verify.sh
+
 echo "[Sourceless] setup-permissions.sh s-a executat cu succes!"
