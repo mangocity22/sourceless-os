@@ -32,6 +32,7 @@ modules:
         - starship
         - fastfetch
         - https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-0.x86_64.rpm
+        - zenity
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)
