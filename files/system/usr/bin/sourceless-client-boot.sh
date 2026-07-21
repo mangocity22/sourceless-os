@@ -94,33 +94,61 @@ if [ "$CMD" = "clear_tamper" ]; then
     logger -t "sourceless-security" -p user.info "System integrity successfully restored via remote Reinstate command."
 fi
 
+#!/bin/bash
+
 SERVER_IP="192.168.1.157"
-HWID=$(cat /sys/class/dmi/id/product_uuid)
+HWID=$(cat /sys/class/dmi/id/product_uuid | tr -d '-')
 
-echo "[Sourceless] Se interoghează panoul de control central..."
-RESPONSE=$(curl -s --max-time 5 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
+# Identificăm utilizatorul logat pe interfața grafică pentru a afișa Popup-ul
+USER_NAME=$(who | grep -E '\(:[0-9]\)' | awk '{print $1}' | head -n 1)
+[ -z "$USER_NAME" ] && USER_NAME="sourceless"
 
-# Parsare curată și sigură a JSON-ului folosind Python
-CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
+USER_ID=$(id -u "$USER_NAME")
+export DISPLAY=":0"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${USER_ID}/bus"
 
-if [ "$CMD" = "start_support" ]; then
-    echo "[Sourceless] Directivă primită: Se activează sesiunea de suport..."
+while true; do
+    RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
     
-    # 1. Cream flag-ul din /var/run (care este o zonă temporară în RAM, dispare la restart)
-    touch /var/run/sourceless_support_active
+    # Decodăm comanda și starea curentă din JSON
+    CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
     
-    # 2. Pornim serviciul RustDesk ca tehnicianul să se poată conecta din Windows
-    systemctl start rustdesk.service
+    if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
+        
+        # Afișăm Pop-up-ul nativ în OS (folosind zenity)
+        sudo -u "$USER_NAME" DISPLAY=":0" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${USER_ID}/bus" \
+        zenity --question \
+               --title="Sourceless OS // Support Request" \
+            --text="Un administrator dorește să inițieze o sesiune de suport la distanță.\n\nAprobi conexiunea RustDesk?" \
+            --width=400 --timeout=30
 
-elif [ "$CMD" = "stop_support" ] || [ "$CMD" = "clear_tamper" ]; then
-    echo "[Sourceless] Se închide sesiunea de suport..."
-    
-    # Ștergem flag-ul (Konsole devine din nou complet blocată)
-    rm -f /var/run/sourceless_support_active
-    rm -f /etc/sourceless/.tamper_detected
-    
-    # Oprim serviciul RustDesk ca să nu lăsăm porturi deschise degeaba
-    systemctl stop rustdesk.service
-fi
+        if [ $? -eq 0 ]; then
+            # Utilizatorul a apăsat YES / APPROVE
+            touch /tmp/sourceless_support_active
+            systemctl start rustdesk.service
+            
+            # Așteptăm 2 secunde să pornească RustDesk pentru a prelua ID-ul
+            sleep 2
+            RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "123-456-789")
+            
+            # Trimitem ID-ul RustDesk înapoi la serverul central
+            curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
+                -H "Content-Type: application/json" \
+                -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"status\":\"approved\"}"
+        else
+            # Utilizatorul a dat REFUSE sau a expirat timpul
+            curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
+                -H "Content-Type: application/json" \
+                -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"status\":\"rejected\"}"
+        fi
+
+    elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
+        # Dacă s-a apăsat STOP în dashboard, închidem sesiunea
+        rm -f /tmp/sourceless_support_active
+        systemctl stop rustdesk.service
+    fi
+
+    sleep 5
+done
 
 exit 0
