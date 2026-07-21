@@ -14,8 +14,8 @@ echo "[Sourceless] Se generează wrapper-ul de securitate..."
 cat << 'EOF' > /usr/bin/konsole
 #!/usr/bin/bash
 
-# Verificăm dacă există flag-ul de sesiune activă pornit de Dashboard
-if [ -f /var/run/sourceless_support_active ]; then
+# Verificăm dacă există flag-ul de sesiune activă (în /tmp sau /var/run)
+if [ -f /tmp/sourceless_support_active ] || [ -f /var/run/sourceless_support_active ]; then
     # Sesiunea de suport este activă! Tehnicianul are voie să folosească terminalul
     exec /usr/bin/konsole.real "$@"
 else
