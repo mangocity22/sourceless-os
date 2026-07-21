@@ -99,10 +99,12 @@ HWID=$(cat /sys/class/dmi/id/product_uuid)
 
 echo "[Sourceless] Se interoghează panoul de control central..."
 RESPONSE=$(curl -s --max-time 5 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
-CMD=$(echo "$RESPONSE" | grep -o '"cmd":"[^"]*' | grep -o '[^"]*$')
+
+# Parsare curată și sigură a JSON-ului folosind Python
+CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
 
 if [ "$CMD" = "start_support" ]; then
-    echo "[Sourceless] Se activează sesiunea de suport la distanță..."
+    echo "[Sourceless] Directivă primită: Se activează sesiunea de suport..."
     
     # 1. Cream flag-ul din /var/run (care este o zonă temporară în RAM, dispare la restart)
     touch /var/run/sourceless_support_active
