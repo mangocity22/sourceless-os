@@ -100,14 +100,21 @@ SERVER_IP="192.168.1.157"
 HWID=$(cat /sys/class/dmi/id/product_uuid | tr -d '-')
 
 while true; do
-    # Identificăm dinamic utilizatorul logat pe desktop la fiecare iterație
+    # Identificăm utilizatorul logat și verficăm dacă sesiunea este ACTIVĂ (nu pe lockscreen)
+    ACTIVE_SESSION=$(loginctl list-sessions --no-legend | grep -v gdm | grep -v sddm | awk '{print $1}' | head -n 1)
+    
+    IS_LOCKED="true"
+    if [ -n "$ACTIVE_SESSION" ]; then
+        SESSION_STATE=$(loginctl show-session "$ACTIVE_SESSION" -p State --value 2>/dev/null)
+        [ "$SESSION_STATE" = "active" ] && IS_LOCKED="false"
+    fi
+
     USER_NAME=$(who | grep -E '\(:[0-9]\)|tty[0-9]|wayland' | awk '{print $1}' | head -n 1)
     
-    # Executăm verificarea DOAR dacă un utilizator real este logat (ignorăm ecranul de login gdm/sddm)
-    if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "gdm" ] && [ "$USER_NAME" != "sddm" ]; then
+    # Rulăm interogarea DOAR dacă utilizatorul e logat și ecranul e DEBLOCAT
+    if [ "$IS_LOCKED" = "false" ] && [ -n "$USER_NAME" ]; then
         USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
         
-        # Verificăm dacă sesiunea grafică a utilizatorului este complet încărcată
         if [ -n "$USER_ID" ] && [ -d "/run/user/${USER_ID}" ]; then
             USER_ENV="XDG_RUNTIME_DIR=/run/user/${USER_ID} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_ID}/bus DISPLAY=:0"
 
@@ -131,17 +138,28 @@ while true; do
                     touch /tmp/sourceless_support_active
                     systemctl start rustdesk.service
                     
-                    sleep 2
-                    RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "N/A")
+                    # Generăm o parolă temporară aleatorie
+                    RUSTDESK_PW=$(openssl rand -hex 4)
+                    rustdesk --password "$RUSTDESK_PW" 2>/dev/null
                     
+                    # Așteptăm până RustDesk inițializează ID-ul (până la 10 secunde)
+                    RUSTDESK_ID=""
+                    for i in {1..10}; do
+                        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null | tr -d '\r\n')
+                        [ -n "$RUSTDESK_ID" ] && [ "$RUSTDESK_ID" != "N/A" ] && break
+                        sleep 1
+                    done
+                    
+                    [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
+
+                    # Trimitem ID-ul și Parola la backend
                     curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
                         -H "Content-Type: application/json" \
-                        -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"status\":\"approved\"}"
+                        -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"rustdesk_pw\":\"${RUSTDESK_PW}\", \"status\":\"approved\"}"
                 else
-                    # Dacă utilizatorul refuză sau fereastra expiră, trimitem rejected
                     curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
                         -H "Content-Type: application/json" \
-                        -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"status\":\"rejected\"}"
+                        -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"rustdesk_pw\":\"N/A\", \"status\":\"rejected\"}"
                 fi
 
             elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
