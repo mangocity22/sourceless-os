@@ -99,51 +99,49 @@ fi
 SERVER_IP="192.168.1.157"
 HWID=$(cat /sys/class/dmi/id/product_uuid | tr -d '-')
 
-# Identificăm utilizatorul logat pe interfața grafică pentru a afișa Popup-ul
-USER_NAME=$(who | grep -E '\(:[0-9]\)' | awk '{print $1}' | head -n 1)
+# Identificăm utilizatorul activ pe interfața grafică pentru afișare Pop-up
+USER_NAME=$(who | grep -E '\(:[0-9]\)|tty' | awk '{print $1}' | head -n 1)
 [ -z "$USER_NAME" ] && USER_NAME="sourceless"
-
 USER_ID=$(id -u "$USER_NAME")
-export DISPLAY=":0"
-export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${USER_ID}/bus"
+
+USER_ENV="XDG_RUNTIME_DIR=/run/user/${USER_ID} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_ID}/bus DISPLAY=:0"
 
 while true; do
     RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
     
-    # Decodăm comanda și starea curentă din JSON
     CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
     
     if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
         
-        # Afișăm Pop-up-ul nativ în OS (folosind zenity)
-        sudo -u "$USER_NAME" DISPLAY=":0" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${USER_ID}/bus" \
-        zenity --question \
-               --title="Sourceless OS // Support Request" \
-            --text="Un administrator dorește să inițieze o sesiune de suport la distanță.\n\nAprobi conexiunea RustDesk?" \
-            --width=400 --timeout=30
+        # Apelăm zenity în contextul utilizatorului din desktop
+        if command -v zenity >/dev/null 2>&1; then
+            sudo -u "$USER_NAME" env $USER_ENV zenity --question \
+                   --title="Sourceless OS // Support Request" \
+                --text="Un administrator dorește să inițieze o sesiune de suport la distanță.\n\nAprobi conexiunea RustDesk?" \
+                --width=400 --timeout=30
+            
+            STATUS_CODE=$?
+        else
+            STATUS_CODE=1
+        fi
 
-        if [ $? -eq 0 ]; then
-            # Utilizatorul a apăsat YES / APPROVE
+        if [ $STATUS_CODE -eq 0 ]; then
             touch /tmp/sourceless_support_active
             systemctl start rustdesk.service
             
-            # Așteptăm 2 secunde să pornească RustDesk pentru a prelua ID-ul
             sleep 2
-            RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "123-456-789")
+            RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "N/A")
             
-            # Trimitem ID-ul RustDesk înapoi la serverul central
             curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
                 -H "Content-Type: application/json" \
                 -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"status\":\"approved\"}"
         else
-            # Utilizatorul a dat REFUSE sau a expirat timpul
             curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
                 -H "Content-Type: application/json" \
                 -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"status\":\"rejected\"}"
         fi
 
     elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
-        # Dacă s-a apăsat STOP în dashboard, închidem sesiunea
         rm -f /tmp/sourceless_support_active
         systemctl stop rustdesk.service
     fi
