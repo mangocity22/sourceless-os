@@ -99,51 +99,56 @@ fi
 SERVER_IP="192.168.1.157"
 HWID=$(cat /sys/class/dmi/id/product_uuid | tr -d '-')
 
-# Identificăm utilizatorul activ pe interfața grafică pentru afișare Pop-up
-USER_NAME=$(who | grep -E '\(:[0-9]\)|tty' | awk '{print $1}' | head -n 1)
-[ -z "$USER_NAME" ] && USER_NAME="sourceless"
-USER_ID=$(id -u "$USER_NAME")
-
-USER_ENV="XDG_RUNTIME_DIR=/run/user/${USER_ID} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_ID}/bus DISPLAY=:0"
-
 while true; do
-    RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
+    # Identificăm dinamic utilizatorul logat pe desktop la fiecare iterație
+    USER_NAME=$(who | grep -E '\(:[0-9]\)|tty[0-9]|wayland' | awk '{print $1}' | head -n 1)
     
-    CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
-    
-    if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
+    # Executăm verificarea DOAR dacă un utilizator real este logat (ignorăm ecranul de login gdm/sddm)
+    if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "gdm" ] && [ "$USER_NAME" != "sddm" ]; then
+        USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
         
-        # Apelăm zenity în contextul utilizatorului din desktop
-        if command -v zenity >/dev/null 2>&1; then
-            sudo -u "$USER_NAME" env $USER_ENV zenity --question \
-                   --title="Sourceless OS // Support Request" \
-                --text="Un administrator dorește să inițieze o sesiune de suport la distanță.\n\nAprobi conexiunea RustDesk?" \
-                --width=400 --timeout=30
-            
-            STATUS_CODE=$?
-        else
-            STATUS_CODE=1
-        fi
+        # Verificăm dacă sesiunea grafică a utilizatorului este complet încărcată
+        if [ -n "$USER_ID" ] && [ -d "/run/user/${USER_ID}" ]; then
+            USER_ENV="XDG_RUNTIME_DIR=/run/user/${USER_ID} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_ID}/bus DISPLAY=:0"
 
-        if [ $STATUS_CODE -eq 0 ]; then
-            touch /tmp/sourceless_support_active
-            systemctl start rustdesk.service
+            RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
+            CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
             
-            sleep 2
-            RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "N/A")
-            
-            curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
-                -H "Content-Type: application/json" \
-                -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"status\":\"approved\"}"
-        else
-            curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
-                -H "Content-Type: application/json" \
-                -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"status\":\"rejected\"}"
-        fi
+            if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
+                
+                if command -v zenity >/dev/null 2>&1; then
+                    sudo -u "$USER_NAME" env $USER_ENV zenity --question \
+                           --title="Sourceless OS // Support Request" \
+                        --text="Un administrator dorește să inițieze o sesiune de suport la distanță.\n\nAprobi conexiunea RustDesk?" \
+                        --width=400 --timeout=30
+                    
+                    STATUS_CODE=$?
+                else
+                    STATUS_CODE=1
+                fi
 
-    elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
-        rm -f /tmp/sourceless_support_active
-        systemctl stop rustdesk.service
+                if [ $STATUS_CODE -eq 0 ]; then
+                    touch /tmp/sourceless_support_active
+                    systemctl start rustdesk.service
+                    
+                    sleep 2
+                    RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "N/A")
+                    
+                    curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"status\":\"approved\"}"
+                else
+                    # Dacă utilizatorul refuză sau fereastra expiră, trimitem rejected
+                    curl -s -X POST "http://${SERVER_IP}:8080/api/client/submit_credentials" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"status\":\"rejected\"}"
+                fi
+
+            elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
+                rm -f /tmp/sourceless_support_active
+                systemctl stop rustdesk.service
+            fi
+        fi
     fi
 
     sleep 5
