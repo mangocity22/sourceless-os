@@ -63,7 +63,7 @@ STATUS="Integru"
 
 # Monitorizăm strict doar dacă cineva modifică regulile de sudo sau scriptul nostru de audit.
 # Excludem passwd/shadow/group deoarece utilizatorul local creat la instalare va apărea mereu ca modificare.
-CONFIG_DRIFT=$(ostree admin config-diff | grep -E "(^| )(sudoers|profile.d/sourceless-audit.sh)$")
+CONFIG_DRIFT=$(ostree admin config-diff | grep -E "sudoers|profile\.d/sourceless-audit\.sh")
 
 if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
     STATUS="Modificat"

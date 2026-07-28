@@ -29,8 +29,8 @@ EOF
 chmod +x /usr/bin/konsole
 
 # Forțăm drepturile de execuție pentru toate scripturile administrative Sourceless
-chmod +x /usr/bin/sourceless-unlock
-chmod +x /usr/bin/sourceless-client-boot.sh
-chmod +x /usr/bin/sourceless-cert-verify.sh
+chmod 700 /usr/bin/sourceless-unlock
+chmod 700 /usr/bin/sourceless-client-boot.sh
+chmod 700 /usr/bin/sourceless-cert-verify.sh
 
 echo "[Sourceless] setup-permissions.sh s-a executat cu succes!"
