@@ -99,7 +99,6 @@ fi
 SERVER_IP="192.168.1.157"
 HWID=$(cat /sys/class/dmi/id/product_uuid | tr -d '-')
 
-while true; do
     ACTIVE_SESSION=$(loginctl list-sessions --no-legend | grep -v gdm | grep -v sddm | awk '{print $1}' | head -n 1)
     
     IS_LOCKED="true"
@@ -164,7 +163,5 @@ while true; do
         fi
     fi
 
-    sleep 5
-done
 
 exit 0
