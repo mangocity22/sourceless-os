@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.1 - Obscurizată + Auto-mTLS + Anti-Tamper Native Check + Remote Support GUI
+# Versiunea 4.2 - Corrected HWID + Auto-mTLS + Remote Support GUI
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -16,8 +16,8 @@ REGISTER_URL=$(echo "$R_B64" | base64 -d)
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
-# 1. Extragere HWID unic din BIOS (fără cratime)
-HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null | tr -d '-')
+# 1. Extragere HWID unic cu cratime (la fel ca în versiunile vechi)
+HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
     HWID=$(cat /etc/machine-id)
 fi
@@ -32,20 +32,16 @@ if [ ! -f "$CLIENT_CERT" ]; then
         chmod 600 "$CLIENT_KEY"
     fi
     
-    # Generăm cererea de certificat (CSR)
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes" 2>/dev/null
     
-    # Împachetăm payload-ul JSON securizat
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr 2>/dev/null)")
     
-    # Trimitem CSR-ul la serverul de management pentru semnare
     echo "[Sourceless] Solicitare semnare certificat de la autoritate..."
     RESPONSE=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -d "$JSON_PAYLOAD" \
         "$REGISTER_URL")
         
-    # Extragem certificatul primit înapoi
     CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))" 2>/dev/null)
     
     if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
@@ -62,7 +58,6 @@ fi
 # 3. Logica de verificare a integrității (Anti-Tamper & Config Drift)
 STATUS="Integru"
 
-# Monitorizăm strict dacă cineva modifică regulile de sudo sau scriptul nostru de audit.
 CONFIG_DRIFT=$(ostree admin config-diff 2>/dev/null | grep -E "sudoers|profile\.d/sourceless-audit\.sh")
 
 if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
@@ -74,23 +69,21 @@ if [ ! -f "$CLIENT_CERT" ]; then
     STATUS="Modificat"
 fi
 
-# 4. Raportare stare către Dashboard și procesare comenzi la distanță
+# 4. Raportare stare către Dashboard și procesare comenzi
 RESPONSE=$(curl -s -X POST \
     -H "Content-Type: application/json" \
     -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" \
     "$DASHBOARD_URL")
 
-# Extragem comanda din răspunsul JSON primit de la server
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
-# Detectăm utilizatorul grafic activ pentru afișarea ferestrei Zenity
 USER_NAME=$(who | grep -E '(\:[0-9]|tty[0-9]|wayland)' | awk '{print $1}' | head -n 1)
 [ -z "$USER_NAME" ] && USER_NAME="sourceless"
 
 USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
 [ -z "$USER_ID" ] && USER_ID="1000"
 
-# 5. Executare Comenzi de la Dashboard
+# 5. Executare Comenzi
 if [ "$CMD" = "clear_tamper" ]; then
     echo "[Sourceless] Comandă de Reinstate recepționată. Se resetează integritatea locală..."
     rm -f /etc/sourceless/.tamper_detected
@@ -99,15 +92,21 @@ if [ "$CMD" = "clear_tamper" ]; then
 elif [ "$CMD" = "start_support" ]; then
     echo "[Sourceless] Solicitare suport remote recepționată..."
     
-    # Lansăm Zenity direct pe sesiunea grafică a utilizatorului activ
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
-        # Dacă user-ul a dat YES / Approve:
         systemctl start rustdesk || true
-        sleep 2
+        sleep 4
         
-        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null || echo "N/A")
-        RUSTDESK_PW=$(rustdesk --get-pw 2>/dev/null || echo "N/A")
+        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null)
+        RUSTDESK_PW=$(rustdesk --get-pw 2>/dev/null)
+        
+        # Backup în caz că rustdesk CLI întârzie să dea parola
+        if [ -z "$RUSTDESK_PW" ] || [ "$RUSTDESK_PW" = "N/A" ]; then
+            RUSTDESK_PW=$(grep -i "password" /etc/rustdesk/RustDesk.toml 2>/dev/null | head -n 1 | awk -F'=' '{print $2}' | tr -d ' "')
+        fi
+        
+        [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
+        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
@@ -115,7 +114,6 @@ elif [ "$CMD" = "start_support" ]; then
             
         touch /var/run/sourceless_support_active
     else
-        # Dacă user-ul a dat NO / Reject sau a expirat timpul:
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
             -d "{\"hwid\": \"${HWID}\", \"status\": \"rejected\"}"
