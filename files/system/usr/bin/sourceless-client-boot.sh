@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.6 - Exact One-Time Password Extraction
+# Versiunea 4.7 - Clean Regex Filter for RustDesk Flutter Output
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -97,12 +97,19 @@ elif [ "$CMD" = "start_support" ]; then
         systemctl start rustdesk || true
         sleep 3
         
-        # Extragere ID și Parolă REALĂ din interfața grafică
-        RUSTDESK_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
-        [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID=$(timeout 3 rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
+        # Extragere ID (filtrăm doar cifre și spații)
+        RAW_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-id 2>&1)
+        RUSTDESK_ID=$(echo "$RAW_ID" | grep -E '^[0-9 ]+$' | tr -d '\r\n ')
+        if [ -z "$RUSTDESK_ID" ]; then
+            RUSTDESK_ID=$(timeout 3 rustdesk --get-id 2>/dev/null | grep -E '^[0-9 ]+$' | tr -d '\r\n ')
+        fi
         
-        RUSTDESK_PW=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-pw 2>/dev/null | tr -d '\r\n ')
-        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW=$(timeout 3 rustdesk --get-pw 2>/dev/null | tr -d '\r\n ')
+        # Extragere Parolă (filtrăm STRICT linii care au doar 6-10 caractere alfanumerice)
+        RAW_PW=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-pw 2>&1)
+        RUSTDESK_PW=$(echo "$RAW_PW" | grep -E '^[a-zA-Z0-9]{6,10}$' | tail -n 1 | tr -d '\r\n ')
+        if [ -z "$RUSTDESK_PW" ]; then
+            RUSTDESK_PW=$(timeout 3 rustdesk --get-pw 2>/dev/null | grep -E '^[a-zA-Z0-9]{6,10}$' | tail -n 1 | tr -d '\r\n ')
+        fi
         
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
         [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
