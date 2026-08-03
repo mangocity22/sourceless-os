@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.2 - Corrected HWID + Auto-mTLS + Remote Support GUI
+# Versiunea 4.3 - Fixed HWID + AJAX state + Forced RustDesk Password
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -16,7 +16,7 @@ REGISTER_URL=$(echo "$R_B64" | base64 -d)
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
-# 1. Extragere HWID unic cu cratime (la fel ca în versiunile vechi)
+# 1. Extragere HWID unic original (cu cratime)
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
     HWID=$(cat /etc/machine-id)
@@ -69,7 +69,7 @@ if [ ! -f "$CLIENT_CERT" ]; then
     STATUS="Modificat"
 fi
 
-# 4. Raportare stare către Dashboard și procesare comenzi
+# 4. Raportare stare către Dashboard și preluare comenzi
 RESPONSE=$(curl -s -X POST \
     -H "Content-Type: application/json" \
     -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" \
@@ -85,7 +85,7 @@ USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
 
 # 5. Executare Comenzi
 if [ "$CMD" = "clear_tamper" ]; then
-    echo "[Sourceless] Comandă de Reinstate recepționată. Se resetează integritatea locală..."
+    echo "[Sourceless] Comandă de Reinstate recepționată..."
     rm -f /etc/sourceless/.tamper_detected
     logger -t "sourceless-security" -p user.info "System integrity successfully restored via remote Reinstate command."
 
@@ -94,23 +94,22 @@ elif [ "$CMD" = "start_support" ]; then
     
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
+        # Generăm o parolă curată de 8 caractere
+        TEMP_PW=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 8)
+        
         systemctl start rustdesk || true
-        sleep 4
+        sleep 2
+        
+        # Setează parola explicit în RustDesk CLI
+        rustdesk --password "$TEMP_PW" 2>/dev/null || true
+        sleep 1
         
         RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null)
-        RUSTDESK_PW=$(rustdesk --get-pw 2>/dev/null)
-        
-        # Backup în caz că rustdesk CLI întârzie să dea parola
-        if [ -z "$RUSTDESK_PW" ] || [ "$RUSTDESK_PW" = "N/A" ]; then
-            RUSTDESK_PW=$(grep -i "password" /etc/rustdesk/RustDesk.toml 2>/dev/null | head -n 1 | awk -F'=' '{print $2}' | tr -d ' "')
-        fi
-        
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
-        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
-            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${RUSTDESK_PW}\"}"
+            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${TEMP_PW}\"}"
             
         touch /var/run/sourceless_support_active
     else
