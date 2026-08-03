@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.5 - Non-blocking RustDesk Credentials Extraction
+# Versiunea 4.6 - Exact One-Time Password Extraction
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -94,23 +94,19 @@ elif [ "$CMD" = "start_support" ]; then
     
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
-        # 1. Pornește serviciul RustDesk
         systemctl start rustdesk || true
-        sleep 2
+        sleep 3
         
-        # 2. Extragere neblocantă (cu timeout strict de 2 secunde)
-        RUSTDESK_ID=$(timeout 2 rustdesk --get-id 2>/dev/null)
-        RUSTDESK_PW=$(timeout 2 rustdesk --get-pw 2>/dev/null)
+        # Extragere ID și Parolă REALĂ din interfața grafică
+        RUSTDESK_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
+        [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID=$(timeout 3 rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
         
-        # 3. Fallback direct din fișierele de configurare RustDesk dacă CLI tace
-        if [ -z "$RUSTDESK_PW" ]; then
-            RUSTDESK_PW=$(grep -i 'password' /home/*/.config/rustdesk/*.toml /root/.config/rustdesk/*.toml /etc/rustdesk/*.toml 2>/dev/null | head -n 1 | awk -F'=' '{print $2}' | tr -d ' "')
-        fi
+        RUSTDESK_PW=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-pw 2>/dev/null | tr -d '\r\n ')
+        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW=$(timeout 3 rustdesk --get-pw 2>/dev/null | tr -d '\r\n ')
         
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
         [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
-        # 4. Trimite IMEDIAT starea la Dashboard (se deblochează garantat butonul)
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
             -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${RUSTDESK_PW}\"}"
