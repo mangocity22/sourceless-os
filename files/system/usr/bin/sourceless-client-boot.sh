@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.4 - Real RustDesk Temporary Password Polling
+# Versiunea 4.5 - Non-blocking RustDesk Credentials Extraction
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -23,7 +23,7 @@ if [ -z "$HWID" ]; then
 fi
 HOSTNAME=$(hostname)
 
-# 2. ÎNROLARE AUTOMATĂ (Dacă lipsește certificatul de securitate)
+# 2. ÎNROLARE AUTOMATĂ
 if [ ! -f "$CLIENT_CERT" ]; then
     echo "[Sourceless] Generare identitate unică..."
     
@@ -55,7 +55,7 @@ if [ ! -f "$CLIENT_CERT" ]; then
     rm -f /tmp/client.csr
 fi
 
-# 3. Logica de verificare a integrității (Anti-Tamper & Config Drift)
+# 3. Logica de verificare a integrității
 STATUS="Integru"
 
 CONFIG_DRIFT=$(ostree admin config-diff 2>/dev/null | grep -E "sudoers|profile\.d/sourceless-audit\.sh")
@@ -94,32 +94,23 @@ elif [ "$CMD" = "start_support" ]; then
     
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
-        # 1. Pornim serviciul
+        # 1. Pornește serviciul RustDesk
         systemctl start rustdesk || true
+        sleep 2
         
-        # 2. Interogăm RustDesk în buclă până ne dă parola REALĂ din GUI
-        RUSTDESK_ID=""
-        RUSTDESK_PW=""
+        # 2. Extragere neblocantă (cu timeout strict de 2 secunde)
+        RUSTDESK_ID=$(timeout 2 rustdesk --get-id 2>/dev/null)
+        RUSTDESK_PW=$(timeout 2 rustdesk --get-pw 2>/dev/null)
         
-        for i in {1..8}; do
-            RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null)
-            RUSTDESK_PW=$(rustdesk --get-pw 2>/dev/null)
-            
-            # Dacă CLI-ul simplu nu întoarce parola, încercăm interogarea în numele user-ului grafic
-            if [ -z "$RUSTDESK_PW" ]; then
-                RUSTDESK_PW=$(sudo -u "$USER_NAME" rustdesk --get-pw 2>/dev/null)
-            fi
-            
-            if [ -n "$RUSTDESK_ID" ] && [ -n "$RUSTDESK_PW" ]; then
-                break
-            fi
-            sleep 1
-        done
+        # 3. Fallback direct din fișierele de configurare RustDesk dacă CLI tace
+        if [ -z "$RUSTDESK_PW" ]; then
+            RUSTDESK_PW=$(grep -i 'password' /home/*/.config/rustdesk/*.toml /root/.config/rustdesk/*.toml /etc/rustdesk/*.toml 2>/dev/null | head -n 1 | awk -F'=' '{print $2}' | tr -d ' "')
+        fi
         
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
         [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
-        # 3. Trimitem la Dashboard ID-ul și Parola temporară 100% reale
+        # 4. Trimite IMEDIAT starea la Dashboard (se deblochează garantat butonul)
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
             -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${RUSTDESK_PW}\"}"
