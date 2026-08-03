@@ -115,7 +115,7 @@ HWID=$(cat /sys/class/dmi/id/product_uuid | tr -d '-')
         if [ -n "$USER_ID" ] && [ -d "/run/user/${USER_ID}" ]; then
             USER_ENV="XDG_RUNTIME_DIR=/run/user/${USER_ID} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_ID}/bus DISPLAY=:0"
 
-            RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:8080/api/client/status?hwid=${HWID}")
+            RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:80/api/client/status?hwid=${HWID}")
             CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
             
             if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
