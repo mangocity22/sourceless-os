@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.1 - Restabilită & Corectată (Fix Zenity & Endpoint 404)
+# Versiunea 4.2 - Unconditional Session Cleanup & Reliable Zenity Trigger
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -53,7 +53,7 @@ if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ] || [ ! -f
     logger -t "sourceless-security" -p user.warn "Tamper detected! Critical config changed: $CONFIG_DRIFT"
 fi
 
-# 4. Raportare stare către Dashboard (Preluăm comanda returnată direct de /api/report)
+# 4. Raportare stare către Dashboard
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" "$DASHBOARD_URL")
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
@@ -71,9 +71,12 @@ USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
 [ -z "$USER_ID" ] && USER_ID="1000"
 
 # 6. Executare comenzi de suport remote
-if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
+if [ "$CMD" = "start_support" ]; then
+    # Curățăm din start orice sesiune veche rămasă agățată
+    rm -f /tmp/sourceless_support_active
+    pkill -f zenity 2>/dev/null || true
     
-    # Lansăm Zenity pe sesiunea grafică (cu acces Wayland & X11)
+    # Lansăm Zenity pe sesiunea grafică
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question \
         --title="Sourceless OS // Support Request" \
         --text="An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
@@ -81,14 +84,14 @@ if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
         
         touch /tmp/sourceless_support_active
         systemctl start rustdesk.service
-
+        
+        # Așteptăm 2 secunde ca daemonul IPC RustDesk să devină activ
         sleep 2
         
-        # Generăm o parolă temporară și o injectăm în RustDesk
         RUSTDESK_PW=$(openssl rand -hex 4)
         rustdesk --password "$RUSTDESK_PW" 2>/dev/null || true
+        sleep 1
         
-        # Preluăm ID-ul generat
         RUSTDESK_ID=""
         for i in {1..10}; do
             RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null | tr -d '\r\n')
@@ -98,7 +101,6 @@ if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
         
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
 
-        # Trimitem credențialele înapoi la Dashboard
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
             -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"rustdesk_pw\":\"${RUSTDESK_PW}\", \"status\":\"approved\"}"
@@ -108,9 +110,11 @@ if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
             -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"rustdesk_pw\":\"N/A\", \"status\":\"rejected\"}"
     fi
 
-elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
+elif [ "$CMD" = "stop_support" ]; then
+    # Oprire necondiționată și curățare completă
     rm -f /tmp/sourceless_support_active
-    systemctl stop rustdesk.service
+    systemctl stop rustdesk.service || true
+    pkill -f zenity 2>/dev/null || true
 fi
 
 exit 0
