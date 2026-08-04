@@ -81,6 +81,8 @@ if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
         
         touch /tmp/sourceless_support_active
         systemctl start rustdesk.service
+
+        sleep 2
         
         # Generăm o parolă temporară și o injectăm în RustDesk
         RUSTDESK_PW=$(openssl rand -hex 4)
