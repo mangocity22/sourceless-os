@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 6.0 - Direct Password Injection (Robust & Simple)
+# Restored Original Simple Logic
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -16,14 +16,14 @@ REGISTER_URL=$(echo "$R_B64" | base64 -d)
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
-# 1. Extragere HWID unic original
+# 1. Extragere HWID unic
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
     HWID=$(cat /etc/machine-id)
 fi
 HOSTNAME=$(hostname)
 
-# 2. ÎNROLARE AUTOMATĂ mTLS
+# 2. Înrolare mTLS (dacă e cazul)
 if [ ! -f "$CLIENT_CERT" ]; then
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 2048 2>/dev/null
@@ -31,9 +31,7 @@ if [ ! -f "$CLIENT_CERT" ]; then
     fi
     
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes" 2>/dev/null
-    
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr 2>/dev/null)")
-    
     RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$REGISTER_URL")
     CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))" 2>/dev/null)
     
@@ -52,7 +50,7 @@ if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ] || [ ! -f
     STATUS="Modificat"
 fi
 
-# 4. Raportare stare și preluare comandă
+# 4. Raportare stare și preluare comenzi
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" "$DASHBOARD_URL")
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
@@ -69,24 +67,21 @@ if [ "$CMD" = "clear_tamper" ]; then
 elif [ "$CMD" = "start_support" ]; then
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
-        # A. Pornim RustDesk
+        # A. Pornim serviciul RustDesk
         systemctl start rustdesk || true
-        sleep 1
+        sleep 3
         
-        # B. Generăm o parolă UNICĂ de 8 caractere pentru această sesiune
-        SESSION_PW=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
+        # B. Extragere directă a datelor reale din RustDesk
+        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null)
+        RUSTDESK_PW=$(rustdesk --get-pw 2>/dev/null)
         
-        # C. Injectăm parola direct în RustDesk
-        rustdesk --password "$SESSION_PW" 2>/dev/null || true
-        
-        # D. Extragere ID static
-        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
+        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
-        # E. Trimitem credențialele în Dashboard
+        # C. Trimitem credențialele în Dashboard
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
-            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${SESSION_PW}\"}"
+            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${RUSTDESK_PW}\"}"
             
         touch /var/run/sourceless_support_active
     else
@@ -100,4 +95,4 @@ elif [ "$CMD" = "stop_support" ] && [ -f /var/run/sourceless_support_active ]; t
     systemctl stop rustdesk.service
 fi
 
-exit 0
+e
