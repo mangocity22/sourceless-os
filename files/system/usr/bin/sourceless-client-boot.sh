@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 5.0 - Exact GUI One-Time Password Sync via Clean CLI Environment
+# Versiunea 6.0 - Direct Password Injection (Robust & Simple)
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -16,17 +16,15 @@ REGISTER_URL=$(echo "$R_B64" | base64 -d)
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
-# 1. Extragere HWID unic original (cu cratime)
+# 1. Extragere HWID unic original
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
     HWID=$(cat /etc/machine-id)
 fi
 HOSTNAME=$(hostname)
 
-# 2. ÎNROLARE AUTOMATĂ
+# 2. ÎNROLARE AUTOMATĂ mTLS
 if [ ! -f "$CLIENT_CERT" ]; then
-    echo "[Sourceless] Generare identitate unică..."
-    
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 2048 2>/dev/null
         chmod 600 "$CLIENT_KEY"
@@ -36,84 +34,59 @@ if [ ! -f "$CLIENT_CERT" ]; then
     
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr 2>/dev/null)")
     
-    echo "[Sourceless] Solicitare semnare certificat de la autoritate..."
-    RESPONSE=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "$JSON_PAYLOAD" \
-        "$REGISTER_URL")
-        
+    RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$REGISTER_URL")
     CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))" 2>/dev/null)
     
     if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
         echo "$CERT_DATA" > "$CLIENT_CERT"
         chmod 600 "$CLIENT_CERT"
-        echo "[Sourceless] Înrolare mTLS finalizată cu succes!"
-    else
-        echo "[Sourceless] Eroare critică la înrolare: Certificat invalid primit de la server."
     fi
-    
     rm -f /tmp/client.csr
 fi
 
-# 3. Logica de verificare a integrității
+# 3. Verificare Integritate
 STATUS="Integru"
-
 CONFIG_DRIFT=$(ostree admin config-diff 2>/dev/null | grep -E "sudoers|profile\.d/sourceless-audit\.sh")
 
-if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ]; then
-    STATUS="Modificat"
-    logger -t "sourceless-security" -p user.warn "Tamper detected! Critical config changed: $CONFIG_DRIFT"
-fi
-
-if [ ! -f "$CLIENT_CERT" ]; then
+if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ] || [ ! -f "$CLIENT_CERT" ]; then
     STATUS="Modificat"
 fi
 
-# 4. Raportare stare către Dashboard și preluare comenzi
-RESPONSE=$(curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" \
-    "$DASHBOARD_URL")
-
+# 4. Raportare stare și preluare comandă
+RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" "$DASHBOARD_URL")
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
 USER_NAME=$(who | grep -E '(\:[0-9]|tty[0-9]|wayland)' | awk '{print $1}' | head -n 1)
 [ -z "$USER_NAME" ] && USER_NAME="sourceless"
-
 USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
 [ -z "$USER_ID" ] && USER_ID="1000"
 
 # 5. Executare Comenzi
 if [ "$CMD" = "clear_tamper" ]; then
-    echo "[Sourceless] Comandă de Reinstate recepționată..."
     rm -f /etc/sourceless/.tamper_detected
-    logger -t "sourceless-security" -p user.info "System integrity successfully restored via remote Reinstate command."
+    logger -t "sourceless-security" -p user.info "System integrity restored."
 
 elif [ "$CMD" = "start_support" ]; then
-    echo "[Sourceless] Solicitare suport remote recepționată..."
-    
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
+        # A. Pornim RustDesk
         systemctl start rustdesk || true
-        sleep 3
+        sleep 1
         
-        # Extragem ID-ul și Parola folosind un mediu curat CLI (fără variabile Wayland/DISPLAY)
-        RUSTDESK_ID=$(env -i PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
-        RUSTDESK_PW=$(env -i PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" rustdesk --get-pw 2>/dev/null | tr -d '\r\n ')
+        # B. Generăm o parolă UNICĂ de 8 caractere pentru această sesiune
+        SESSION_PW=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
         
-        # Reîncercare scurtă dacă daemonul încă își inițializa IPC-ul
-        if [ -z "$RUSTDESK_PW" ] || [ "$RUSTDESK_PW" = "N/A" ]; then
-            sleep 2
-            RUSTDESK_ID=$(env -i PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
-            RUSTDESK_PW=$(env -i PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" rustdesk --get-pw 2>/dev/null | tr -d '\r\n ')
-        fi
+        # C. Injectăm parola direct în RustDesk
+        rustdesk --password "$SESSION_PW" 2>/dev/null || true
         
+        # D. Extragere ID static
+        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
-        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
+        # E. Trimitem credențialele în Dashboard
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
-            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${RUSTDESK_PW}\"}"
+            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${SESSION_PW}\"}"
             
         touch /var/run/sourceless_support_active
     else
@@ -123,7 +96,6 @@ elif [ "$CMD" = "start_support" ]; then
     fi
 
 elif [ "$CMD" = "stop_support" ] && [ -f /var/run/sourceless_support_active ]; then
-    echo "[Sourceless] Oprire sesiune de suport..."
     rm -f /var/run/sourceless_support_active
     systemctl stop rustdesk.service
 fi
