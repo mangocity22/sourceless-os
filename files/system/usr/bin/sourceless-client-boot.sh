@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.7 - Clean Regex Filter for RustDesk Flutter Output
+# Versiunea 4.8 - Bulletproof Python Regex for Exact GUI Credentials
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -97,19 +97,16 @@ elif [ "$CMD" = "start_support" ]; then
         systemctl start rustdesk || true
         sleep 3
         
-        # Extragere ID (filtrăm doar cifre și spații)
-        RAW_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-id 2>&1)
-        RUSTDESK_ID=$(echo "$RAW_ID" | grep -E '^[0-9 ]+$' | tr -d '\r\n ')
+        # Extragere ID (extragere curată cu Python a grupului de cifre)
+        RAW_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 4 rustdesk --get-id 2>&1)
+        RUSTDESK_ID=$(echo "$RAW_ID" | python3 -c "import sys, re; m=re.findall(r'\b[0-9]{9}\b', sys.stdin.read()); print(m[-1] if m else '')")
         if [ -z "$RUSTDESK_ID" ]; then
-            RUSTDESK_ID=$(timeout 3 rustdesk --get-id 2>/dev/null | grep -E '^[0-9 ]+$' | tr -d '\r\n ')
+            RUSTDESK_ID=$(timeout 4 rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
         fi
         
-        # Extragere Parolă (filtrăm STRICT linii care au doar 6-10 caractere alfanumerice)
-        RAW_PW=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 3 rustdesk --get-pw 2>&1)
-        RUSTDESK_PW=$(echo "$RAW_PW" | grep -E '^[a-zA-Z0-9]{6,10}$' | tail -n 1 | tr -d '\r\n ')
-        if [ -z "$RUSTDESK_PW" ]; then
-            RUSTDESK_PW=$(timeout 3 rustdesk --get-pw 2>/dev/null | grep -E '^[a-zA-Z0-9]{6,10}$' | tail -n 1 | tr -d '\r\n ')
-        fi
+        # Extragere Parolă (Python scanează tot output-ul și ia ULTIMUL token de 6-8 caractere alfanumerice, adică parola din GUI)
+        RAW_PW=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 4 rustdesk --get-pw 2>&1)
+        RUSTDESK_PW=$(echo "$RAW_PW" | python3 -c "import sys, re; m=re.findall(r'\b[a-zA-Z0-9]{6,8}\b', sys.stdin.read()); print(m[-1] if m else '')")
         
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
         [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
