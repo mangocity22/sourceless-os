@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.8 - Bulletproof Python Regex for Exact GUI Credentials
+# Versiunea 4.9 - Dynamic Per-Session Generated Password
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -95,21 +95,23 @@ elif [ "$CMD" = "start_support" ]; then
     if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
         
         systemctl start rustdesk || true
-        sleep 3
+        sleep 2
         
-        # Extragere ID (extragere curată cu Python a grupului de cifre)
-        RAW_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 4 rustdesk --get-id 2>&1)
+        # Generăm o parolă UNICĂ aleatorie de 6 caractere doar pentru această sesiune
+        RUSTDESK_PW=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 6)
+        
+        # Setează parola în RustDesk pentru sesiunea curentă
+        rustdesk --password "$RUSTDESK_PW" 2>/dev/null || sudo -u "$USER_NAME" rustdesk --password "$RUSTDESK_PW" 2>/dev/null
+        sleep 1
+        
+        # Extragere ID (extragere curată cu Python a grupului de 9 cifre)
+        RAW_ID=$(timeout 4 rustdesk --get-id 2>&1)
         RUSTDESK_ID=$(echo "$RAW_ID" | python3 -c "import sys, re; m=re.findall(r'\b[0-9]{9}\b', sys.stdin.read()); print(m[-1] if m else '')")
         if [ -z "$RUSTDESK_ID" ]; then
-            RUSTDESK_ID=$(timeout 4 rustdesk --get-id 2>/dev/null | tr -d '\r\n ')
+            RUSTDESK_ID=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 4 rustdesk --get-id 2>/dev/null | python3 -c "import sys, re; m=re.findall(r'\b[0-9]{9}\b', sys.stdin.read()); print(m[-1] if m else '')")
         fi
         
-        # Extragere Parolă (Python scanează tot output-ul și ia ULTIMUL token de 6-8 caractere alfanumerice, adică parola din GUI)
-        RAW_PW=$(sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" timeout 4 rustdesk --get-pw 2>&1)
-        RUSTDESK_PW=$(echo "$RAW_PW" | python3 -c "import sys, re; m=re.findall(r'\b[a-zA-Z0-9]{6,8}\b', sys.stdin.read()); print(m[-1] if m else '')")
-        
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
-        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
         
         curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
             -H "Content-Type: application/json" \
