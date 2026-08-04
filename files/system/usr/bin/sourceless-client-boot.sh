@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Restored Original Simple Logic
+# Versiunea 4.1 - Restabilită & Corectată Sintactic
 
 SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
@@ -23,8 +23,9 @@ if [ -z "$HWID" ]; then
 fi
 HOSTNAME=$(hostname)
 
-# 2. Înrolare mTLS (dacă e cazul)
+# 2. ÎNROLARE AUTOMATĂ mTLS
 if [ ! -f "$CLIENT_CERT" ]; then
+    echo "[Sourceless] Generare identitate unică..."
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 2048 2>/dev/null
         chmod 600 "$CLIENT_KEY"
@@ -38,61 +39,94 @@ if [ ! -f "$CLIENT_CERT" ]; then
     if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
         echo "$CERT_DATA" > "$CLIENT_CERT"
         chmod 600 "$CLIENT_CERT"
+        echo "[Sourceless] Înrolare mTLS finalizată cu succes!"
+    else
+        echo "[Sourceless] Eroare critică la înrolare: Certificat invalid."
     fi
     rm -f /tmp/client.csr
 fi
 
-# 3. Verificare Integritate
+# 3. Logica Anti-Tamper & Check
 STATUS="Integru"
 CONFIG_DRIFT=$(ostree admin config-diff 2>/dev/null | grep -E "sudoers|profile\.d/sourceless-audit\.sh")
 
 if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ] || [ ! -f "$CLIENT_CERT" ]; then
     STATUS="Modificat"
+    logger -t "sourceless-security" -p user.warn "Tamper detected! Critical config changed: $CONFIG_DRIFT"
 fi
 
-# 4. Raportare stare și preluare comenzi
+# 4. Raportare stare către Dashboard
 RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" "$DASHBOARD_URL")
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
-USER_NAME=$(who | grep -E '(\:[0-9]|tty[0-9]|wayland)' | awk '{print $1}' | head -n 1)
-[ -z "$USER_NAME" ] && USER_NAME="sourceless"
-USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
-[ -z "$USER_ID" ] && USER_ID="1000"
-
-# 5. Executare Comenzi
 if [ "$CMD" = "clear_tamper" ]; then
+    echo "[Sourceless] Comandă de Reinstate recepționată."
     rm -f /etc/sourceless/.tamper_detected
-    logger -t "sourceless-security" -p user.info "System integrity restored."
-
-elif [ "$CMD" = "start_support" ]; then
-    if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question --text="An administrator would like to initiate a remote support session. Do you approve?" --title="Sourceless-OS Support" --timeout=30; then
-        
-        # A. Pornim serviciul RustDesk
-        systemctl start rustdesk || true
-        sleep 3
-        
-        # B. Extragere directă a datelor reale din RustDesk
-        RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null)
-        RUSTDESK_PW=$(rustdesk --get-pw 2>/dev/null)
-        
-        [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
-        [ -z "$RUSTDESK_PW" ] && RUSTDESK_PW="N/A"
-        
-        # C. Trimitem credențialele în Dashboard
-        curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
-            -H "Content-Type: application/json" \
-            -d "{\"hwid\": \"${HWID}\", \"status\": \"approved\", \"rustdesk_id\": \"${RUSTDESK_ID}\", \"rustdesk_pw\": \"${RUSTDESK_PW}\"}"
-            
-        touch /var/run/sourceless_support_active
-    else
-        curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
-            -H "Content-Type: application/json" \
-            -d "{\"hwid\": \"${HWID}\", \"status\": \"rejected\"}"
-    fi
-
-elif [ "$CMD" = "stop_support" ] && [ -f /var/run/sourceless_support_active ]; then
-    rm -f /var/run/sourceless_support_active
-    systemctl stop rustdesk.service
+    logger -t "sourceless-security" -p user.info "System integrity successfully restored."
 fi
 
-e
+# 5. Detectare sesiune grafică activă și procesare comenzi de suport
+ACTIVE_SESSION=$(loginctl list-sessions --no-legend | grep -v gdm | grep -v sddm | awk '{print $1}' | head -n 1)
+
+IS_LOCKED="true"
+if [ -n "$ACTIVE_SESSION" ]; then
+    SESSION_STATE=$(loginctl show-session "$ACTIVE_SESSION" -p State --value 2>/dev/null)
+    [ "$SESSION_STATE" = "active" ] && IS_LOCKED="false"
+fi
+
+USER_NAME=$(who | grep -E '\(:[0-9]\)|tty[0-9]|wayland' | awk '{print $1}' | head -n 1)
+
+if [ "$IS_LOCKED" = "false" ] && [ -n "$USER_NAME" ]; then
+    USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
+    
+    if [ -n "$USER_ID" ] && [ -d "/run/user/${USER_ID}" ]; then
+        USER_ENV="XDG_RUNTIME_DIR=/run/user/${USER_ID} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_ID}/bus DISPLAY=:0"
+
+        RESPONSE=$(curl -s --max-time 3 "http://${SERVER_IP}:80/api/client/status?hwid=${HWID}")
+        CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('cmd', ''))" 2>/dev/null)
+        
+        if [ "$CMD" = "start_support" ] && [ ! -f /tmp/sourceless_support_active ]; then
+            
+            if command -v zenity >/dev/null 2>&1; then
+                sudo -u "$USER_NAME" env $USER_ENV zenity --question \
+                    --title="Sourceless OS // Support Request" \
+                    --text="An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
+                    --width=400 --timeout=30
+                STATUS_CODE=$?
+            else
+                STATUS_CODE=1
+            fi
+
+            if [ $STATUS_CODE -eq 0 ]; then
+                touch /tmp/sourceless_support_active
+                systemctl start rustdesk.service
+                
+                RUSTDESK_PW=$(openssl rand -hex 4)
+                rustdesk --password "$RUSTDESK_PW" 2>/dev/null
+                
+                RUSTDESK_ID=""
+                for i in {1..10}; do
+                    RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null | tr -d '\r\n')
+                    [ -n "$RUSTDESK_ID" ] && [ "$RUSTDESK_ID" != "N/A" ] && break
+                    sleep 1
+                done
+                
+                [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
+
+                curl -s -X POST "http://${SERVER_IP}:80/api/client/submit_credentials" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"rustdesk_pw\":\"${RUSTDESK_PW}\", \"status\":\"approved\"}"
+            else
+                curl -s -X POST "http://${SERVER_IP}:80/api/client/submit_credentials" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"rustdesk_pw\":\"N/A\", \"status\":\"rejected\"}"
+            fi
+
+        elif [ "$CMD" = "stop_support" ] && [ -f /tmp/sourceless_support_active ]; then
+            rm -f /tmp/sourceless_support_active
+            systemctl stop rustdesk.service
+        fi
+    fi
+fi
+
+exit 0
