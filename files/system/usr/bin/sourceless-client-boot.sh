@@ -5,7 +5,7 @@
 CERT_DIR="/etc/sourceless/certs"
 CLIENT_KEY="$CERT_DIR/client.key"
 CLIENT_CERT="$CERT_DIR/client.crt"
-CLIENT_SECRET="SourcelessClientAuth2026SecretKey!"
+TOKEN_FILE="$CERT_DIR/client.token"
 
 # Endpoints encodate Base64 (edges-sticky-clubs-implemented.trycloudflare.com)
 D_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL3JlcG9ydA=="
@@ -26,8 +26,8 @@ if [ -z "$HWID" ]; then
 fi
 HOSTNAME=$(hostname)
 
-# 2. ÎNROLARE AUTOMATĂ mTLS
-if [ ! -f "$CLIENT_CERT" ]; then
+# 2. ÎNROLARE AUTOMATĂ mTLS & Generare Token
+if [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; then
     echo "[Sourceless] Generare identitate unică..."
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 2048 2>/dev/null
@@ -36,16 +36,26 @@ if [ ! -f "$CLIENT_CERT" ]; then
     
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes" 2>/dev/null
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr 2>/dev/null)")
+    
     RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$REGISTER_URL")
+    
     CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))" 2>/dev/null)
+    TOKEN_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('token', ''))" 2>/dev/null)
     
     if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
         echo "$CERT_DATA" > "$CLIENT_CERT"
         chmod 600 "$CLIENT_CERT"
-        echo "[Sourceless] Înrolare mTLS finalizată cu succes!"
+    fi
+    
+    if [ -n "$TOKEN_DATA" ]; then
+        echo "$TOKEN_DATA" > "$TOKEN_FILE"
+        chmod 600 "$TOKEN_FILE"
+        echo "[Sourceless] Înrolare și token salvate cu succes!"
     fi
     rm -f /tmp/client.csr
 fi
+
+CLIENT_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
 
 # 3. Logica Anti-Tamper & Check
 STATUS="Integru"
@@ -59,7 +69,7 @@ fi
 # 4. Raportare stare către Dashboard (Cu Token Auth)
 RESPONSE=$(curl -s -X POST "$DASHBOARD_URL" \
     -H "Content-Type: application/json" \
-    -H "X-Sourceless-Token: $CLIENT_SECRET" \
+    -H "X-Sourceless-Token: $CLIENT_TOKEN" \
     -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}")
 
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
@@ -110,12 +120,12 @@ if [ "$CMD" = "start_support" ]; then
 
         curl -s -X POST "$SUBMIT_URL" \
             -H "Content-Type: application/json" \
-            -H "X-Sourceless-Token: $CLIENT_SECRET" \
+            -H "X-Sourceless-Token: $CLIENT_TOKEN" \
             -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"rustdesk_pw\":\"${RUSTDESK_PW}\", \"status\":\"approved\"}"
     else
         curl -s -X POST "$SUBMIT_URL" \
             -H "Content-Type: application/json" \
-            -H "X-Sourceless-Token: $CLIENT_SECRET" \
+            -H "X-Sourceless-Token: $CLIENT_TOKEN" \
             -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"rustdesk_pw\":\"N/A\", \"status\":\"rejected\"}"
     fi
 
