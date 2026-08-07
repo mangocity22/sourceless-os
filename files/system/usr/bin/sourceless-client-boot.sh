@@ -1,17 +1,20 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Versiunea 4.2 - Unconditional Session Cleanup & Reliable Zenity Trigger
+# Versiunea 4.3 - Cloudflare Tunnel HTTPS & Token Authentication
 
-SERVER_IP="192.168.1.157"
 CERT_DIR="/etc/sourceless/certs"
 CLIENT_KEY="$CERT_DIR/client.key"
 CLIENT_CERT="$CERT_DIR/client.crt"
+CLIENT_SECRET="SourcelessClientAuth2026SecretKey!"
 
-D_B64="aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlcG9ydA=="
-R_B64="aHR0cDovLzE5Mi4xNjguMS4xNTcvYXBpL3JlZ2lzdGVy"
+# Endpoints encodate Base64 (edges-sticky-clubs-implemented.trycloudflare.com)
+D_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL3JlcG9ydA=="
+R_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL3JlZ2lzdGVy"
+S_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL2NsaWVudC9zdWJtaXRfY3JlZGVudGlhbHM="
 
 DASHBOARD_URL=$(echo "$D_B64" | base64 -d)
 REGISTER_URL=$(echo "$R_B64" | base64 -d)
+SUBMIT_URL=$(echo "$S_B64" | base64 -d)
 
 mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
@@ -53,8 +56,12 @@ if [ -n "$CONFIG_DRIFT" ] || [ -f "/etc/sourceless/.tamper_detected" ] || [ ! -f
     logger -t "sourceless-security" -p user.warn "Tamper detected! Critical config changed: $CONFIG_DRIFT"
 fi
 
-# 4. Raportare stare către Dashboard
-RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}" "$DASHBOARD_URL")
+# 4. Raportare stare către Dashboard (Cu Token Auth)
+RESPONSE=$(curl -s -X POST "$DASHBOARD_URL" \
+    -H "Content-Type: application/json" \
+    -H "X-Sourceless-Token: $CLIENT_SECRET" \
+    -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}")
+
 CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
 if [ "$CMD" = "clear_tamper" ]; then
@@ -101,12 +108,14 @@ if [ "$CMD" = "start_support" ]; then
         
         [ -z "$RUSTDESK_ID" ] && RUSTDESK_ID="N/A"
 
-        curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
+        curl -s -X POST "$SUBMIT_URL" \
             -H "Content-Type: application/json" \
+            -H "X-Sourceless-Token: $CLIENT_SECRET" \
             -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"${RUSTDESK_ID}\", \"rustdesk_pw\":\"${RUSTDESK_PW}\", \"status\":\"approved\"}"
     else
-        curl -s -X POST "http://${SERVER_IP}/api/client/submit_credentials" \
+        curl -s -X POST "$SUBMIT_URL" \
             -H "Content-Type: application/json" \
+            -H "X-Sourceless-Token: $CLIENT_SECRET" \
             -d "{\"hwid\":\"${HWID}\", \"rustdesk_id\":\"N/A\", \"rustdesk_pw\":\"N/A\", \"status\":\"rejected\"}"
     fi
 
