@@ -30,6 +30,7 @@ jobs:
             -v ./output:/output \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type iso \
+            --rootfs ext4 \
             ghcr.io/${{ github.repository_owner }}/sourceless-os:latest
 
       - name: Upload ISO Artifact
