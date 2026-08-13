@@ -14,15 +14,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to GHCR and create auth file
+      - name: Log in to GHCR with sudo
         run: |
-          podman login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} --authfile ./auth.json
+          sudo podman login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Target OS Image
+        run: |
+          sudo podman pull ghcr.io/${{ github.repository_owner }}/sourceless-os:latest
 
       - name: Build ISO with Bootc Image Builder
         run: |
           mkdir -p output
           sudo podman run --rm --privileged \
-            -v ./auth.json:/run/containers/0/auth.json:ro \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             -v ./output:/output \
             quay.io/centos-bootc/bootc-image-builder:latest \
