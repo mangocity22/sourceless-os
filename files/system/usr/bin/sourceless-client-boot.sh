@@ -7,10 +7,10 @@ CLIENT_KEY="$CERT_DIR/client.key"
 CLIENT_CERT="$CERT_DIR/client.crt"
 TOKEN_FILE="$CERT_DIR/client.token"
 
-# Endpoints encodate Base64 (edges-sticky-clubs-implemented.trycloudflare.com)
-D_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL3JlcG9ydA=="
-R_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL3JlZ2lzdGVy"
-S_B64="aHR0cHM6Ly9lZGdlcy1zdGlja3ktY2x1YnMtaW1wbGVtZW50ZWQudHJ5Y2xvdWRmbGFyZS5jb20vYXBpL2NsaWVudC9zdWJtaXRfY3JlZGVudGlhbHM="
+# Endpoints encodate Base64 (api.srcdev.site)
+D_B64="aHR0cHM6Ly9hcGkuc3JjZGV2LnNpdGUvYXBpL3JlcG9ydA=="
+R_B64="aHR0cHM6Ly9hcGkuc3JjZGV2LnNpdGUvYXBpL3JlZ2lzdGVy"
+S_B64="aHR0cHM6Ly9hcGkuc3JjZGV2LnNpdGUvYXBpL2NsaWVudC9zdWJtaXRfY3JlZGVudGlhbHM="
 
 DASHBOARD_URL=$(echo "$D_B64" | base64 -d)
 REGISTER_URL=$(echo "$R_B64" | base64 -d)
