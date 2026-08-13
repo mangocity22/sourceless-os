@@ -1,0 +1,18 @@
+# /etc/audit/rules.d/sourceless.rules
+# Regulile de securitate Kernel pentru Sourceless-OS
+
+# 1. Ștergem orice reguli vechi la pornire
+-D
+
+# 2. Setăm dimensiunea buffer-ului
+-b 8192
+
+# 3. Înregistrăm absolut orice executare de program (execve) inițiată de utilizatori (UID >= 1000)
+-a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=4294967295 -k sourceless_exec
+-a always,exit -F arch=b32 -S execve -F auid>=1000 -F auid!=4294967295 -k sourceless_exec
+
+# 4. Monitorizăm orice tentativă de modificare a fișierelor de securitate Sourceless
+-w /etc/sourceless/ -p wa -k sourceless_tamper
+-w /etc/sudoers -p wa -k sourceless_tamper
+-w /etc/sudoers.d/ -p wa -k sourceless_tamper
+-w /etc/profile.d/ -p wa -k sourceless_tamper

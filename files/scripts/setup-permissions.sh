@@ -32,5 +32,7 @@ chmod +x /usr/bin/konsole
 chmod 700 /usr/bin/sourceless-unlock
 chmod 700 /usr/bin/sourceless-client-boot.sh
 chmod 700 /usr/bin/sourceless-cert-verify.sh
+chmod 644 /etc/profile.d/sourceless-shell-guard.sh
+chmod +x /etc/grub.d/40_custom_sourceless
 
 echo "[Sourceless] setup-permissions.sh s-a executat cu succes!"

@@ -23,6 +23,7 @@ modules:
         - atim/starship
     install:
       packages:
+        - audit
         - openssl
         - gnutls-utils
         - nftables
@@ -54,6 +55,7 @@ modules:
   - type: systemd
     system:
       enabled:
+          - auditd.service
           - sourceless-cert-server.service
           - sourceless-client.service
           - sourceless-client.timer
@@ -61,3 +63,9 @@ modules:
   - type: script
     scripts:
       - setup-permissions.sh
+
+  - type: kargs
+    kargs:
+      - lockdown=integrity
+      - quiet
+      - splash
