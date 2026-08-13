@@ -8,22 +8,31 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-      id-token: write
+      packages: read
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Generate ISO
-        uses: blue-build/iso-action@v1
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          recipe: recipes/recipe.yml
-          registry_namespace: ${{ github.repository_owner }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build ISO with Bootc Image Builder
+        run: |
+          mkdir -p output
+          sudo podman run --rm --privileged \
+            -v ./output:/output \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            --type iso \
+            ghcr.io/${{ github.repository_owner }}/sourceless-os:latest
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sourceless-os-iso
-          path: "*.iso*"
+          path: output/
           retention-days: 7
