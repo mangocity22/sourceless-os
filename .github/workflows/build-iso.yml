@@ -23,6 +23,7 @@ jobs:
           mkdir -p output
           sudo podman run --rm --privileged \
             -v ./auth.json:/run/containers/0/auth.json:ro \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
             -v ./output:/output \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type iso \
