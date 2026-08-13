@@ -1,0 +1,35 @@
+name: Build ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-iso.yml'
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate ISO
+        uses: blue-build/github-action@v1
+        with:
+          recipe: recipes/recipe.yml
+          generate_iso: true
+          registry_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload ISO Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sourceless-os-iso
+          path: "*.iso"
+          retention-days: 7
