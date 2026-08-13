@@ -14,17 +14,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR with Podman
+        run: |
+          sudo podman login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build ISO with Bootc Image Builder
         run: |
           mkdir -p output
           sudo podman run --rm --privileged \
+            -v /run/containers/0/auth.json:/run/containers/0/auth.json:ro \
             -v ./output:/output \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type iso \
