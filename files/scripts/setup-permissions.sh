@@ -28,11 +28,28 @@ EOF
 # Ne asigurăm că scriptul capcană are drepturi de execuție
 chmod +x /usr/bin/konsole
 
-# Forțăm drepturile de execuție pentru toate scripturile administrative Sourceless
+# Drepturi stricte: doar root poate citi și executa scripturile interne
 chmod 700 /usr/bin/sourceless-unlock
 chmod 700 /usr/bin/sourceless-client-boot.sh
 chmod 700 /usr/bin/sourceless-cert-verify.sh
 chmod 644 /etc/profile.d/sourceless-shell-guard.sh
 chmod +x /etc/grub.d/40_custom_sourceless
+
+# Permisiuni pe regulile de securitate și sudoers
+chmod 0440 /etc/sudoers.d/sourceless-lockdown
+chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules
+
+# Activare servicii de sistem
+systemctl enable sourceless-client.service
+systemctl enable sourceless-cert-server.service
+
+# Dezactivare servicii de rețea neutilizate (KDE Connect)
+systemctl --global mask kdeconnectd.service 2>/dev/null || true
+
+# Scoate utilizatorul din grupul wheel (administratori)
+if id "sourceless" &>/dev/null; then
+    gpasswd -d sourceless wheel 2>/dev/null || true
+    usermod -g sourceless -G users sourceless
+fi
 
 echo "[Sourceless] setup-permissions.sh s-a executat cu succes!"

@@ -36,7 +36,7 @@ fi
 # 2. Lansare server de ascultare TLS cu verificare reciproca (mTLS)
 echo "[Sourceless] Serverul de verificare certificate porneste pe portul $PORT..."
 # Utilizam utilitarul nativ OpenSSL s_server pentru a asculta conexiunile nodurilor
-openssl s_server -accept $PORT \
+openssl s_server -accept 127.0.0.1:8443 \
     -cert "$CERT_DIR/server.crt" \
     -key "$CERT_DIR/server.key" \
     -CAfile "$CERT_DIR/ca.crt" \

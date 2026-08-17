@@ -1,0 +1,11 @@
+/* /etc/polkit-1/rules.d/10-sourceless-security.rules */
+/* Blocheaza utilizatorii non-root sa opreasca sau sa reporneasca servicii systemd via D-Bus */
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.systemd1.manage-units") === 0 ||
+        action.id.indexOf("org.freedesktop.systemd1.manage-unit-files") === 0 ||
+        action.id.indexOf("org.freedesktop.systemd1.reload-daemon") === 0) {
+        if (!subject.isInGroup("root")) {
+            return polkit.Result.NO;
+        }
+    }
+});

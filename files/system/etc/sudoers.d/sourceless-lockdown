@@ -1,5 +1,2 @@
-# Blochează accesul implicit de sudo pentru grupul wheel (folosind !ALL)
-%wheel ALL=(ALL) !ALL
-
-# Permite utilizatorilor din grupul wheel să ruleze DOAR scriptul de deblocare ca root, fără parolă
-%wheel ALL=(ALL) NOPASSWD: /usr/bin/sourceless-unlock
+# Permite utilizatorului sourceless sa ruleze DOAR scriptul de deblocare ca root, fara parola
+sourceless ALL=(root) NOPASSWD: /usr/bin/sourceless-unlock

@@ -1,0 +1,8 @@
+[KDE Action Restrictions][$i]
+run_command=false
+shell_access=false
+action/launch_feedback=false
+
+[KDE URL Restrictions][$i]
+rule_count=1
+rule_1=open,file,,,none

@@ -1,13 +1,12 @@
 [Unit]
-Description=Sourceless-OS Client HWID Heartbeat & Security Agent
+Description=Sourceless-OS Client HWID Heartbeat Agent
 After=network-online.target
-Wants=network-online.target
 
 [Service]
-Type=oneshot
+Type=simple
 ExecStart=/usr/bin/bash /usr/bin/sourceless-client-boot.sh
-RemainAfterExit=no
-TimeoutStartSec=45
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

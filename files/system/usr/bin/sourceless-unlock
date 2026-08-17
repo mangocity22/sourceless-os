@@ -29,6 +29,7 @@ read -s -p "Enter Today's Support Authorization Key: " USER_KEY
 echo ""
 
 if [ "$USER_KEY" != "$GENERATED_KEY" ]; then
+    sleep 3
     echo "[-] Invalid Authorization Key. Access Denied."
     logger -t "sourceless-security" -p user.err "FAILED SUPPORT UNLOCK ATTEMPT - Wrong Dynamic Key"
     exit 1
