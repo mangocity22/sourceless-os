@@ -136,9 +136,17 @@ while true; do
 
     # Procesare: Stop Support Session
     elif [ "$CMD" = "stop_support" ]; then
-        rm -f /tmp/sourceless_support_active
+        rm -f /tmp/sourceless_support_active /tmp/.sourceless_support_active
+        killall -9 konsole 2>/dev/null || true
+        pkill -u sourceless -f "/usr/bin/konsole" 2>/dev/null || true
         systemctl stop rustdesk.service || true
         pkill -f zenity 2>/dev/null || true
+
+       if [ -n "$USER_DISPLAY" ]; then
+            sudo -u sourceless DISPLAY="$USER_DISPLAY" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus" \
+                kdialog --title "Sourceless Support" --passivepopup "Remote support session has been terminated." 5 2>/dev/null || true
+        fi
+
     fi
 
     # Pauză de 5 secunde între verificări
