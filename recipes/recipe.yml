@@ -58,7 +58,6 @@ modules:
           - auditd.service
           - sourceless-cert-server.service
           - sourceless-client.service
-          - sourceless-client.timer
 
   - type: script
     scripts:
