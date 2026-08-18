@@ -1,8 +1,10 @@
 [KDE Action Restrictions][$i]
 run_command=false
 shell_access=false
-action/launch_feedback=false
+action/open_with=false
+action/run_command=false
+action/properties=false
 
 [KDE URL Restrictions][$i]
 rule_count=1
-rule_1=open,file,,,none
+rule_1=none,none,file,$HOME,false

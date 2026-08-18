@@ -52,4 +52,16 @@ if id "sourceless" &>/dev/null; then
     usermod -g sourceless -G users sourceless
 fi
 
+# ==============================================================================
+# Security: Lock down user autostart directory to prevent local persistence
+# ==============================================================================
+mkdir -p /etc/skel/.config/autostart
+chmod 555 /etc/skel/.config/autostart
+
+if [ -d "/var/home/sourceless" ]; then
+    mkdir -p /var/home/sourceless/.config/autostart
+    chown root:root /var/home/sourceless/.config/autostart
+    chmod 555 /var/home/sourceless/.config/autostart
+fi
+
 echo "[Sourceless] setup-permissions.sh s-a executat cu succes!"
