@@ -30,15 +30,16 @@ jobs:
           IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "IMAGE_NAME=ghcr.io/${IMAGE_OWNER}/sourceless-os:latest" >> $GITHUB_ENV
 
-      # 3. Authenticate with GHCR
+      # 3. Authenticate with GHCR using an explicit authfile path
       - name: Log in to GHCR
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          sudo mkdir -p /root/.config/containers
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin --authfile /root/.config/containers/auth.json
 
       # 4. Pull target OS image
       - name: Pull Target OS Image
         run: |
-          sudo podman pull "$IMAGE_NAME"
+          sudo podman pull --authfile /root/.config/containers/auth.json "$IMAGE_NAME"
 
       # 5. Build bootable interactive ISO with Bootc Image Builder
       - name: Build ISO with Bootc Image Builder
@@ -46,8 +47,8 @@ jobs:
           mkdir -p output
           sudo podman run --rm --privileged \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
-            -v ./output:/output \
-            -v ./installer-config.toml:/config.toml:ro \
+            -v "$(pwd)/output":/output \
+            -v "$(pwd)/installer-config.toml":/config.toml:ro \
             -v /root/.config/containers/auth.json:/root/.config/containers/auth.json:ro \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type iso \
