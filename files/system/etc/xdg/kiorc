@@ -1,0 +1,5 @@
+[Executable scripts][$i]
+behaviourOnLaunch=alwaysAsk
+
+[Confirmations][$i]
+ConfirmExecute=true

@@ -20,21 +20,22 @@ mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
 # ==============================================================================
-# Runtime Security: Enforce directory restrictions on user home
+# Runtime Security: One-time boot restrictions for user profile
 # ==============================================================================
 USER_HOME="/var/home/sourceless"
 
 if [ -d "$USER_HOME" ]; then
-    # 1. Lock down autostart directory
+    # 1. Lock down autostart directory to prevent unauthorized startup persistence
     mkdir -p "$USER_HOME/.config/autostart"
     rm -rf "$USER_HOME/.config/autostart/"*
     chown root:root "$USER_HOME/.config/autostart"
     chmod 555 "$USER_HOME/.config/autostart"
 
-    # 2. Block direct script execution from Desktop by restricting execute permissions
-    if [ -d "$USER_HOME/Desktop" ]; then
-        chmod -R -x+X "$USER_HOME/Desktop" 2>/dev/null || true
-    fi
+    # 2. Lock down local applications directory
+    mkdir -p "$USER_HOME/.local/share/applications"
+    rm -rf "$USER_HOME/.local/share/applications/"*
+    chown root:root "$USER_HOME/.local/share/applications"
+    chmod 555 "$USER_HOME/.local/share/applications"
 fi
 
 # ==============================================================================
