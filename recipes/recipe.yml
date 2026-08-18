@@ -56,7 +56,6 @@ modules:
     system:
       enabled:
           - auditd.service
-          - sourceless-cert-server.service
           - sourceless-client.service
 
   - type: script
