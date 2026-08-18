@@ -8,34 +8,58 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+      packages: write
+      id-token: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to GHCR with sudo
+      # 1. Maximize disk space on GitHub Runner
+      - name: Free Disk Space
         run: |
-          sudo podman login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker image prune --all --force 2>/dev/null || true
 
+      # 2. Normalize repository owner to lowercase for GHCR compatibility
+      - name: Set Image Name
+        run: |
+          IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=ghcr.io/${IMAGE_OWNER}/sourceless-os:latest" >> $GITHUB_ENV
+
+      # 3. Authenticate with GHCR
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # 4. Pull target OS image
       - name: Pull Target OS Image
         run: |
-          sudo podman pull ghcr.io/${{ github.repository_owner }}/sourceless-os:latest
+          sudo podman pull "$IMAGE_NAME"
 
+      # 5. Build bootable interactive ISO with Bootc Image Builder
       - name: Build ISO with Bootc Image Builder
         run: |
           mkdir -p output
           sudo podman run --rm --privileged \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             -v ./output:/output \
+            -v ./installer-config.toml:/config.toml:ro \
+            -v /root/.config/containers/auth.json:/root/.config/containers/auth.json:ro \
             quay.io/centos-bootc/bootc-image-builder:latest \
             --type iso \
             --rootfs ext4 \
-            ghcr.io/${{ github.repository_owner }}/sourceless-os:latest
+            --config /config.toml \
+            "$IMAGE_NAME"
 
+      # 6. Upload generated ISO artifact
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sourceless-os-iso
-          path: output/
+          path: output/bootiso/install.iso
           retention-days: 7
+          if-no-files-found: warn

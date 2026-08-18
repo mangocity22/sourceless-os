@@ -1,0 +1,13 @@
+[customizations.installer.kickstart]
+contents = """
+# Enable standard interactive graphical installation
+graphical
+
+# Default localization settings (customizable during setup)
+lang en_US.UTF-8
+keyboard us
+timezone UTC
+
+# Disable unattended wiping and auto-partitioning
+# Anaconda will stop and require the user to explicitly select the target drive
+"""
