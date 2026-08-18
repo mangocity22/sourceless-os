@@ -20,6 +20,24 @@ mkdir -p "$CERT_DIR"
 chmod 700 "$CERT_DIR"
 
 # ==============================================================================
+# Runtime Security: Enforce directory restrictions on user home
+# ==============================================================================
+USER_HOME="/var/home/sourceless"
+
+if [ -d "$USER_HOME" ]; then
+    # 1. Lock down autostart directory
+    mkdir -p "$USER_HOME/.config/autostart"
+    rm -rf "$USER_HOME/.config/autostart/"*
+    chown root:root "$USER_HOME/.config/autostart"
+    chmod 555 "$USER_HOME/.config/autostart"
+
+    # 2. Block direct script execution from Desktop by restricting execute permissions
+    if [ -d "$USER_HOME/Desktop" ]; then
+        chmod -R -x+X "$USER_HOME/Desktop" 2>/dev/null || true
+    fi
+fi
+
+# ==============================================================================
 # 1. INIȚIALIZARE ONE-TIME LA PORNIRE (HWID & ÎNROLARE TOKEN)
 # ==============================================================================
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)

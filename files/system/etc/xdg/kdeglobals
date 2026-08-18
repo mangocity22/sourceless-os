@@ -1,10 +1,12 @@
 [KDE Action Restrictions][$i]
 run_command=false
 shell_access=false
-action/open_with=false
+run_executable=false
 action/run_command=false
+action/system_run_command=false
+action/open_with=false
 action/properties=false
-
+action/open_terminal_here=false
 [KDE URL Restrictions][$i]
 rule_count=1
 rule_1=none,none,file,$HOME,false

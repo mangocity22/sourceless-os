@@ -1,0 +1,5 @@
+[Default Applications]
+application/x-desktop=org.kde.kwrite.desktop
+
+[Added Associations]
+application/x-desktop=org.kde.kwrite.desktop;
