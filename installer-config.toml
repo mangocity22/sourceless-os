@@ -1,13 +1,11 @@
 [customizations.installer.kickstart]
 contents = """
-# Enable standard interactive graphical installation
+# Enable graphical target drive selection only
 graphical
 
-# Default localization settings (customizable during setup)
-lang en_US.UTF-8
-keyboard us
-timezone UTC
+# Lock root account permanently
+rootpw --lock
 
-# Disable unattended wiping and auto-partitioning
-# Anaconda will stop and require the user to explicitly select the target drive
+# Delegate user creation and localization to first boot setup wizard
+firstboot --reconfig
 """

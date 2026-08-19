@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Version 6.1 - Hardware-Bound Integrity Agent with Network-Resilient Enrollment
+# Version 6.2 - Dynamic User Support, Live Hostname Resolution & Resilient Enrollment
 
 CERT_DIR="/etc/sourceless/certs"
 CLIENT_KEY="$CERT_DIR/client.key"
@@ -23,30 +23,35 @@ mkdir -p /etc/sourceless
 chmod 700 "$CERT_DIR"
 
 # ==============================================================================
-# Runtime Security: Restrict persistence paths inside user profile
+# 1. DYNAMIC USER SECURITY & WHEEL STRIPPING
 # ==============================================================================
-USER_HOME="/var/home/sourceless"
+# Strip administrative (wheel) privileges from all standard users (UID >= 1000)
+for u in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
+    gpasswd -d "$u" wheel 2>/dev/null || true
+done
 
-if [ -d "$USER_HOME" ]; then
-    mkdir -p "$USER_HOME/.config/autostart"
-    rm -rf "$USER_HOME/.config/autostart/"*
-    chown root:root "$USER_HOME/.config/autostart"
-    chmod 555 "$USER_HOME/.config/autostart"
+# Secure persistence paths for all existing user home directories
+for user_home in /var/home/* /home/*; do
+    if [ -d "$user_home" ] && [ "$(basename "$user_home")" != "*" ]; then
+        mkdir -p "$user_home/.config/autostart"
+        rm -rf "$user_home/.config/autostart/"*
+        chown root:root "$user_home/.config/autostart" 2>/dev/null || true
+        chmod 555 "$user_home/.config/autostart" 2>/dev/null || true
 
-    mkdir -p "$USER_HOME/.local/share/applications"
-    rm -rf "$USER_HOME/.local/share/applications/"*
-    chown root:root "$USER_HOME/.local/share/applications"
-    chmod 555 "$USER_HOME/.local/share/applications"
-fi
+        mkdir -p "$user_home/.local/share/applications"
+        rm -rf "$user_home/.local/share/applications/"*
+        chown root:root "$user_home/.local/share/applications" 2>/dev/null || true
+        chmod 555 "$user_home/.local/share/applications" 2>/dev/null || true
+    fi
+done
 
 # ==============================================================================
-# 1. HARDWARE IDENTIFICATION & RESILIENT ENROLLMENT LOOP
+# 2. HARDWARE IDENTIFICATION & RESILIENT ENROLLMENT LOOP
 # ==============================================================================
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
     HWID=$(cat /etc/machine-id)
 fi
-HOSTNAME=$(hostname)
 
 # Persist initial hardware signature on first boot (Hardware Binding)
 if [ ! -f "$HWID_FILE" ]; then
@@ -54,16 +59,17 @@ if [ ! -f "$HWID_FILE" ]; then
     chmod 600 "$HWID_FILE"
 fi
 
-# Resilient enrollment loop: Retries until certificate and token are acquired
+# Resilient enrollment loop: retries continuously until network is up and token received
 while [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; do
-    echo "[Sourceless] Attempting cryptographic enrollment with backend..."
+    INITIAL_HOSTNAME=$(hostnamectl --static 2>/dev/null || hostname 2>/dev/null || echo "sourceless-node")
+    echo "[Sourceless] Attempting cryptographic enrollment with backend ($INITIAL_HOSTNAME)..."
     
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 2048 2>/dev/null
         chmod 600 "$CLIENT_KEY"
     fi
     
-    openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes" 2>/dev/null
+    openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$INITIAL_HOSTNAME/O=SourcelessNodes" 2>/dev/null
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr 2>/dev/null)")
     
     RESPONSE=$(curl -s -m 5 -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$REGISTER_URL")
@@ -88,74 +94,76 @@ done
 echo "[Sourceless] Security and heartbeat agent initialized."
 
 # ==============================================================================
-# 2. CONTINUOUS HEARTBEAT & INTEGRITY AUDIT LOOP
+# 3. CONTINUOUS HEARTBEAT & INTEGRITY AUDIT LOOP
 # ==============================================================================
 while true; do
     CLIENT_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
+    
+    # Live resolution of current hostname on every single heartbeat
+    CURRENT_HOSTNAME=$(hostnamectl --static 2>/dev/null || hostname 2>/dev/null || cat /etc/hostname 2>/dev/null || echo "sourceless-node")
+    [ -z "$CURRENT_HOSTNAME" ] && CURRENT_HOSTNAME="sourceless-node"
 
     # --- ACTIVE INTEGRITY & TAMPER VERIFICATION ---
-    
-    # 1. Hardware binding verification
     ENROLLED_HWID=$(cat "$HWID_FILE" 2>/dev/null)
     if [ -n "$ENROLLED_HWID" ] && [ "$HWID" != "$ENROLLED_HWID" ]; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.err "Tamper detected: Motherboard UUID mismatch! Expected $ENROLLED_HWID, found $HWID"
     fi
 
-    # 2. SELinux enforcement verification
     if [ "$(getenforce 2>/dev/null)" != "Enforcing" ]; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.err "Tamper detected: SELinux policy is not Enforcing!"
     fi
 
-    # 3. Critical configuration drift audit (/etc)
     CONFIG_DRIFT=$(ostree admin config-diff 2>/dev/null | grep -E "sudoers|profile\.d/sourceless-audit\.sh")
     if [ -n "$CONFIG_DRIFT" ]; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.warn "Tamper detected! Critical configuration modified: $CONFIG_DRIFT"
     fi
 
-    # 4. OSTree layer audit
     if rpm-ostree status --json 2>/dev/null | grep -qE '"requested-local-packages":\s*\[[^]]+\]|"unlocked":\s*"transient"'; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.err "Tamper detected: Unauthorized OSTree local overlay or package detected!"
     fi
 
-    # --- EVALUATE STATUS ---
+    # --- STATUS DETERMINATION ---
     if [ -f "$TAMPER_FLAG" ] || [ ! -f "$CLIENT_CERT" ]; then
         STATUS="Modificat"
     else
         STATUS="Integru"
     fi
 
-    # Dispatch heartbeat payload
+    # Dispatch dynamic heartbeat payload
     RESPONSE=$(curl -s -m 4 -X POST "$DASHBOARD_URL" \
         -H "Content-Type: application/json" \
         -H "X-Sourceless-Token: $CLIENT_TOKEN" \
-        -d "{\"hwid\":\"$HWID\", \"hostname\":\"$HOSTNAME\", \"status\":\"$STATUS\"}")
+        -d "{\"hwid\":\"$HWID\", \"hostname\":\"$CURRENT_HOSTNAME\", \"status\":\"$STATUS\"}")
 
     CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
-    # --- COMMAND PROCESSING: REINSTATE ---
+    # --- COMMAND: REINSTATE ---
     if [ "$CMD" = "clear_tamper" ]; then
-        echo "[Sourceless] Reinstate command received. Restoring system warranty status..."
         rm -f "$TAMPER_FLAG"
         echo "$HWID" > "$HWID_FILE"
         logger -t "sourceless-security" -p user.info "System integrity successfully restored via Reinstate command."
     fi
 
-    # --- COMMAND PROCESSING: REMOTE SUPPORT (RUSTDESK) ---
-    USER_NAME=$(who | grep -E '(:[0-9]|tty[0-9]|wayland)' | awk '{print $1}' | head -n 1)
-    [ -z "$USER_NAME" ] && USER_NAME="sourceless"
+    # --- DYNAMIC ACTIVE USER DETECTION FOR SUPPORT ---
+    ACTIVE_USER=$(who | grep -E '(:[0-9]|tty[0-9]|wayland)' | awk '{print $1}' | head -n 1)
+    if [ -z "$ACTIVE_USER" ]; then
+        ACTIVE_USER=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd)
+    fi
+    [ -z "$ACTIVE_USER" ] && ACTIVE_USER="sourceless"
 
-    USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
-    [ -z "$USER_ID" ] && USER_ID="1000"
+    ACTIVE_UID=$(id -u "$ACTIVE_USER" 2>/dev/null)
+    [ -z "$ACTIVE_UID" ] && ACTIVE_UID="1000"
 
+    # --- COMMAND: REMOTE SUPPORT (RUSTDESK) ---
     if [ "$CMD" = "start_support" ]; then
         rm -f /tmp/sourceless_support_active
         pkill -f zenity 2>/dev/null || true
         
-        if sudo -u "$USER_NAME" WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_RUNTIME_DIR="/run/user/${USER_ID}" zenity --question \
+        if sudo -u "$ACTIVE_USER" WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" zenity --question \
             --title="Sourceless OS // Support Request" \
             --text="An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
             --width=400 --timeout=30; then
@@ -192,14 +200,9 @@ while true; do
     elif [ "$CMD" = "stop_support" ]; then
         rm -f /tmp/sourceless_support_active /tmp/.sourceless_support_active
         killall -9 konsole 2>/dev/null || true
-        pkill -u sourceless -f "/usr/bin/konsole" 2>/dev/null || true
+        pkill -u "$ACTIVE_USER" -f "/usr/bin/konsole" 2>/dev/null || true
         systemctl stop rustdesk.service || true
         pkill -f zenity 2>/dev/null || true
-
-        if [ -n "$USER_DISPLAY" ]; then
-            sudo -u sourceless DISPLAY="$USER_DISPLAY" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/1000/bus" \
-                kdialog --title "Sourceless Support" --passivepopup "Remote support session has been terminated." 5 2>/dev/null || true
-        fi
     fi
 
     sleep 5
