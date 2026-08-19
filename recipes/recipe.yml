@@ -58,7 +58,6 @@ modules:
       enabled:
           - auditd.service
           - sourceless-client.service
-          - initial-setup-graphical.service
           - initial-setup.service
 
   - type: script
