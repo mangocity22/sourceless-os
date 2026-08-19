@@ -35,8 +35,6 @@ modules:
         - https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-0.x86_64.rpm
         - zenity
         - initial-setup-gui
-        - initial-setup-graphical.service
-        - initial-setup.service
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)
@@ -60,6 +58,8 @@ modules:
       enabled:
           - auditd.service
           - sourceless-client.service
+          - initial-setup-graphical.service
+          - initial-setup.service
 
   - type: script
     scripts:
