@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-client-boot.sh
-# Version 6.0 - Hardware-Bound Integrity Agent & Remote Support Daemon
+# Version 6.1 - Hardware-Bound Integrity Agent with Network-Resilient Enrollment
 
 CERT_DIR="/etc/sourceless/certs"
 CLIENT_KEY="$CERT_DIR/client.key"
@@ -40,7 +40,7 @@ if [ -d "$USER_HOME" ]; then
 fi
 
 # ==============================================================================
-# 1. HARDWARE IDENTIFICATION & ENROLLMENT
+# 1. HARDWARE IDENTIFICATION & RESILIENT ENROLLMENT LOOP
 # ==============================================================================
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
 if [ -z "$HWID" ]; then
@@ -54,8 +54,10 @@ if [ ! -f "$HWID_FILE" ]; then
     chmod 600 "$HWID_FILE"
 fi
 
-if [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; then
-    echo "[Sourceless] Generating unique cryptographic identity..."
+# Resilient enrollment loop: Retries until certificate and token are acquired
+while [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; do
+    echo "[Sourceless] Attempting cryptographic enrollment with backend..."
+    
     if [ ! -f "$CLIENT_KEY" ]; then
         openssl genrsa -out "$CLIENT_KEY" 2048 2>/dev/null
         chmod 600 "$CLIENT_KEY"
@@ -64,42 +66,43 @@ if [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; then
     openssl req -new -key "$CLIENT_KEY" -out /tmp/client.csr -subj "/CN=$HOSTNAME/O=SourcelessNodes" 2>/dev/null
     JSON_PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "csr": sys.argv[2]}))' "$HWID" "$(cat /tmp/client.csr 2>/dev/null)")
     
-    RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$REGISTER_URL")
+    RESPONSE=$(curl -s -m 5 -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$REGISTER_URL")
     
     CERT_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('certificate', ''))" 2>/dev/null)
     TOKEN_DATA=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('token', ''))" 2>/dev/null)
     
-    if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]]; then
+    if [ -n "$CERT_DATA" ] && [[ "$CERT_DATA" == *"BEGIN CERTIFICATE"* ]] && [ -n "$TOKEN_DATA" ]; then
         echo "$CERT_DATA" > "$CLIENT_CERT"
         chmod 600 "$CLIENT_CERT"
-    fi
-    
-    if [ -n "$TOKEN_DATA" ]; then
         echo "$TOKEN_DATA" > "$TOKEN_FILE"
         chmod 600 "$TOKEN_FILE"
-        echo "[Sourceless] Enrollment completed. Security token saved successfully."
+        rm -f /tmp/client.csr
+        echo "[Sourceless] Enrollment successful. Identity established."
+        break
     fi
+    
     rm -f /tmp/client.csr
-fi
+    sleep 5
+done
 
 echo "[Sourceless] Security and heartbeat agent initialized."
 
 # ==============================================================================
-# 2. CONTINUOUS HEARTBEAT & SYSTEM INTEGRITY AUDIT LOOP
+# 2. CONTINUOUS HEARTBEAT & INTEGRITY AUDIT LOOP
 # ==============================================================================
 while true; do
     CLIENT_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
 
     # --- ACTIVE INTEGRITY & TAMPER VERIFICATION ---
     
-    # 1. Hardware binding verification (Detect drive transplantation)
+    # 1. Hardware binding verification
     ENROLLED_HWID=$(cat "$HWID_FILE" 2>/dev/null)
     if [ -n "$ENROLLED_HWID" ] && [ "$HWID" != "$ENROLLED_HWID" ]; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.err "Tamper detected: Motherboard UUID mismatch! Expected $ENROLLED_HWID, found $HWID"
     fi
 
-    # 2. SELinux enforcement policy verification
+    # 2. SELinux enforcement verification
     if [ "$(getenforce 2>/dev/null)" != "Enforcing" ]; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.err "Tamper detected: SELinux policy is not Enforcing!"
@@ -112,20 +115,20 @@ while true; do
         logger -t "sourceless-security" -p user.warn "Tamper detected! Critical configuration modified: $CONFIG_DRIFT"
     fi
 
-    # 4. OSTree layer audit (Detect unsigned local packages or transient unlocks)
+    # 4. OSTree layer audit
     if rpm-ostree status --json 2>/dev/null | grep -qE '"requested-local-packages":\s*\[[^]]+\]|"unlocked":\s*"transient"'; then
         touch "$TAMPER_FLAG"
         logger -t "sourceless-security" -p user.err "Tamper detected: Unauthorized OSTree local overlay or package detected!"
     fi
 
-    # --- EVALUATE WARRANTY STATUS ---
+    # --- EVALUATE STATUS ---
     if [ -f "$TAMPER_FLAG" ] || [ ! -f "$CLIENT_CERT" ]; then
         STATUS="Modificat"
     else
         STATUS="Integru"
     fi
 
-    # Dispatch heartbeat payload to dashboard
+    # Dispatch heartbeat payload
     RESPONSE=$(curl -s -m 4 -X POST "$DASHBOARD_URL" \
         -H "Content-Type: application/json" \
         -H "X-Sourceless-Token: $CLIENT_TOKEN" \
@@ -133,16 +136,15 @@ while true; do
 
     CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
-    # --- COMMAND PROCESSING: REINSTATE (CLEAR TAMPER) ---
+    # --- COMMAND PROCESSING: REINSTATE ---
     if [ "$CMD" = "clear_tamper" ]; then
         echo "[Sourceless] Reinstate command received. Restoring system warranty status..."
         rm -f "$TAMPER_FLAG"
-        # Re-bind to current motherboard UUID upon authorized technician reinstate
         echo "$HWID" > "$HWID_FILE"
         logger -t "sourceless-security" -p user.info "System integrity successfully restored via Reinstate command."
     fi
 
-    # --- COMMAND PROCESSING: REMOTE SUPPORT SESSION (RUSTDESK) ---
+    # --- COMMAND PROCESSING: REMOTE SUPPORT (RUSTDESK) ---
     USER_NAME=$(who | grep -E '(:[0-9]|tty[0-9]|wayland)' | awk '{print $1}' | head -n 1)
     [ -z "$USER_NAME" ] && USER_NAME="sourceless"
 
