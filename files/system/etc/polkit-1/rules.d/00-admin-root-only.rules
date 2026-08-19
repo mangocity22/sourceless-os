@@ -1,0 +1,4 @@
+// Restrictioneaza actiunile administrative exclusiv la root
+polkit.addAdminRule(function(action, subject) {
+    return ["unix-user:root"];
+});

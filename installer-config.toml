@@ -1,11 +1,8 @@
 [customizations.installer.kickstart]
 contents = """
-# Enable graphical target drive selection only
+# Interfata grafica de instalare
 graphical
 
-# Lock root account permanently
+# Blocare permanenta cont root
 rootpw --lock
-
-# Delegate user creation and localization to first boot setup wizard
-firstboot --reconfig
 """

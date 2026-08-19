@@ -59,4 +59,7 @@ if [ -d "/var/home/sourceless" ]; then
     chmod 555 /var/home/sourceless/.config/autostart
 fi
 
+# Neutralizare privilegii sudo pentru grupul wheel
+sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers
+
 echo "[Sourceless] setup-permissions.sh completed successfully."
