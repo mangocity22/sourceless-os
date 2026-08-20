@@ -59,8 +59,6 @@ modules:
       enabled:
           - auditd.service
           - sourceless-client.service
-      disabled:
-        - fwupd.service
 
   - type: script
     scripts:
