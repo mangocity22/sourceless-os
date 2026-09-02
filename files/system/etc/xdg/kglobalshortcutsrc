@@ -1,0 +1,3 @@
+[sourceless-unlock.desktop]
+_k_friendly_name=Sourceless Emergency Recovery
+_launch=Ctrl+Alt+Shift+F12,none,Sourceless Emergency Recovery

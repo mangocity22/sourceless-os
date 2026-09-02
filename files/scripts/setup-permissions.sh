@@ -35,7 +35,10 @@ chmod +x /etc/grub.d/40_custom_sourceless
 
 # Apply strict permissions on security policies and sudoers
 chmod 0440 /etc/sudoers.d/sourceless-lockdown
+chmod 0440 /etc/sudoers.d/01-emergency-include 2>/dev/null || true
 chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules
+chmod 0644 /usr/share/applications/sourceless-unlock.desktop 2>/dev/null || true
+chmod 0644 /etc/xdg/kglobalshortcutsrc 2>/dev/null || true
 
 # Enable core client agent service
 systemctl enable sourceless-client.service
@@ -53,10 +56,21 @@ fi
 mkdir -p /etc/skel/.config/autostart
 chmod 555 /etc/skel/.config/autostart
 
+# Provision KDE global shortcuts into user skel
+mkdir -p /etc/skel/.config
+if [ -f /etc/xdg/kglobalshortcutsrc ]; then
+    cp /etc/xdg/kglobalshortcutsrc /etc/skel/.config/kglobalshortcutsrc
+fi
+
 if [ -d "/var/home/sourceless" ]; then
     mkdir -p /var/home/sourceless/.config/autostart
     chown root:root /var/home/sourceless/.config/autostart
     chmod 555 /var/home/sourceless/.config/autostart
+    mkdir -p /var/home/sourceless/.config
+    if [ -f /etc/xdg/kglobalshortcutsrc ]; then
+        cp /etc/xdg/kglobalshortcutsrc /var/home/sourceless/.config/kglobalshortcutsrc
+        chown -R sourceless:sourceless /var/home/sourceless/.config/kglobalshortcutsrc 2>/dev/null || true
+    fi
 fi
 
 # Neutralizare privilegii sudo pentru grupul wheel

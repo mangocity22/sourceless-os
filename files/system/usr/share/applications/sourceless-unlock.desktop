@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Sourceless Emergency Recovery
+Comment=Offline Break-Glass Console Recovery
+Exec=sudo /usr/bin/sourceless-unlock
+Icon=utilities-terminal
+Terminal=false
+Categories=System;Security;
+NoDisplay=true
+StartupNotify=false
+X-KDE-GlobalAccel-CommandShortcut=true

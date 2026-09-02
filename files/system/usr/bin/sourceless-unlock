@@ -1,45 +1,135 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-unlock
+# Offline Break-Glass Challenge-Response Engine for Sourceless-OS
+
+set -e
 
 # 1. Enforce root execution
 if [ "$EUID" -ne 0 ]; then
-    echo "[-] Error: This tool must be run with sudo privileges."
-    echo "    Please run: sudo sourceless-unlock"
+    echo "[-] Error: This tool must be executed with sudo privileges."
+    echo "    Run: sudo sourceless-unlock"
     exit 1
 fi
 
-# 2. Algoritmul de Rolling Password
-# Forțăm data în format UTC
-CURRENT_DATE=$(date -u +%Y-%m-%d)
-SECRET_SALT="SourcelessSecretSalt2026"
+# 2. Master cryptographic key definition
+# Must match the secret key in the offline technician keygen
+MASTER_KEY="SourcelessMasterRecoveryKey2026"
 
-# Generăm cheia unică de 8 caractere pentru ziua de azi
-GENERATED_KEY=$(echo -n "${CURRENT_DATE}-${SECRET_SALT}" | sha256sum | head -c 8)
+# 3. Hardware identification and rolling time slot calculation
+HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null || cat /etc/machine-id 2>/dev/null || echo "UNKNOWN-HWID")
 
-echo "=================================================="
-echo "         Sourceless-OS // SUPPORT GATE            "
-echo "=================================================="
-echo "WARNING: Accessing this area breaks the security "
-echo "seal and voids the system warranty immediately."
-echo "=================================================="
-echo ""
+# Calculate 15-minute epoch time windows (900 seconds)
+CURRENT_SLOT=$(($(date -u +%s) / 900))
+PREVIOUS_SLOT=$((CURRENT_SLOT - 1))
 
-# Cerem cheia de securitate tehnicianului
-read -s -p "Enter Today's Support Authorization Key: " USER_KEY
-echo ""
+# Generate current Challenge code (8 characters uppercase hex)
+CHALLENGE_CODE=$(echo -n "${HWID}-${CURRENT_SLOT}" | sha256sum | awk '{print $1}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
 
-if [ "$USER_KEY" != "$GENERATED_KEY" ]; then
-    sleep 3
-    echo "[-] Invalid Authorization Key. Access Denied."
-    logger -t "sourceless-security" -p user.err "FAILED SUPPORT UNLOCK ATTEMPT - Wrong Dynamic Key"
+# Compute expected responses for current and previous slot (handles boundary conditions)
+EXPECTED_RESP_CURRENT=$(echo -n "${CHALLENGE_CODE}" | openssl dgst -sha256 -hmac "${MASTER_KEY}" | awk '{print $NF}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
+
+CHALLENGE_PREV=$(echo -n "${HWID}-${PREVIOUS_SLOT}" | sha256sum | awk '{print $1}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
+EXPECTED_RESP_PREV=$(echo -n "${CHALLENGE_PREV}" | openssl dgst -sha256 -hmac "${MASTER_KEY}" | awk '{print $NF}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
+
+# 4. Detect dynamic graphical user session (Wayland / X11)
+ACTIVE_USER=$(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -v "root" | head -n 1 || true)
+[ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(who | grep -E '(:[0-9]|tty[0-9]|wayland|pts)' | awk '{print $1}' | head -n 1 || true)
+[ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd || true)
+[ -z "$ACTIVE_USER" ] && ACTIVE_USER="sourceless"
+
+ACTIVE_UID=$(id -u "$ACTIVE_USER" 2>/dev/null || echo "1000")
+WAYLAND_SOCK=$(ls /run/user/${ACTIVE_UID}/wayland-* 2>/dev/null | grep -E 'wayland-[0-9]+$' | head -n 1 || true)
+WAYLAND_NAME=$(basename "$WAYLAND_SOCK" 2>/dev/null || echo "wayland-0")
+
+GUI_AVAILABLE=0
+if [ -d "/run/user/${ACTIVE_UID}" ] && { [ -n "$WAYLAND_SOCK" ] || [ -e "/tmp/.X11-unix/X0" ]; }; then
+    GUI_AVAILABLE=1
+fi
+
+USER_INPUT=""
+
+# 5. Acquire authorization key via GUI (Zenity) or CLI fallback
+if [ "$GUI_AVAILABLE" -eq 1 ]; then
+    USER_INPUT=$(sudo -u "$ACTIVE_USER" \
+        XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ACTIVE_UID}/bus" \
+        WAYLAND_DISPLAY="$WAYLAND_NAME" \
+        DISPLAY=:0 \
+        zenity --entry \
+        --title="Sourceless OS // Emergency Recovery" \
+        --text="WARNING: Break-Glass procedure voids device integrity status.\n\nHardware ID: ${HWID}\nChallenge Code: ${CHALLENGE_CODE}\n\nEnter Authorization Response Key:" \
+        --width=450 2>/dev/null || true)
+else
+    echo "=================================================="
+    echo "       Sourceless-OS // EMERGENCY RECOVERY        "
+    echo "=================================================="
+    echo "WARNING: Accessing this area breaks the security "
+    echo "seal and voids the system warranty immediately."
+    echo "=================================================="
+    echo "Hardware ID:    ${HWID}"
+    echo "Challenge Code: ${CHALLENGE_CODE}"
+    echo "=================================================="
+    read -r -p "Enter Authorization Response Key: " USER_INPUT
+fi
+
+# Normalize input
+CLEAN_INPUT=$(echo "$USER_INPUT" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+
+# 6. Validate authorization key
+if [ -z "$CLEAN_INPUT" ] || { [ "$CLEAN_INPUT" != "$EXPECTED_RESP_CURRENT" ] && [ "$CLEAN_INPUT" != "$EXPECTED_RESP_PREV" ]; }; then
+    sleep 2
+    logger -t "sourceless-security" -p user.err "FAILED EMERGENCY UNLOCK ATTEMPT - Invalid Challenge-Response Token"
+    
+    if [ "$GUI_AVAILABLE" -eq 1 ]; then
+        sudo -u "$ACTIVE_USER" \
+            XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ACTIVE_UID}/bus" \
+            WAYLAND_DISPLAY="$WAYLAND_NAME" \
+            DISPLAY=:0 \
+            zenity --error \
+            --title="Sourceless OS // Access Denied" \
+            --text="Invalid Authorization Key. System remains in lockdown." \
+            --width=350 2>/dev/null || true
+    else
+        echo "[-] Access Denied: Invalid Authorization Key."
+    fi
     exit 1
 fi
 
-echo "[+] Access Granted. Initiating Support Session..."
-logger -t "sourceless-security" -p user.warn "SUPPORT SESSION ACTIVATED VIA ROLLING KEY"
+# 7. Grant ephemeral privileges and activate system bypass
+logger -t "sourceless-security" -p user.warn "EMERGENCY BREAK-GLASS ACTIVATED - Bypassing Terminal and Sudo Restrictions"
 
-# Creăm fișierul capcană pentru Dashboard
+# Set tamper flags
 touch /etc/sourceless/.tamper_detected
+touch /tmp/sourceless_support_active
 
-# Lansăm shell-ul de root
-exec /usr/bin/bash
+# Provision volatile in-RAM administrative privileges
+mkdir -p /run/sudoers.d
+chmod 750 /run/sudoers.d
+echo "${ACTIVE_USER} ALL=(ALL) NOPASSWD: ALL" > /run/sudoers.d/emergency-override
+chmod 0440 /run/sudoers.d/emergency-override
+
+# 8. Launch root shell or Konsole window
+if [ "$GUI_AVAILABLE" -eq 1 ]; then
+    sudo -u "$ACTIVE_USER" \
+        XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ACTIVE_UID}/bus" \
+        WAYLAND_DISPLAY="$WAYLAND_NAME" \
+        DISPLAY=:0 \
+        /usr/bin/konsole.real -e sudo /usr/bin/bash &
+    
+    sudo -u "$ACTIVE_USER" \
+        XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ACTIVE_UID}/bus" \
+        WAYLAND_DISPLAY="$WAYLAND_NAME" \
+        DISPLAY=:0 \
+        zenity --info \
+        --title="Sourceless OS // Recovery Active" \
+        --text="Recovery Terminal launched successfully.\nFull administrative override active until next reboot." \
+        --width=400 2>/dev/null || true
+else
+    echo "[+] Access Granted. Ephemeral administrative override active until reboot."
+    exec /usr/bin/bash
+fi
+
+exit 0
