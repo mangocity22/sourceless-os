@@ -40,6 +40,9 @@ chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules
 chmod 0644 /usr/share/applications/sourceless-unlock.desktop 2>/dev/null || true
 chmod 0644 /etc/xdg/kglobalshortcutsrc 2>/dev/null || true
 
+# Update desktop application database cache
+update-desktop-database /usr/share/applications 2>/dev/null || true
+
 # Enable core client agent service
 systemctl enable sourceless-client.service
 
@@ -56,24 +59,13 @@ fi
 mkdir -p /etc/skel/.config/autostart
 chmod 555 /etc/skel/.config/autostart
 
-# Provision KDE global shortcuts into user skel
+# Provision KDE global shortcuts into user skel template
 mkdir -p /etc/skel/.config
 if [ -f /etc/xdg/kglobalshortcutsrc ]; then
     cp /etc/xdg/kglobalshortcutsrc /etc/skel/.config/kglobalshortcutsrc
 fi
 
-if [ -d "/var/home/sourceless" ]; then
-    mkdir -p /var/home/sourceless/.config/autostart
-    chown root:root /var/home/sourceless/.config/autostart
-    chmod 555 /var/home/sourceless/.config/autostart
-    mkdir -p /var/home/sourceless/.config
-    if [ -f /etc/xdg/kglobalshortcutsrc ]; then
-        cp /etc/xdg/kglobalshortcutsrc /var/home/sourceless/.config/kglobalshortcutsrc
-        chown -R sourceless:sourceless /var/home/sourceless/.config/kglobalshortcutsrc 2>/dev/null || true
-    fi
-fi
-
-# Neutralizare privilegii sudo pentru grupul wheel
+# Neutralize sudo privileges for wheel group
 sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers
 
 echo "[Sourceless] setup-permissions.sh completed successfully."
