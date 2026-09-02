@@ -11,11 +11,21 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# 2. Master cryptographic key definition
-# Must match the secret key in the offline technician keygen
+# 2. Concurrency lock to prevent multiple prompts
+LOCK_FILE="/tmp/.sourceless_unlock.lock"
+if [ -e "$LOCK_FILE" ]; then
+    PID=$(cat "$LOCK_FILE" 2>/dev/null || true)
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        exit 0
+    fi
+fi
+echo "$$" > "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
+
+# 3. Master cryptographic key definition
 MASTER_KEY="SourcelessMasterRecoveryKey2026"
 
-# 3. Hardware identification and rolling time slot calculation
+# 4. Hardware identification and rolling time slot calculation
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null || cat /etc/machine-id 2>/dev/null || echo "UNKNOWN-HWID")
 
 # Calculate 15-minute epoch time windows (900 seconds)
@@ -25,13 +35,13 @@ PREVIOUS_SLOT=$((CURRENT_SLOT - 1))
 # Generate current Challenge code (8 characters uppercase hex)
 CHALLENGE_CODE=$(echo -n "${HWID}-${CURRENT_SLOT}" | sha256sum | awk '{print $1}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
 
-# Compute expected responses for current and previous slot (handles boundary conditions)
+# Compute expected responses for current and previous slot
 EXPECTED_RESP_CURRENT=$(echo -n "${CHALLENGE_CODE}" | openssl dgst -sha256 -hmac "${MASTER_KEY}" | awk '{print $NF}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
 
 CHALLENGE_PREV=$(echo -n "${HWID}-${PREVIOUS_SLOT}" | sha256sum | awk '{print $1}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
 EXPECTED_RESP_PREV=$(echo -n "${CHALLENGE_PREV}" | openssl dgst -sha256 -hmac "${MASTER_KEY}" | awk '{print $NF}' | cut -c 1-8 | tr '[:lower:]' '[:upper:]')
 
-# 4. Detect dynamic graphical user session (Wayland / X11)
+# 5. Detect dynamic graphical user session (Wayland / X11)
 ACTIVE_USER=$(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -v "root" | head -n 1 || true)
 [ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(who | grep -E '(:[0-9]|tty[0-9]|wayland|pts)' | awk '{print $1}' | head -n 1 || true)
 [ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd || true)
@@ -48,7 +58,7 @@ fi
 
 USER_INPUT=""
 
-# 5. Acquire authorization key via GUI (Zenity) or CLI fallback
+# 6. Acquire authorization key via GUI (Zenity) or CLI fallback
 if [ "$GUI_AVAILABLE" -eq 1 ]; then
     USER_INPUT=$(sudo -u "$ACTIVE_USER" \
         XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
@@ -75,7 +85,7 @@ fi
 # Normalize input
 CLEAN_INPUT=$(echo "$USER_INPUT" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
 
-# 6. Validate authorization key
+# 7. Validate authorization key
 if [ -z "$CLEAN_INPUT" ] || { [ "$CLEAN_INPUT" != "$EXPECTED_RESP_CURRENT" ] && [ "$CLEAN_INPUT" != "$EXPECTED_RESP_PREV" ]; }; then
     sleep 2
     logger -t "sourceless-security" -p user.err "FAILED EMERGENCY UNLOCK ATTEMPT - Invalid Challenge-Response Token"
@@ -96,7 +106,7 @@ if [ -z "$CLEAN_INPUT" ] || { [ "$CLEAN_INPUT" != "$EXPECTED_RESP_CURRENT" ] && 
     exit 1
 fi
 
-# 7. Grant ephemeral privileges and activate system bypass
+# 8. Grant ephemeral privileges and activate system bypass
 logger -t "sourceless-security" -p user.warn "EMERGENCY BREAK-GLASS ACTIVATED - Bypassing Terminal and Sudo Restrictions"
 
 # Set tamper flags
@@ -109,7 +119,7 @@ chmod 750 /run/sudoers.d
 echo "${ACTIVE_USER} ALL=(ALL) NOPASSWD: ALL" > /run/sudoers.d/emergency-override
 chmod 0440 /run/sudoers.d/emergency-override
 
-# 8. Launch root shell or Konsole window
+# 9. Launch root shell or Konsole window
 if [ "$GUI_AVAILABLE" -eq 1 ]; then
     sudo -u "$ACTIVE_USER" \
         XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \

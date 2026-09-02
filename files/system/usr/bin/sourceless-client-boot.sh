@@ -25,51 +25,23 @@ for u in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
     gpasswd -d "$u" wheel 2>/dev/null || true
 done
 
-# 2. Secure autostart directories and inject emergency recovery shortcuts into persistent user profiles
+# 2. Secure autostart directories for all home profiles
 for user_home in /var/home/* /home/*; do
     if [ -d "$user_home" ] && [ "$(basename "$user_home")" != "*" ]; then
-        TARGET_USER=$(basename "$user_home")
-        USER_UID=$(id -u "$TARGET_USER" 2>/dev/null || echo "1000")
-        USER_GID=$(id -g "$TARGET_USER" 2>/dev/null || echo "1000")
-
-        # Lock autostart
         mkdir -p "$user_home/.config/autostart" "$user_home/.local/share/applications"
         rm -rf "$user_home/.config/autostart/"* "$user_home/.local/share/applications/"*
         chown root:root "$user_home/.config/autostart" "$user_home/.local/share/applications" 2>/dev/null || true
         chmod 555 "$user_home/.config/autostart" "$user_home/.local/share/applications" 2>/dev/null || true
-
-        # Ensure user shortcuts configuration exists and includes emergency hotkey
-        USER_SHORTCUTS="$user_home/.config/kglobalshortcutsrc"
-        if [ ! -f "$USER_SHORTCUTS" ]; then
-            if [ -f /etc/xdg/kglobalshortcutsrc ]; then
-                cp /etc/xdg/kglobalshortcutsrc "$USER_SHORTCUTS"
-            fi
-        fi
-
-        if [ -f "$USER_SHORTCUTS" ]; then
-            if ! grep -q "sourceless-unlock.desktop" "$USER_SHORTCUTS" 2>/dev/null; then
-                cat << 'EOF' >> "$USER_SHORTCUTS"
-
-[services][sourceless-unlock.desktop]
-_launch=Ctrl+Alt+Shift+F12
-
-[services/sourceless-unlock.desktop]
-_launch=Ctrl+Alt+Shift+F12,none,Sourceless Emergency Recovery
-
-[sourceless-unlock.desktop]
-_launch=Ctrl+Alt+Shift+F12,none,Sourceless Emergency Recovery
-EOF
-            fi
-            chown "$USER_UID:$USER_GID" "$USER_SHORTCUTS" 2>/dev/null || true
-            chmod 600 "$USER_SHORTCUTS" 2>/dev/null || true
-        fi
     fi
 done
 
-# Rebuild desktop application cache
-update-desktop-database /usr/share/applications 2>/dev/null || true
+# 3. Launch kernel input hotkey listener in background
+if [ -f /usr/bin/sourceless-hotkey-listener.py ]; then
+    pkill -f "sourceless-hotkey-listener.py" 2>/dev/null || true
+    /usr/bin/python3 /usr/bin/sourceless-hotkey-listener.py &
+fi
 
-# 3. Hardware identification and enrollment loop
+# 4. Hardware identification and enrollment loop
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null || cat /etc/machine-id)
 [ ! -f "$HWID_FILE" ] && echo "$HWID" > "$HWID_FILE" && chmod 600 "$HWID_FILE"
 
@@ -94,7 +66,7 @@ while [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; do
     sleep 5
 done
 
-# 4. Main Heartbeat, Audit and Remote Support Loop
+# 5. Main Heartbeat, Audit and Remote Support Loop
 while true; do
     CLIENT_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
     CURRENT_HOSTNAME=$(hostnamectl --static 2>/dev/null || hostname 2>/dev/null || echo "sourceless-node")
