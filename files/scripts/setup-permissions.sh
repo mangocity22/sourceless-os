@@ -37,6 +37,15 @@ chmod +x /etc/grub.d/40_custom_sourceless
 chmod 0440 /etc/sudoers.d/sourceless-lockdown
 chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules
 
+# Configure offline emergency terminal launcher permissions
+chmod 755 /usr/bin/sourceless-emergency-terminal 2>/dev/null || true
+chmod 644 /usr/share/applications/sourceless-emergency-terminal.desktop 2>/dev/null || true
+
+# Allow users group to write tamper flag into configuration directory
+mkdir -p /etc/sourceless
+chown root:users /etc/sourceless
+chmod 775 /etc/sourceless
+
 # Enable core client agent service
 systemctl enable sourceless-client.service
 
@@ -59,7 +68,7 @@ if [ -d "/var/home/sourceless" ]; then
     chmod 555 /var/home/sourceless/.config/autostart
 fi
 
-# Neutralizare privilegii sudo pentru grupul wheel
+# Neutralize sudo privileges for wheel group
 sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers
 
 echo "[Sourceless] setup-permissions.sh completed successfully."

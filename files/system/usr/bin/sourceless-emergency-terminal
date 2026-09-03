@@ -1,0 +1,44 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-emergency-terminal
+# Independent Offline Emergency Terminal Launcher for Sourceless-OS
+
+# 1. Compute today's dynamic support authorization key (UTC)
+CURRENT_DATE=$(date -u +%Y-%m-%d)
+SECRET_SALT="SourcelessSecretSalt2026"
+GENERATED_KEY=$(echo -n "${CURRENT_DATE}-${SECRET_SALT}" | sha256sum | head -c 8)
+
+# 2. Prompt technician for key using native KDE dialog
+USER_KEY=$(kdialog --password "Enter Today's Support Authorization Key:" --title "Sourceless OS // Emergency Terminal" 2>/dev/null)
+
+# Exit quietly if user cancelled the prompt or provided an empty string
+if [ $? -ne 0 ] || [ -z "$USER_KEY" ]; then
+    exit 0
+fi
+
+# 3. Validate authorization key
+if [ "$USER_KEY" != "$GENERATED_KEY" ]; then
+    sleep 2
+    kdialog --error "Invalid Authorization Key. Access Denied." --title "Security Policy" 2>/dev/null
+    exit 1
+fi
+
+# 4. Trigger tamper detection flag for audit reporting
+touch /etc/sourceless/.tamper_detected 2>/dev/null || true
+
+# 5. Create ephemeral session token required by shell guard
+touch /tmp/sourceless_support_active
+
+# 6. Trap EXIT and termination signals to enforce immediate lockdown cleanup
+cleanup_support_session() {
+    # Remove active session tokens immediately
+    rm -f /tmp/sourceless_support_active /var/run/sourceless_support_active 2>/dev/null || true
+    # Terminate any lingering real konsole processes spawned by this session
+    killall -9 konsole.real 2>/dev/null || true
+}
+
+trap cleanup_support_session EXIT INT TERM HUP
+
+# 7. Launch actual terminal and wait synchronously until window is closed
+/usr/bin/konsole.real "$@"
+
+# Session lockdown automatically executes via trap on window exit
