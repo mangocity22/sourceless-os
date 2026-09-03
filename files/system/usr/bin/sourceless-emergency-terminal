@@ -22,8 +22,8 @@ if [ "$USER_KEY" != "$GENERATED_KEY" ]; then
     exit 1
 fi
 
-# 4. Trigger tamper detection flag for audit reporting
-touch /etc/sourceless/.tamper_detected 2>/dev/null || true
+# 4. Signal background root daemon to register tamper state
+touch /tmp/.sourceless_tamper_trigger 2>/dev/null || true
 
 # 5. Create ephemeral session token required by shell guard
 touch /tmp/sourceless_support_active
@@ -40,5 +40,3 @@ trap cleanup_support_session EXIT INT TERM HUP
 
 # 7. Launch actual terminal and wait synchronously until window is closed
 /usr/bin/konsole.real "$@"
-
-# Session lockdown automatically executes via trap on window exit
