@@ -1,8 +1,0 @@
-[services][sourceless-unlock.desktop]
-_launch=Ctrl+Alt+Shift+F12
-
-[services/sourceless-unlock.desktop]
-_launch=Ctrl+Alt+Shift+F12,none,Sourceless Emergency Recovery
-
-[sourceless-unlock.desktop]
-_launch=Ctrl+Alt+Shift+F12,none,Sourceless Emergency Recovery

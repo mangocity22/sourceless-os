@@ -20,12 +20,12 @@ SUBMIT_URL=$(echo "$S_B64" | base64 -d)
 mkdir -p "$CERT_DIR" /etc/sourceless
 chmod 700 "$CERT_DIR"
 
-# 1. Automatic wheel membership revocation for all standard users UID >= 1000
+# 1. Revocare automata apartenenta wheel pentru toti utilizatorii UID >= 1000
 for u in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
     gpasswd -d "$u" wheel 2>/dev/null || true
 done
 
-# 2. Secure autostart directories for all home profiles
+# 2. Securizare foldere autostart
 for user_home in /var/home/* /home/*; do
     if [ -d "$user_home" ] && [ "$(basename "$user_home")" != "*" ]; then
         mkdir -p "$user_home/.config/autostart" "$user_home/.local/share/applications"
@@ -35,13 +35,7 @@ for user_home in /var/home/* /home/*; do
     fi
 done
 
-# 3. Launch kernel input hotkey listener in background
-if [ -f /usr/bin/sourceless-hotkey-listener.py ]; then
-    pkill -f "sourceless-hotkey-listener.py" 2>/dev/null || true
-    /usr/bin/python3 /usr/bin/sourceless-hotkey-listener.py &
-fi
-
-# 4. Hardware identification and enrollment loop
+# 3. Identificare hardware si bucla de inrolare
 HWID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null || cat /etc/machine-id)
 [ ! -f "$HWID_FILE" ] && echo "$HWID" > "$HWID_FILE" && chmod 600 "$HWID_FILE"
 
@@ -66,12 +60,12 @@ while [ ! -f "$CLIENT_CERT" ] || [ ! -f "$TOKEN_FILE" ]; do
     sleep 5
 done
 
-# 5. Main Heartbeat, Audit and Remote Support Loop
+# 4. Bucla principala de Heartbeat, Audit si Telecomanda Suport
 while true; do
     CLIENT_TOKEN=$(cat "$TOKEN_FILE" 2>/dev/null)
     CURRENT_HOSTNAME=$(hostnamectl --static 2>/dev/null || hostname 2>/dev/null || echo "sourceless-node")
 
-    # --- INTEGRITY VERIFICATION ---
+    # --- VERIFICARE INTEGRITATE ---
     ENROLLED_HWID=$(cat "$HWID_FILE" 2>/dev/null)
     [ -n "$ENROLLED_HWID" ] && [ "$HWID" != "$ENROLLED_HWID" ] && touch "$TAMPER_FLAG"
     [ "$(getenforce 2>/dev/null)" != "Enforcing" ] && touch "$TAMPER_FLAG"
@@ -79,7 +73,7 @@ while true; do
     STATUS="Integru"
     [ -f "$TAMPER_FLAG" ] || [ ! -f "$CLIENT_CERT" ] && STATUS="Modificat"
 
-    # --- TRANSMIT HEARTBEAT & FETCH COMMAND ---
+    # --- TRIMITE HEARTBEAT & PREIA COMANDA ---
     RESPONSE=$(curl -s -m 4 -X POST "$DASHBOARD_URL" \
         -H "Content-Type: application/json" \
         -H "X-Sourceless-Token: $CLIENT_TOKEN" \
@@ -87,7 +81,7 @@ while true; do
 
     CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
-    # --- PROCESS COMMANDS ---
+    # --- PROCESARE COMENZI ---
     if [ "$CMD" = "clear_tamper" ]; then
         rm -f "$TAMPER_FLAG"
         echo "$HWID" > "$HWID_FILE"
@@ -96,7 +90,7 @@ while true; do
         rm -f /tmp/sourceless_support_active
         pkill -f zenity 2>/dev/null || true
 
-        # Resolve graphical session parameters
+        # Rezolutie dinamica utilizator grafic si socket Wayland
         ACTIVE_USER=$(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -v "root" | head -n 1)
         [ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(who | grep -E '(:[0-9]|tty[0-9]|wayland|pts)' | awk '{print $1}' | head -n 1)
         [ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd)

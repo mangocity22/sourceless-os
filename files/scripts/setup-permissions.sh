@@ -30,13 +30,11 @@ chmod +x /usr/bin/konsole
 # Restrict critical internal scripts to root execution only
 chmod 700 /usr/bin/sourceless-unlock
 chmod 700 /usr/bin/sourceless-client-boot.sh
-chmod 700 /usr/bin/sourceless-hotkey-listener.py 2>/dev/null || true
 chmod 644 /etc/profile.d/sourceless-shell-guard.sh
 chmod +x /etc/grub.d/40_custom_sourceless
 
 # Apply strict permissions on security policies and sudoers
 chmod 0440 /etc/sudoers.d/sourceless-lockdown
-chmod 0440 /etc/sudoers.d/01-emergency-include 2>/dev/null || true
 chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules
 
 # Enable core client agent service
@@ -61,7 +59,7 @@ if [ -d "/var/home/sourceless" ]; then
     chmod 555 /var/home/sourceless/.config/autostart
 fi
 
-# Neutralize sudo privileges for wheel group
+# Neutralizare privilegii sudo pentru grupul wheel
 sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers
 
 echo "[Sourceless] setup-permissions.sh completed successfully."

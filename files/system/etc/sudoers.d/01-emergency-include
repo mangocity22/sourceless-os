@@ -1,4 +1,0 @@
-# /etc/sudoers.d/01-emergency-include
-# Allow dynamic volatile sudoers privileges from RAM tmpfs
-
-#includedir /run/sudoers.d
