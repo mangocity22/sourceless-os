@@ -103,7 +103,7 @@ while true; do
         WAYLAND_NAME=$(basename "$WAYLAND_SOCK" 2>/dev/null)
         [ -z "$WAYLAND_NAME" ] && WAYLAND_NAME="wayland-0"
 
-        if sudo -u "$ACTIVE_USER" \
+        if sudo -u "$ACTIVE_USER" env \
             XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
             DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ACTIVE_UID}/bus" \
             WAYLAND_DISPLAY="$WAYLAND_NAME" \
