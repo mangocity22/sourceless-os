@@ -44,6 +44,7 @@ modules:
         - firefox-langpacks # also remove firefox dependency (not required for all packages, this is a special case)
         - plasma-discover-backends-fwupd
         - fwupd
+        - plasma-discover-packagekit
 
   - type: default-flatpaks
     configurations:
