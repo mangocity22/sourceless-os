@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic trigger for Sourceless-OS Package Updates
+
+[Timer]
+# Runs 10 minutes after machine startup
+OnBootSec=10min
+# Re-runs silently every 4 hours
+OnUnitActiveSec=4h
+# Catches up if the laptop/VM was powered off during the scheduled run
+Persistent=true
+
+[Install]
+WantedBy=timers.target

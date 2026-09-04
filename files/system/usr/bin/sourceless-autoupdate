@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-autoupdate
+# Automated background updater for Sourceless-OS packages & runtimes
+
+# 1. Synchronize metadata and update all system-wide Flatpaks
+/usr/bin/flatpak update -y --noninteractive >/dev/null 2>&1
+
+# 2. Update user-scoped Flatpaks for all active desktop users (UID >= 1000)
+for u in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
+    if [ -d "/var/home/$u/.local/share/flatpak" ] || [ -d "/home/$u/.local/share/flatpak" ]; then
+        systemd-run --machine="${u}@.host" --user --pipe --wait \
+            /usr/bin/flatpak update -y --noninteractive >/dev/null 2>&1 || true
+    fi
+done
+
+# 3. Purge obsolete, unused runtimes to maintain lean storage footprint
+/usr/bin/flatpak uninstall --unused -y --noninteractive >/dev/null 2>&1 || true

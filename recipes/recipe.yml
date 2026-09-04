@@ -65,6 +65,7 @@ modules:
       enabled:
           - auditd.service
           - sourceless-client.service
+          - sourceless-flatpak-update.timer
 
   - type: script
     scripts:

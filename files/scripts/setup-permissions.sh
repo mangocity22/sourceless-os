@@ -46,6 +46,8 @@ mkdir -p /etc/sourceless
 chown root:users /etc/sourceless
 chmod 775 /etc/sourceless
 
+chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
+
 # Enable core client agent service
 systemctl enable sourceless-client.service
 
