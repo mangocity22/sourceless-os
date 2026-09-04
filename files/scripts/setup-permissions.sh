@@ -71,4 +71,17 @@ fi
 # Neutralize sudo privileges for wheel group
 sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers
 
+# Configure secure Flatpak repositories
+echo "[Sourceless] Configuring secure Flatpak remotes..."
+
+# 1. Add official Fedora Flatpaks OCI registry
+flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
+
+# 2. Add Flathub filtered strictly to verified upstream applications
+flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak remote-modify --system --subset=verified flathub
+
+# 3. Ensure Discover and flatpak system paths are world-readable
+chmod 755 /var/lib/flatpak 2>/dev/null || true
+
 echo "[Sourceless] setup-permissions.sh completed successfully."
