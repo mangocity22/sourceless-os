@@ -109,15 +109,9 @@ while true; do
         WAYLAND_NAME=$(basename "$WAYLAND_SOCK" 2>/dev/null)
         [ -z "$WAYLAND_NAME" ] && WAYLAND_NAME="wayland-0"
 
-        if sudo -u "$ACTIVE_USER" env \
-            XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
-            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ACTIVE_UID}/bus" \
-            WAYLAND_DISPLAY="$WAYLAND_NAME" \
-            DISPLAY=:0 \
-            zenity --question \
-            --title="Sourceless OS // Support Request" \
-            --text="An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
-            --width=400 --timeout=30; then
+        if systemd-run --machine="${ACTIVE_USER}@.host" --user --pipe --wait \
+            kdialog --yesno "An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
+            --title "Sourceless OS // Support Request"; then
 
             touch /tmp/sourceless_support_active
             systemctl start rustdesk.service

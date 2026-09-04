@@ -45,6 +45,8 @@ modules:
         - plasma-discover-backends-fwupd
         - fwupd
         - plasma-discover-packagekit
+        - plasma-discover-offline-updates
+        - PackageKit
 
   - type: default-flatpaks
     configurations:
