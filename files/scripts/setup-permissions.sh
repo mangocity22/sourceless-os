@@ -84,4 +84,10 @@ flatpak remote-modify --system --subset=verified flathub
 # 3. Ensure Discover and flatpak system paths are world-readable
 chmod 755 /var/lib/flatpak 2>/dev/null || true
 
+# Forcefully purge PackageKit plugin and D-Bus activation service
+echo "[Sourceless] Purging PackageKit backend from Discover..."
+rpm -e --nodeps plasma-discover-packagekit plasma-discover-offline-updates 2>/dev/null || true
+rm -f /usr/lib64/qt6/plugins/discover/packagekit-backend.so 2>/dev/null || true
+rm -f /usr/share/dbus-1/system-services/org.freedesktop.PackageKit.service 2>/dev/null || true
+
 echo "[Sourceless] setup-permissions.sh completed successfully."
