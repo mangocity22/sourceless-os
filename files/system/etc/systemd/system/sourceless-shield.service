@@ -1,0 +1,13 @@
+[Unit]
+Description=Sourceless-OS Real-Time Downloads Threat Scanner
+After=network.target clamd@scan.service
+Wants=clamd@scan.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sourceless-downloads-watcher
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

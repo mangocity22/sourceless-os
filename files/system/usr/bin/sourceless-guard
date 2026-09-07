@@ -1,0 +1,62 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-guard
+# Multi-engine inspection: ClamAV + VirusTotal Hash Reputation
+
+TARGET="$1"
+[ -f "$TARGET" ] || exit 0
+
+source /etc/sourceless/security.conf 2>/dev/null || true
+[ -z "$QUARANTINE_PATH" ] && QUARANTINE_PATH="/var/quarantine"
+mkdir -p "$QUARANTINE_PATH"
+
+ACTIVE_USER=$(loginctl list-users --no-legend 2>/dev/null | awk '$1 >= 1000 {print $2; exit}')
+[ -z "$ACTIVE_USER" ] && ACTIVE_USER="sourceless"
+
+FILENAME=$(basename "$TARGET")
+IS_THREAT=0
+THREAT_NAME=""
+
+# --- Engine 1: ClamAV Daemon Scan ---
+if systemctl is-active --quiet clamd@scan.service; then
+    CLAM_OUT=$(clamdscan --no-summary --fdpass "$TARGET" 2>&1)
+    if [ $? -eq 1 ]; then
+        IS_THREAT=1
+        THREAT_NAME=$(echo "$CLAM_OUT" | awk -F: '{print $2}' | tr -d ' \n')
+    fi
+fi
+
+# --- Engine 2: VirusTotal Cloud Reputation (if key provided) ---
+if [ $IS_THREAT -eq 0 ] && [ -n "$VT_API_KEY" ]; then
+    FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
+    VT_RESP=$(curl -s --request GET \
+        --url "https://www.virustotal.com/api/v3/files/${FILE_HASH}" \
+        --header "x-apikey: ${VT_API_KEY}")
+
+    MALICIOUS_COUNT=$(echo "$VT_RESP" | jq -r '.data.attributes.last_analysis_stats.malicious // 0' 2>/dev/null)
+    
+    if [ "$MALICIOUS_COUNT" -gt 0 ] 2>/dev/null; then
+        IS_THREAT=1
+        THREAT_NAME="Cloud-Identified Threat (${MALICIOUS_COUNT} detections)"
+    fi
+fi
+
+# --- Action & Quarantine ---
+if [ $IS_THREAT -eq 1 ]; then
+    TIMESTAMP=$(date +%s)
+    chmod 000 "$TARGET" 2>/dev/null || true
+    mv "$TARGET" "${QUARANTINE_PATH}/${TIMESTAMP}_${FILENAME}.threat"
+
+    # Graphical desktop alert
+    systemd-run --machine="${ACTIVE_USER}@.host" --user --pipe \
+        kdialog --sorry "Threat Blocked!\n\nFile: ${FILENAME}\nDetection: ${THREAT_NAME:-Malicious Executable}\n\nThe file was quarantined for your protection." \
+        --title "Sourceless OS // Security Shield"
+    exit 1
+fi
+
+# Visual confirmation for verified clean executables
+case "$FILENAME" in
+    *.AppImage|*.bin|*.run|*.sh)
+        systemd-run --machine="${ACTIVE_USER}@.host" --user --pipe \
+            notify-send "Sourceless Shield" "Verified clean: ${FILENAME}" -i security-high
+        ;;
+esac

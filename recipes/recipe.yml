@@ -36,6 +36,13 @@ modules:
         - zenity
         - plasma-discover
         - plasma-discover-flatpak
+        - clamav
+        - clamd
+        - clamav-update
+        - inotify-tools
+        - bubblewrap
+        - jq
+        - curl
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)

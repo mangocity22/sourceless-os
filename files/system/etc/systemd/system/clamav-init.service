@@ -1,0 +1,15 @@
+[Unit]
+Description=Initialize ClamAV Signature Database
+Before=clamd@scan.service
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/clamav/main.cvd
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/freshclam --quiet
+TimeoutStartSec=300
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

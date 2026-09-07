@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-downloads-watcher
+
+DOWNLOADS_DIR="/var/home/sourceless/Downloads"
+AUTOSTART_DIR="/var/home/sourceless/.config/autostart"
+
+mkdir -p "$DOWNLOADS_DIR" "$AUTOSTART_DIR"
+chown -R sourceless:sourceless "$DOWNLOADS_DIR" "$AUTOSTART_DIR" 2>/dev/null || true
+
+# Monitor Downloads and Autostart simultaneously
+inotifywait -m -e close_write,moved_to --format "%w%f" "$DOWNLOADS_DIR" "$AUTOSTART_DIR" | while read -r FILE; do
+    case "$FILE" in
+        *.crdownload|*.part|*.tmp|*.downloading) continue ;;
+    esac
+
+    /usr/bin/sourceless-guard "$FILE" &
+done

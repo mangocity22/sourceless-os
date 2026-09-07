@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-sandbox
+# Anti-Infostealer execution wrapper for untrusted binaries & AppImages
+
+TARGET_APP="$1"
+shift
+
+if [ -z "$TARGET_APP" ] || [ ! -e "$TARGET_APP" ]; then
+    echo "Usage: sourceless-sandbox <executable> [args...]"
+    exit 1
+fi
+
+exec bwrap \
+    --ro-bind / / \
+    --dev /dev \
+    --proc /proc \
+    --tmpfs /tmp \
+    --bind "$HOME" "$HOME" \
+    --bind /run/user/"$(id -u)" /run/user/"$(id -u)" \
+    --tmpfs "$HOME/.ssh" \
+    --tmpfs "$HOME/.gnupg" \
+    --tmpfs "$HOME/.local/share/keyrings" \
+    --tmpfs "$HOME/.config/google-chrome" \
+    --tmpfs "$HOME/.config/chromium" \
+    --tmpfs "$HOME/.config/BraveSoftware" \
+    --tmpfs "$HOME/.mozilla" \
+    --tmpfs "$HOME/.electrum" \
+    --tmpfs "$HOME/.bitcoin" \
+    --tmpfs "$HOME/.solana" \
+    --tmpfs "$HOME/.config/Sourceless" \
+    "$TARGET_APP" "$@"

@@ -92,4 +92,22 @@ rpm -e --nodeps plasma-discover-packagekit plasma-discover-offline-updates 2>/de
 rm -f /usr/lib64/qt6/plugins/discover/packagekit-backend.so 2>/dev/null || true
 rm -f /usr/share/dbus-1/system-services/org.freedesktop.PackageKit.service 2>/dev/null || true
 
+# Set executable rights for security agents
+chmod 755 /usr/bin/sourceless-guard 2>/dev/null || true
+chmod 755 /usr/bin/sourceless-downloads-watcher 2>/dev/null || true
+chmod 755 /usr/bin/sourceless-sandbox 2>/dev/null || true
+
+# Ensure quarantine directory exists with restricted access
+mkdir -p /var/quarantine
+chmod 700 /var/quarantine
+
+# Enable ClamAV updater and shield daemon
+systemctl enable freshclam.service 2>/dev/null || true
+systemctl enable clamd@scan.service 2>/dev/null || true
+systemctl enable sourceless-shield.service 2>/dev/null || true
+
+update-desktop-database /usr/share/applications 2>/dev/null || true
+
+systemctl enable systemd-resolved.service 2>/dev/null || true
+
 echo "[Sourceless] setup-permissions.sh completed successfully."

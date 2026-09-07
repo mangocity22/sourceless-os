@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Sourceless Sandboxed Runner
+Exec=/usr/bin/sourceless-sandbox %f
+Terminal=false
+NoDisplay=true
+MimeType=application/x-iso9660-appimage;application/vnd.appimage;
