@@ -25,18 +25,18 @@ if systemctl is-active --quiet clamd@scan.service; then
     fi
 fi
 
-# --- Engine 2: VirusTotal Cloud Reputation (if key provided) ---
-if [ $IS_THREAT -eq 0 ] && [ -n "$VT_API_KEY" ]; then
+# --- Engine 2: MalwareBazaar Cloud Reputation (abuse.ch - 100% Free) ---
+if [ $IS_THREAT -eq 0 ]; then
     FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
-    VT_RESP=$(curl -s --request GET \
-        --url "https://www.virustotal.com/api/v3/files/${FILE_HASH}" \
-        --header "x-apikey: ${VT_API_KEY}")
+    MB_RESP=$(curl -s --max-time 4 -X POST https://mb-api.abuse.ch/api/v1/ \
+        -d "query=get_info" \
+        -d "hash=${FILE_HASH}" 2>/dev/null)
 
-    MALICIOUS_COUNT=$(echo "$VT_RESP" | jq -r '.data.attributes.last_analysis_stats.malicious // 0' 2>/dev/null)
-    
-    if [ "$MALICIOUS_COUNT" -gt 0 ] 2>/dev/null; then
+    MB_STATUS=$(echo "$MB_RESP" | jq -r '.query_status // empty' 2>/dev/null)
+    if [ "$MB_STATUS" = "ok" ]; then
         IS_THREAT=1
-        THREAT_NAME="Cloud-Identified Threat (${MALICIOUS_COUNT} detections)"
+        SIG=$(echo "$MB_RESP" | jq -r '.data[0].signature // "Known Threat"' 2>/dev/null)
+        THREAT_NAME="MalwareBazaar: ${SIG}"
     fi
 fi
 
