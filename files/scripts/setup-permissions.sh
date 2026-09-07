@@ -110,4 +110,6 @@ update-desktop-database /usr/share/applications 2>/dev/null || true
 
 systemctl enable systemd-resolved.service 2>/dev/null || true
 
+sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/clamd.sock|' /etc/clamd.d/scan.conf 2>/dev/null || true
+
 echo "[Sourceless] setup-permissions.sh completed successfully."
