@@ -1,62 +1,42 @@
 #!/usr/bin/bash
-# /usr/bin/sourceless-guard
-# Multi-engine inspection: ClamAV + VirusTotal Hash Reputation
+# /usr/bin/sourceless-guard - Ultra-lightweight threat checker
 
 TARGET="$1"
-[ -f "$TARGET" ] || exit 0
+[ -z "$TARGET" ] || [ ! -f "$TARGET" ] && exit 0
 
-source /etc/sourceless/security.conf 2>/dev/null || true
-[ -z "$QUARANTINE_PATH" ] && QUARANTINE_PATH="/var/quarantine"
-mkdir -p "$QUARANTINE_PATH"
+QUARANTINE_DIR="/var/quarantine"
+mkdir -p "$QUARANTINE_DIR"
+chmod 700 "$QUARANTINE_DIR"
 
-ACTIVE_USER=$(loginctl list-users --no-legend 2>/dev/null | awk '$1 >= 1000 {print $2; exit}')
-[ -z "$ACTIVE_USER" ] && ACTIVE_USER="sourceless"
-
-FILENAME=$(basename "$TARGET")
 IS_THREAT=0
 THREAT_NAME=""
 
-# --- Engine 1: ClamAV Daemon Scan ---
-if systemctl is-active --quiet clamd@scan.service; then
-    CLAM_OUT=$(clamdscan --no-summary --fdpass "$TARGET" 2>&1)
-    if [ $? -eq 1 ]; then
-        IS_THREAT=1
-        THREAT_NAME=$(echo "$CLAM_OUT" | awk -F: '{print $2}' | tr -d ' \n')
-    fi
+# 1. Cloud Reputation via MalwareBazaar (abuse.ch)
+FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
+MB_RESP=$(curl -s --max-time 3 -X POST https://mb-api.abuse.ch/api/v1/ \
+    -d "query=get_info" \
+    -d "hash=${FILE_HASH}" 2>/dev/null)
+
+MB_STATUS=$(echo "$MB_RESP" | jq -r '.query_status // empty' 2>/dev/null)
+if [ "$MB_STATUS" = "ok" ]; then
+    IS_THREAT=1
+    SIG=$(echo "$MB_RESP" | jq -r '.data[0].signature // "Known Threat"' 2>/dev/null)
+    THREAT_NAME="MalwareBazaar: ${SIG}"
 fi
 
-# --- Engine 2: MalwareBazaar Cloud Reputation (abuse.ch - 100% Free) ---
-if [ $IS_THREAT -eq 0 ]; then
-    FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
-    MB_RESP=$(curl -s --max-time 4 -X POST https://mb-api.abuse.ch/api/v1/ \
-        -d "query=get_info" \
-        -d "hash=${FILE_HASH}" 2>/dev/null)
-
-    MB_STATUS=$(echo "$MB_RESP" | jq -r '.query_status // empty' 2>/dev/null)
-    if [ "$MB_STATUS" = "ok" ]; then
-        IS_THREAT=1
-        SIG=$(echo "$MB_RESP" | jq -r '.data[0].signature // "Known Threat"' 2>/dev/null)
-        THREAT_NAME="MalwareBazaar: ${SIG}"
-    fi
-fi
-
-# --- Action & Quarantine ---
+# 2. Neutralizare și Carantină
 if [ $IS_THREAT -eq 1 ]; then
-    TIMESTAMP=$(date +%s)
-    chmod 000 "$TARGET" 2>/dev/null || true
-    mv "$TARGET" "${QUARANTINE_PATH}/${TIMESTAMP}_${FILENAME}.threat"
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BASENAME=$(basename "$TARGET")
+    SAFE_NAME="${TIMESTAMP}_${BASENAME}.threat"
+    DEST="$QUARANTINE_DIR/$SAFE_NAME"
 
-    # Graphical desktop alert
-    systemd-run --machine="${ACTIVE_USER}@.host" --user --pipe \
-        kdialog --sorry "Threat Blocked!\n\nFile: ${FILENAME}\nDetection: ${THREAT_NAME:-Malicious Executable}\n\nThe file was quarantined for your protection." \
-        --title "Sourceless OS // Security Shield"
-    exit 1
+    mv "$TARGET" "$DEST"
+    chmod 000 "$DEST"
+
+    USER_ID=$(id -u sourceless 2>/dev/null || echo "1000")
+    USER_BUS="unix:path=/run/user/${USER_ID}/bus"
+    sudo -u sourceless DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
+        kdialog --title "Sourceless-OS Security" \
+                --sorry "Threat Blocked!\n\nFile: ${BASENAME}\nVerdict: ${THREAT_NAME}\n\nThe file was safely moved to quarantine." 2>/dev/null &
 fi
-
-# Visual confirmation for verified clean executables
-case "$FILENAME" in
-    *.AppImage|*.bin|*.run|*.sh)
-        systemd-run --machine="${ACTIVE_USER}@.host" --user --pipe \
-            notify-send "Sourceless Shield" "Verified clean: ${FILENAME}" -i security-high
-        ;;
-esac

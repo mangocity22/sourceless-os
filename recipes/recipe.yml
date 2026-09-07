@@ -36,9 +36,6 @@ modules:
         - zenity
         - plasma-discover
         - plasma-discover-flatpak
-        - clamav
-        - clamd
-        - clamav-update
         - inotify-tools
         - bubblewrap
         - jq
@@ -73,6 +70,7 @@ modules:
           - auditd.service
           - sourceless-client.service
           - sourceless-flatpak-update.timer
+          - sourceless-shield.service
 
   - type: script
     scripts:
