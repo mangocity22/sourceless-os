@@ -1,12 +1,18 @@
 #!/usr/bin/bash
-# /usr/bin/sourceless-sandbox
-# Anti-Infostealer execution wrapper for untrusted binaries & AppImages
+# /usr/bin/sourceless-sandbox - Anti-Infostealer bubblewrap runtime
 
-TARGET_APP="$1"
+RAW_CMD="$1"
 shift
 
-if [ -z "$TARGET_APP" ] || [ ! -e "$TARGET_APP" ]; then
+if [ -z "$RAW_CMD" ]; then
     echo "Usage: sourceless-sandbox <executable> [args...]"
+    exit 1
+fi
+
+TARGET_APP=$(command -v "$RAW_CMD" 2>/dev/null || echo "$RAW_CMD")
+
+if [ ! -e "$TARGET_APP" ]; then
+    echo "Error: Executable '$RAW_CMD' not found."
     exit 1
 fi
 

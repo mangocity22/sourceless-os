@@ -40,6 +40,7 @@ modules:
         - bubblewrap
         - jq
         - curl
+        - yara
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)

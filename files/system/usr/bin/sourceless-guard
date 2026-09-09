@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# /usr/bin/sourceless-guard - Ultra-lightweight threat checker
+# /usr/bin/sourceless-guard - Lightweight threat scanner (YARA + Cloud)
 
 TARGET="$1"
 [ -z "$TARGET" ] || [ ! -f "$TARGET" ] && exit 0
@@ -10,21 +10,33 @@ chmod 700 "$QUARANTINE_DIR"
 
 IS_THREAT=0
 THREAT_NAME=""
+RULES_FILE="/etc/sourceless/rules/infostealers.yar"
 
-# 1. Cloud Reputation via MalwareBazaar (abuse.ch)
-FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
-MB_RESP=$(curl -s --max-time 3 -X POST https://mb-api.abuse.ch/api/v1/ \
-    -d "query=get_info" \
-    -d "hash=${FILE_HASH}" 2>/dev/null)
-
-MB_STATUS=$(echo "$MB_RESP" | jq -r '.query_status // empty' 2>/dev/null)
-if [ "$MB_STATUS" = "ok" ]; then
-    IS_THREAT=1
-    SIG=$(echo "$MB_RESP" | jq -r '.data[0].signature // "Known Threat"' 2>/dev/null)
-    THREAT_NAME="MalwareBazaar: ${SIG}"
+# --- Motor 1: Inspecție euristică locală ultra-rapidă (YARA) ---
+if [ -f "$RULES_FILE" ]; then
+    YARA_MATCH=$(yara -w "$RULES_FILE" "$TARGET" 2>/dev/null | awk '{print $1}')
+    if [ -n "$YARA_MATCH" ]; then
+        IS_THREAT=1
+        THREAT_NAME="Heuristic: ${YARA_MATCH}"
+    fi
 fi
 
-# 2. Neutralizare și Carantină
+# --- Motor 2: Reputație Cloud (MalwareBazaar abuse.ch) ---
+if [ $IS_THREAT -eq 0 ]; then
+    FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
+    MB_RESP=$(curl -s --max-time 3 -X POST https://mb-api.abuse.ch/api/v1/ \
+        -d "query=get_info" \
+        -d "hash=${FILE_HASH}" 2>/dev/null)
+
+    MB_STATUS=$(echo "$MB_RESP" | jq -r '.query_status // empty' 2>/dev/null)
+    if [ "$MB_STATUS" = "ok" ]; then
+        IS_THREAT=1
+        SIG=$(echo "$MB_RESP" | jq -r '.data[0].signature // "Known Threat"' 2>/dev/null)
+        THREAT_NAME="MalwareBazaar: ${SIG}"
+    fi
+fi
+
+# --- Carantinare și Notificare Desktop ---
 if [ $IS_THREAT -eq 1 ]; then
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BASENAME=$(basename "$TARGET")
@@ -38,5 +50,5 @@ if [ $IS_THREAT -eq 1 ]; then
     USER_BUS="unix:path=/run/user/${USER_ID}/bus"
     sudo -u sourceless DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
         kdialog --title "Sourceless-OS Security" \
-                --sorry "Threat Blocked!\n\nFile: ${BASENAME}\nVerdict: ${THREAT_NAME}\n\nThe file was safely moved to quarantine." 2>/dev/null &
+                --sorry "Threat Blocked!\n\nFile: ${BASENAME}\nDetection: ${THREAT_NAME}\n\nThe file was moved to quarantine." 2>/dev/null &
 fi
