@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-shield - inotify monitor
+
+TARGET_DIR="/var/home/sourceless/Downloads"
+
+while [ ! -d "$TARGET_DIR" ]; do
+    sleep 5
+done
+
+inotifywait -m -e close_write,moved_to --format '%w%f' "$TARGET_DIR" | while read -r NEW_FILE; do
+    /usr/bin/sourceless-guard "$NEW_FILE" &
+done

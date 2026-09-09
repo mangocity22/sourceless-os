@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# /usr/bin/sourceless-guard - Lightweight threat scanner (YARA + Cloud)
+# /usr/bin/sourceless-guard - Autonomous local scanner
 
 TARGET="$1"
 [ -z "$TARGET" ] || [ ! -f "$TARGET" ] && exit 0
@@ -8,47 +8,37 @@ QUARANTINE_DIR="/var/quarantine"
 mkdir -p "$QUARANTINE_DIR"
 chmod 700 "$QUARANTINE_DIR"
 
+RULES_DIR="/etc/sourceless/rules"
 IS_THREAT=0
 THREAT_NAME=""
-RULES_FILE="/etc/sourceless/rules/infostealers.yar"
 
-# --- Motor 1: Inspecție euristică locală ultra-rapidă (YARA) ---
-if [ -f "$RULES_FILE" ]; then
-    YARA_MATCH=$(yara -w "$RULES_FILE" "$TARGET" 2>/dev/null | awk '{print $1}')
-    if [ -n "$YARA_MATCH" ]; then
+# 1. Scanare locală ultra-rapidă prin YARA
+if [ -d "$RULES_DIR" ]; then
+    MATCH=$(yara -w -r "$RULES_DIR" "$TARGET" 2>/dev/null | head -n 1 | awk '{print $1}')
+    if [ -n "$MATCH" ]; then
         IS_THREAT=1
-        THREAT_NAME="Heuristic: ${YARA_MATCH}"
+        THREAT_NAME="$MATCH"
     fi
 fi
 
-# --- Motor 2: Reputație Cloud (MalwareBazaar abuse.ch) ---
-if [ $IS_THREAT -eq 0 ]; then
-    FILE_HASH=$(sha256sum "$TARGET" | awk '{print $1}')
-    MB_RESP=$(curl -s --max-time 3 -X POST https://mb-api.abuse.ch/api/v1/ \
-        -d "query=get_info" \
-        -d "hash=${FILE_HASH}" 2>/dev/null)
-
-    MB_STATUS=$(echo "$MB_RESP" | jq -r '.query_status // empty' 2>/dev/null)
-    if [ "$MB_STATUS" = "ok" ]; then
-        IS_THREAT=1
-        SIG=$(echo "$MB_RESP" | jq -r '.data[0].signature // "Known Threat"' 2>/dev/null)
-        THREAT_NAME="MalwareBazaar: ${SIG}"
-    fi
-fi
-
-# --- Carantinare și Notificare Desktop ---
+# 2. Carantinare imediată și notificare desktop nativă
 if [ $IS_THREAT -eq 1 ]; then
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BASENAME=$(basename "$TARGET")
-    SAFE_NAME="${TIMESTAMP}_${BASENAME}.threat"
-    DEST="$QUARANTINE_DIR/$SAFE_NAME"
+    DEST="$QUARANTINE_DIR/${TIMESTAMP}_${BASENAME}.threat"
 
+    # Neutralizare completă
     mv "$TARGET" "$DEST"
     chmod 000 "$DEST"
 
+    # Notificare grafică în sesiunea activă KDE Wayland
     USER_ID=$(id -u sourceless 2>/dev/null || echo "1000")
     USER_BUS="unix:path=/run/user/${USER_ID}/bus"
-    sudo -u sourceless DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
-        kdialog --title "Sourceless-OS Security" \
-                --sorry "Threat Blocked!\n\nFile: ${BASENAME}\nDetection: ${THREAT_NAME}\n\nThe file was moved to quarantine." 2>/dev/null &
+    
+    sudo -u sourceless \
+        XDG_RUNTIME_DIR="/run/user/${USER_ID}" \
+        DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
+        notify-send -u critical -i dialog-warning \
+            "Sourceless-OS Guard" \
+            "Amenințare blocată!\nFișier: ${BASENAME}\nSemnătură: ${THREAT_NAME}\nFișierul a fost mutat în /var/quarantine/." 2>/dev/null &
 fi
