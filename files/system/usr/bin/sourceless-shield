@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# /usr/bin/sourceless-shield - inotify monitor
+# /usr/bin/sourceless-shield - inotify filesystem watcher for incoming files
 
 TARGET_DIR="/var/home/sourceless/Downloads"
 

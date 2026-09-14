@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# /usr/bin/sourceless-guard - Autonomous local scanner
+# /usr/bin/sourceless-guard - Autonomous local security scanner
 
 TARGET="$1"
 [ -z "$TARGET" ] || [ ! -f "$TARGET" ] && exit 0
@@ -8,37 +8,39 @@ QUARANTINE_DIR="/var/quarantine"
 mkdir -p "$QUARANTINE_DIR"
 chmod 700 "$QUARANTINE_DIR"
 
-RULES_DIR="/etc/sourceless/rules"
 IS_THREAT=0
 THREAT_NAME=""
 
-# 1. Scanare locală ultra-rapidă prin YARA
-if [ -d "$RULES_DIR" ]; then
-    MATCH=$(yara -w -r "$RULES_DIR" "$TARGET" 2>/dev/null | head -n 1 | awk '{print $1}')
+# 1. Expand all .yar rule files from the signatures directory
+shopt -s nullglob
+RULE_FILES=(/etc/sourceless/rules/*.yar)
+
+if [ ${#RULE_FILES[@]} -gt 0 ]; then
+    MATCH=$(yara -w "${RULE_FILES[@]}" "$TARGET" 2>/dev/null | head -n 1 | awk '{print $1}')
     if [ -n "$MATCH" ]; then
         IS_THREAT=1
         THREAT_NAME="$MATCH"
     fi
 fi
 
-# 2. Carantinare imediată și notificare desktop nativă
+# 2. Quarantine payload and dispatch desktop notification
 if [ $IS_THREAT -eq 1 ]; then
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BASENAME=$(basename "$TARGET")
     DEST="$QUARANTINE_DIR/${TIMESTAMP}_${BASENAME}.threat"
 
-    # Neutralizare completă
+    # Neutralize execution permissions and relocate
     mv "$TARGET" "$DEST"
     chmod 000 "$DEST"
 
-    # Notificare grafică în sesiunea activă KDE Wayland
+    # Route desktop alert to the active KDE Wayland session
     USER_ID=$(id -u sourceless 2>/dev/null || echo "1000")
     USER_BUS="unix:path=/run/user/${USER_ID}/bus"
-    
+
     sudo -u sourceless \
         XDG_RUNTIME_DIR="/run/user/${USER_ID}" \
         DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
         notify-send -u critical -i dialog-warning \
             "Sourceless-OS Guard" \
-            "Amenințare blocată!\nFișier: ${BASENAME}\nSemnătură: ${THREAT_NAME}\nFișierul a fost mutat în /var/quarantine/." 2>/dev/null &
+            "Threat Blocked!\nFile: ${BASENAME}\nRule: ${THREAT_NAME}\nMoved to quarantine." 2>/dev/null &
 fi
