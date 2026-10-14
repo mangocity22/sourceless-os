@@ -1,0 +1,11 @@
+[Unit]
+Description=Purge quarantined threats from Sourceless-OS
+After=local-fs.target
+
+[Service]
+Type=oneshot
+# Elimină complet fișierele .threat din carantină
+ExecStart=/usr/bin/find /var/quarantine/ -type f -name "*.threat" -delete
+
+[Install]
+WantedBy=multi-user.target

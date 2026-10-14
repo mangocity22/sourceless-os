@@ -73,6 +73,7 @@ modules:
           - sourceless-client.service
           - sourceless-flatpak-update.timer
           - sourceless-shield.service
+          - sourceless-quarantine-purge.timer
 
   - type: script
     scripts:
