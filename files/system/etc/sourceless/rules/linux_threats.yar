@@ -140,3 +140,31 @@ rule Linux_Credential_Access_Proc_Mem {
     condition:
         ($proc_mem and $proc_maps) or ($pstate and ($gnome_keyring or $ssh_agent))
 }
+
+/*
+    Rule 7: INC Ransomware & Linux/ESXi Storage Targeters
+    Targets: INC Ransomware, LockBit ESXi, Babuk, and hypervisor-targeted wipers.
+*/
+rule Linux_Ransomware_INC_ESXi {
+    meta:
+        description = "Detects INC Ransomware variants targeting Linux and VMware ESXi environments"
+        author = "Sourceless Security"
+        severity = "Critical"
+    strings:
+        // INC specific ransom note markers
+        $inc_note = "INC-README.txt" ascii
+        $inc_motd = "Replace default Message of the day by ransom note" ascii
+        
+        // ESXi disruption primitives
+        $esxi_stop = "while stopping ESXi machines" ascii
+        $esxi_snap = "while removing ESXi snapshots" ascii
+        $esxi_flag = "esxi-snapDelete snapshots" ascii
+        
+        // Core execution parameters
+        $enc_mode = "Encryption mode (fast, medium, slow)" ascii
+        $enc_daemon = "Detach an application from SSH connection, so you can close it and continue encryption" ascii
+    condition:
+        $inc_note or 
+        (2 of ($esxi_*)) or 
+        ($enc_mode and any of ($inc_motd, $enc_daemon))
+}
