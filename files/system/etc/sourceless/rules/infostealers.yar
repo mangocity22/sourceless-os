@@ -56,8 +56,8 @@ rule Linux_Persistence_Mechanism {
     meta:
         description = "Detects silent cron persistence targeting volatile or temporary storage"
     strings:
-        $cron_tmp = /\/etc\/cron\.[a-z]+\/.*(\/tmp|\/dev\/shm)/ ascii
-        $cron_spool = /\/var\/spool\/cron\/.*(\/tmp|\/dev\/shm)/ ascii
+        $cron_tmp = /\/etc\/cron\.[a-z]+\/.{1,120}(\/tmp|\/dev\/shm)/ ascii
+        $cron_spool = /\/var\/spool\/cron\/.{1,120}(\/tmp|\/dev\/shm)/ ascii
     condition:
         any of them
 }
@@ -84,12 +84,3 @@ rule Linux_Botnet_Mirai_Family {
         $iranbot or ($shutdown_msg and any of ($telnet, $busybox))
 }
 
-rule Linux_Persistence_Mechanism {
-    meta:
-        description = "Detects silent cron persistence targeting volatile or temporary storage"
-    strings:
-        $cron_tmp = /\/etc\/cron\.[a-z]+\/.{1,120}(\/tmp|\/dev\/shm)/ ascii
-        $cron_spool = /\/var\/spool\/cron\/.{1,120}(\/tmp|\/dev\/shm)/ ascii
-    condition:
-        any of them
-}
