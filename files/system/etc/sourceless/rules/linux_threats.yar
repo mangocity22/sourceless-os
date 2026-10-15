@@ -168,3 +168,19 @@ rule Linux_Ransomware_INC_ESXi {
         (2 of ($esxi_*)) or 
         ($enc_mode and any of ($inc_motd, $enc_daemon))
 }
+
+rule Linux_Malformed_AntiAnalysis_ELF {
+    meta:
+        description = "Detects malformed or truncated ELF binaries crafted to bypass dynamic analysis"
+        author = "Sourceless Security"
+        severity = "High"
+    condition:
+        // ELF Magic bytes
+        uint32(0) == 0x464c457f and
+        (
+            // 64-bit ELF: section header offset (offset 0x28) points beyond file size
+            (uint8(4) == 2 and uint32(0x28) > filesize) or
+            // 32-bit ELF: section header offset (offset 0x20) points beyond file size
+            (uint8(4) == 1 and uint32(0x20) > filesize)
+        )
+}

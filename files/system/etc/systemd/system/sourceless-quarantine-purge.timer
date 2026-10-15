@@ -1,6 +1,5 @@
 [Unit]
 Description=Automated purge timer for quarantined malware
-ConditionVirtualization=false
 
 [Timer]
 # Rulează la fiecare pornire a sistemului (după 5 minute) și apoi săptămânal
