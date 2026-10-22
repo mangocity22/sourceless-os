@@ -119,6 +119,10 @@ while true; do
             systemctl start rustdesk.service
             sleep 2
 
+            RUSTDESK_PW=$(openssl rand -hex 4)
+            rustdesk --password "$RUSTDESK_PW" 2>/dev/null || true
+            sleep 1
+
             RUSTDESK_ID=""
             for i in {1..10}; do
                 RUSTDESK_ID=$(rustdesk --get-id 2>/dev/null | tr -d '\r\n')
