@@ -74,6 +74,7 @@ modules:
           - sourceless-flatpak-update.timer
           - sourceless-shield.service
           - sourceless-quarantine-purge.timer
+          - dev-shm.mount
 
   - type: script
     scripts:
