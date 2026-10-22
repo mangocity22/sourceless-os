@@ -9,7 +9,7 @@ Before=local-fs.target umount.target
 What=tmpfs
 Where=/dev/shm
 Type=tmpfs
-Options=mode=1777,nosuid,nodev,noexec
+Options=mode=1777,nosuid,nodev
 
 [Install]
 WantedBy=local-fs.target

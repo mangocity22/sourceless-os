@@ -110,16 +110,15 @@ while true; do
         [ -z "$WAYLAND_NAME" ] && WAYLAND_NAME="wayland-0"
 
         if systemd-run --machine="${ACTIVE_USER}@.host" --user --pipe --wait \
+            --setenv=WAYLAND_DISPLAY="$WAYLAND_NAME" \
+            --setenv=XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
+            --setenv=DISPLAY=":0" \
             kdialog --yesno "An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
             --title "Sourceless OS // Support Request"; then
 
             touch /tmp/sourceless_support_active
             systemctl start rustdesk.service
             sleep 2
-
-            RUSTDESK_PW=$(openssl rand -hex 4)
-            rustdesk --password "$RUSTDESK_PW" 2>/dev/null || true
-            sleep 1
 
             RUSTDESK_ID=""
             for i in {1..10}; do
