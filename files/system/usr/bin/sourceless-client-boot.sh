@@ -96,9 +96,8 @@ while true; do
         rm -f /tmp/sourceless_support_active
         pkill -f zenity 2>/dev/null || true
 
-        # Resolve graphical session parameters
-        ACTIVE_USER=$(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -v "root" | head -n 1)
-        [ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(who | grep -E '(:[0-9]|tty[0-9]|wayland|pts)' | awk '{print $1}' | head -n 1)
+        # Resolve active graphical session parameters (strictly filter for interactive user sessions UID >= 1000)
+        ACTIVE_USER=$(loginctl list-sessions --no-legend 2>/dev/null | awk '$2 >= 1000 && $6 == "user" {print $3; exit}')
         [ -z "$ACTIVE_USER" ] && ACTIVE_USER=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1; exit}' /etc/passwd)
         [ -z "$ACTIVE_USER" ] && ACTIVE_USER="sourceless"
 
