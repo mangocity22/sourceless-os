@@ -1,0 +1,1 @@
+tmpfs /dev/shm tmpfs defaults,nodev,nosuid,noexec 0 0
