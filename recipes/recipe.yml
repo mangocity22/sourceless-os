@@ -42,8 +42,7 @@ modules:
         - curl
         - yara
         - libnotify
-        - /tmp/rpms/plymouth-theme-sourceless-1.1-1.fc44.noarch.rpm
-        - /tmp/rpms/sourceless-branding-2.7-1.fc44.noarch.rpm
+        
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)

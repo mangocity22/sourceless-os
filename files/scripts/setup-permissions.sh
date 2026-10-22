@@ -114,4 +114,8 @@ sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/c
 
 echo "[Sourceless] setup-permissions.sh completed successfully."
 
+# Force install branding packs
+rpm -ivh --replacefiles --force /tmp/rpms/*.rpm 2>/dev/null || true
+
+# Clean up temporary RPMs directory
 rm -rf /tmp/rpms
