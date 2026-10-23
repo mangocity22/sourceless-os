@@ -141,10 +141,10 @@ for os_target in /usr/lib/os-release /etc/os-release; do
         sed -i 's/^NAME=.*/NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
         sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
         sed -i 's/^ID=.*/ID=sourceless/' "$os_target" 2>/dev/null || true
-        sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
         sed -i 's/^LOGO=.*/LOGO=sourceless-logo/' "$os_target" 2>/dev/null || true
         sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME=sourceless/' "$os_target" 2>/dev/null || true
     fi
@@ -232,5 +232,42 @@ for theme_dir in /usr/share/icons/*; do
         gtk-update-icon-cache -f -q "$theme_dir" 2>/dev/null || true
     fi
 done
+
+# -----------------------------------------------------------------------------
+# Aggressive Application Icon Overrides (Breeze & Breeze-Dark)
+# -----------------------------------------------------------------------------
+APPS_SRC="/usr/share/icons/breeze/apps/scalable"
+
+if [[ -d "$APPS_SRC" ]]; then
+    for theme in breeze breeze-dark; do
+        for size_dir in /usr/share/icons/"$theme"/apps/*; do
+            if [[ -d "$size_dir" ]]; then
+                # Dolphin
+                if [[ -f "$APPS_SRC/org.kde.dolphin.svg" ]]; then
+                    cp -f "$APPS_SRC/org.kde.dolphin.svg" "$size_dir/org.kde.dolphin.svg" 2>/dev/null || true
+                    cp -f "$APPS_SRC/org.kde.dolphin.svg" "$size_dir/system-file-manager.svg" 2>/dev/null || true
+                fi
+
+                # Konsole
+                if [[ -f "$APPS_SRC/org.kde.konsole.svg" ]]; then
+                    cp -f "$APPS_SRC/org.kde.konsole.svg" "$size_dir/org.kde.konsole.svg" 2>/dev/null || true
+                    cp -f "$APPS_SRC/org.kde.konsole.svg" "$size_dir/utilities-terminal.svg" 2>/dev/null || true
+                fi
+
+                # System Settings
+                if [[ -f "$APPS_SRC/systemsettings.svg" ]]; then
+                    cp -f "$APPS_SRC/systemsettings.svg" "$size_dir/systemsettings.svg" 2>/dev/null || true
+                    cp -f "$APPS_SRC/systemsettings.svg" "$size_dir/preferences-system.svg" 2>/dev/null || true
+                fi
+
+                # Discover
+                if [[ -f "$APPS_SRC/plasmadiscover.svg" ]]; then
+                    cp -f "$APPS_SRC/plasmadiscover.svg" "$size_dir/plasmadiscover.svg" 2>/dev/null || true
+                    cp -f "$APPS_SRC/plasmadiscover.svg" "$size_dir/org.kde.discover.svg" 2>/dev/null || true
+                fi
+            fi
+        done
+    done
+fi
 
 echo "[Sourceless] setup-permissions.sh completed successfully."
