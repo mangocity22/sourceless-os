@@ -124,3 +124,18 @@ rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
 # 3. Refresh icon cache and desktop database to ensure proper application discovery
 gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
 update-desktop-database /usr/share/applications 2>/dev/null || true
+
+# -------------------------------------------------------------
+# Rebranding oficial OS (About System / KInfoCenter / Terminal)
+# -------------------------------------------------------------
+if [[ -f /usr/lib/os-release ]]; then
+    sed -i 's/^NAME=.*/NAME="Sourceless OS"/' /usr/lib/os-release
+    sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' /usr/lib/os-release
+    sed -i 's/^ID=.*/ID=sourceless/' /usr/lib/os-release
+    sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
+    sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
+    sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
+    sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
+    sed -i 's/^LOGO=.*/LOGO="sourceless-logo"/' /usr/lib/os-release
+    sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME="sourceless"/' /usr/lib/os-release
+fi
