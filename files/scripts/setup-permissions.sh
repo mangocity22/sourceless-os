@@ -139,3 +139,9 @@ if [[ -f /usr/lib/os-release ]]; then
     sed -i 's/^LOGO=.*/LOGO="sourceless-logo"/' /usr/lib/os-release
     sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME="sourceless"/' /usr/lib/os-release
 fi
+
+# Refresh icon cache for hicolor and breeze themes to ensure proper branding
+touch /usr/share/icons/hicolor 2>/dev/null || true
+gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+touch /usr/share/icons/breeze 2>/dev/null || true
+gtk-update-icon-cache -f /usr/share/icons/breeze 2>/dev/null || true
