@@ -42,7 +42,8 @@ modules:
         - curl
         - yara
         - libnotify
-        
+        - kinfocenter
+
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)
