@@ -114,8 +114,13 @@ sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/c
 
 echo "[Sourceless] setup-permissions.sh completed successfully."
 
-# Force install branding packs
-rpm -ivh --replacefiles --force /tmp/rpms/*.rpm 2>/dev/null || true
+# 1. Permission fix for first-login script to ensure it runs correctly on user sessions
+chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 
-# Clean up temporary RPMs directory
-rm -rf /tmp/rpms
+# 2. Delete default Fedora wallpapers to enforce SourceLess branding
+rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
+rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
+
+# 3. Refresh icon cache and desktop database to ensure proper application discovery
+gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+update-desktop-database /usr/share/applications 2>/dev/null || true

@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Sourceless Team"
+            }
+        ],
+        "Id": "SourceLess",
+        "Name": "SourceLess",
+        "License": "Proprietary"
+    }
+}

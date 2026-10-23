@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Sourceless Branding Setup
+Comment=Initializes official themes and wallpaper on first session
+Exec=/usr/bin/sourceless-first-login.sh
+Terminal=false
+NoDisplay=true
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
