@@ -180,6 +180,23 @@ if [[ -f "$START_SRC" ]]; then
     done
 fi
 
+# -----------------------------------------------------------------------------
+# Wallpaper Packaging & Default Overrides
+# -----------------------------------------------------------------------------
+WALLPAPER_SRC="/usr/share/wallpapers/SourceLess/contents/images/3840x2160.png"
+
+# Delete Fedora stock wallpapers
+rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
+rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
+
+# Overwrite KDE Breeze default wallpaper (Next) so it defaults to Sourceless
+if [[ -f "$WALLPAPER_SRC" ]]; then
+    if [[ -d /usr/share/wallpapers/Next/contents/images ]]; then
+        cp -f "$WALLPAPER_SRC" /usr/share/wallpapers/Next/contents/images/3840x2160.png 2>/dev/null || true
+        cp -f "$WALLPAPER_SRC" /usr/share/wallpapers/Next/contents/images/5120x2880.png 2>/dev/null || true
+    fi
+fi
+
 # Aggressively overwrite OS and Distributor logos across all Breeze themes (apps and status contexts)
 if [[ -f "$LOGO_SVG" ]]; then
     for theme in breeze breeze-dark; do

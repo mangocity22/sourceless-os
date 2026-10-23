@@ -29,5 +29,11 @@ if [[ -f "$WALLPAPER_DIR/contents/images/3840x2160.png" ]] && command -v plasma-
     plasma-apply-wallpaperimage "$WALLPAPER_DIR" >/dev/null 2>&1 || true
 fi
 
+WALLPAPER_IMG="/usr/share/wallpapers/SourceLess/contents/images/3840x2160.png"
+
+if [[ -f "$WALLPAPER_IMG" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
+    plasma-apply-wallpaperimage "$WALLPAPER_IMG" >/dev/null 2>&1 || true
+fi
+
 touch "$MARKER"
 exit 0

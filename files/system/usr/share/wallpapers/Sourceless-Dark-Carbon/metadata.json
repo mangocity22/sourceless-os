@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "support@sourceless.net",
+                "Name": "Sourceless Team"
+            }
+        ],
+        "Id": "SourceLess-Dark-Carbon",
+        "Name": "SourceLess Dark Carbon"
+    }
+}
