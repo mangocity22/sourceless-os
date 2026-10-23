@@ -10,7 +10,7 @@ fi
 
 mkdir -p "$STATE_DIR"
 
-# Asteapta ca plasmashell sa fie incarcat complet in sesiune
+# Wait for the graphical session to be fully initialized (up to 30 seconds)
 waited=0
 while ! pgrep -x plasmashell >/dev/null 2>&1 && (( waited < 30 )); do
     sleep 1
@@ -18,17 +18,16 @@ while ! pgrep -x plasmashell >/dev/null 2>&1 && (( waited < 30 )); do
 done
 sleep 2
 
-# 1. Aplica tema intunecata
+# Apply the BreezeDark theme for security
 if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
-    plasma-apply-colorscheme SourcelessDark >/dev/null 2>&1 || true
+    plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
 fi
 
-# 2. Aplica wallpaper-ul oficial SourceLess
+# Apply the wallpaper only if the file exists physically on disk
 WALLPAPER_DIR="/usr/share/wallpapers/SourceLess"
-if [[ -d "$WALLPAPER_DIR" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
+if [[ -f "$WALLPAPER_DIR/contents/images/3840x2160.png" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
     plasma-apply-wallpaperimage "$WALLPAPER_DIR" >/dev/null 2>&1 || true
 fi
 
-# Daca a ajuns pana aici, marcheaza procesul ca incheiat sa nu mai ruleze din nou
 touch "$MARKER"
 exit 0
