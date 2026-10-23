@@ -77,6 +77,8 @@ modules:
           - sourceless-shield.service
           - sourceless-quarantine-purge.timer
           - dev-shm.mount
+      disabled:
+          - fedora-atomic-desktop-appstream-cache-refresh.service
 
   - type: script
     scripts:

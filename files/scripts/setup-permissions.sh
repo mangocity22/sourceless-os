@@ -145,3 +145,33 @@ touch /usr/share/icons/hicolor 2>/dev/null || true
 gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
 touch /usr/share/icons/breeze 2>/dev/null || true
 gtk-update-icon-cache -f /usr/share/icons/breeze 2>/dev/null || true
+
+# -------------------------------------------------------------
+# Overwrite default KDE Start Menu and system branding icons with official Sourceless OS logos
+# -------------------------------------------------------------
+START_ICON="/usr/share/icons/hicolor/scalable/apps/start-here.svg"
+LOGO_ICON="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.svg"
+
+if [[ -f "$START_ICON" ]]; then
+    # Overwrite the Start Menu icon for all Breeze themes to ensure consistent branding
+    for theme in breeze breeze-dark; do
+        target_dir="/usr/share/icons/$theme/places/scalable"
+        if [[ -d "$target_dir" ]]; then
+            cp -f "$START_ICON" "$target_dir/start-here-kde.svg"
+            cp -f "$START_ICON" "$target_dir/start-here.svg"
+            cp -f "$START_ICON" "$target_dir/distributor-logo.svg"
+        fi
+    done
+fi
+
+if [[ -f "$LOGO_ICON" ]]; then
+    # Assign the official Sourceless logo to the hicolor theme for system-wide branding
+    cp -f "$LOGO_ICON" /usr/share/icons/hicolor/scalable/apps/distributor-logo.svg 2>/dev/null || true
+fi
+
+# Force refresh of icon caches
+for theme_dir in /usr/share/icons/*; do
+    if [[ -d "$theme_dir" ]]; then
+        gtk-update-icon-cache -f -q "$theme_dir" 2>/dev/null || true
+    fi
+done
