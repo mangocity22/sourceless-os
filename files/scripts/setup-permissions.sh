@@ -132,21 +132,23 @@ systemctl enable systemd-resolved.service 2>/dev/null || true
 sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/clamd.sock|' /etc/clamd.d/scan.conf 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# 6. Official OS Release Identification (/usr/lib/os-release)
+# 6. Official OS Release Identification (/usr/lib/os-release and /etc/os-release)
 # -----------------------------------------------------------------------------
 
 echo "[Sourceless] Patching OS release metadata..."
-if [[ -f /usr/lib/os-release ]]; then
-    sed -i 's/^NAME=.*/NAME="Sourceless OS"/' /usr/lib/os-release
-    sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' /usr/lib/os-release
-    sed -i 's/^ID=.*/ID=sourceless/' /usr/lib/os-release
-    sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
-    sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
-    sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
-    sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
-    sed -i 's/^LOGO=.*/LOGO=sourceless-logo/' /usr/lib/os-release
-    sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME=sourceless/' /usr/lib/os-release
-fi
+for os_target in /usr/lib/os-release /etc/os-release; do
+    if [[ -f "$os_target" || -L "$os_target" ]]; then
+        sed -i 's/^NAME=.*/NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^ID=.*/ID=sourceless/' "$os_target" 2>/dev/null || true
+        sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.io"/' "$os_target" 2>/dev/null || true
+        sed -i 's/^LOGO=.*/LOGO=sourceless-logo/' "$os_target" 2>/dev/null || true
+        sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME=sourceless/' "$os_target" 2>/dev/null || true
+    fi
+done
 
 # -----------------------------------------------------------------------------
 # 7. Visual Branding & Desktop Asset Overrides
@@ -163,7 +165,7 @@ START_SRC="/usr/share/icons/hicolor/scalable/apps/start-here.svg"
 LOGO_SVG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.svg"
 LOGO_PNG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.png"
 
-# Aggressively overwrite KDE Plasma 6 Start Menu launcher across all Breeze themes and sizes
+# Overwrite Start Menu launcher across all Breeze themes and sizes (places context)
 if [[ -f "$START_SRC" ]]; then
     for theme in breeze breeze-dark; do
         for size_dir in /usr/share/icons/"$theme"/places/*; do
@@ -173,22 +175,48 @@ if [[ -f "$START_SRC" ]]; then
                 cp -f "$START_SRC" "$size_dir/start-here.svg" 2>/dev/null || true
                 cp -f "$START_SRC" "$size_dir/start-here-kde-plasma-symbolic.svg" 2>/dev/null || true
                 cp -f "$START_SRC" "$size_dir/start-here-symbolic.svg" 2>/dev/null || true
-                cp -f "$START_SRC" "$size_dir/distributor-logo.svg" 2>/dev/null || true
             fi
         done
     done
 fi
 
-# Distribute official OS logo to fallback icon themes and pixmaps for KInfoCenter
+# Aggressively overwrite OS and Distributor logos across all Breeze themes (apps and status contexts)
 if [[ -f "$LOGO_SVG" ]]; then
+    for theme in breeze breeze-dark; do
+        # Overwrite in apps directories (where KInfoCenter and system dialogs look)
+        for size_dir in /usr/share/icons/"$theme"/apps/*; do
+            if [[ -d "$size_dir" ]]; then
+                cp -f "$LOGO_SVG" "$size_dir/sourceless-logo.svg" 2>/dev/null || true
+                cp -f "$LOGO_SVG" "$size_dir/distributor-logo.svg" 2>/dev/null || true
+                cp -f "$LOGO_SVG" "$size_dir/distributor-logo-fedora.svg" 2>/dev/null || true
+                cp -f "$LOGO_SVG" "$size_dir/fedora-logo-icon.svg" 2>/dev/null || true
+            fi
+        done
+
+        # Overwrite in places scalable as fallback
+        if [[ -d "/usr/share/icons/$theme/places/scalable" ]]; then
+            cp -f "$LOGO_SVG" "/usr/share/icons/$theme/places/scalable/distributor-logo.svg" 2>/dev/null || true
+            cp -f "$LOGO_SVG" "/usr/share/icons/$theme/places/scalable/distributor-logo-fedora.svg" 2>/dev/null || true
+        fi
+    done
+
+    # Overwrite in hicolor scalable apps
     cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/distributor-logo.svg 2>/dev/null || true
+    cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/distributor-logo-fedora.svg 2>/dev/null || true
+    cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/fedora-logo-icon.svg 2>/dev/null || true
+
+    # Overwrite pixmap fallbacks
     cp -f "$LOGO_SVG" /usr/share/pixmaps/sourceless-logo.svg 2>/dev/null || true
     cp -f "$LOGO_SVG" /usr/share/pixmaps/distributor-logo.svg 2>/dev/null || true
+    cp -f "$LOGO_SVG" /usr/share/pixmaps/fedora-logo.svg 2>/dev/null || true
 fi
 
+# Overwrite raster pixmap fallbacks if PNG is available
 if [[ -f "$LOGO_PNG" ]]; then
     cp -f "$LOGO_PNG" /usr/share/pixmaps/sourceless-logo.png 2>/dev/null || true
     cp -f "$LOGO_PNG" /usr/share/pixmaps/distributor-logo.png 2>/dev/null || true
+    cp -f "$LOGO_PNG" /usr/share/pixmaps/fedora-logo.png 2>/dev/null || true
+    cp -f "$LOGO_PNG" /usr/share/pixmaps/system-logo-white.png 2>/dev/null || true
 fi
 
 # -----------------------------------------------------------------------------

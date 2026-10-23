@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 109.15 109.15">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke: rgba(217, 220, 229, .18);
+        stroke-width: 10.72px;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5 {
+        fill: none;
+        stroke-linecap: round;
+      }
+
+      .cls-1, .cls-3, .cls-4, .cls-5 {
+        stroke-linejoin: round;
+      }
+
+      .cls-2 {
+        stroke: rgba(255, 255, 255, .22);
+        stroke-width: 1.69px;
+      }
+
+      .cls-6 {
+        fill: url(#linear-gradient);
+      }
+
+      .cls-3 {
+        stroke: rgba(155, 243, 94, .12);
+        stroke-width: 6.77px;
+      }
+
+      .cls-4 {
+        stroke: url(#linear-gradient-2);
+        stroke-width: 6.2px;
+      }
+
+      .cls-5 {
+        stroke: #88e150;
+        stroke-width: 6.63px;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="10.45" y1="12.41" x2="98.92" y2="99.84" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#74798f"/>
+      <stop offset=".22" stop-color="#454a60"/>
+      <stop offset=".62" stop-color="#222638"/>
+      <stop offset="1" stop-color="#15182a"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" x1="18.5" y1="-175.11" x2="57.13" y2="-224.74" gradientTransform="translate(0 -137.92) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8f9fc"/>
+      <stop offset=".5" stop-color="#cdd1db"/>
+      <stop offset="1" stop-color="#8e95a5"/>
+    </linearGradient>
+  </defs>
+  <rect class="cls-6" x=".47" y="1.24" width="107.75" height="109.09" rx="21.51" ry="21.51"/>
+  <path class="cls-1" d="M29.31,34.63l27.07,22.56-27.07,22.56"/>
+  <path class="cls-3" d="M29.31,34.63l27.07,22.56-27.07,22.56"/>
+  <path class="cls-4" d="M29.31,34.63l27.07,22.56-27.07,22.56"/>
+  <path class="cls-5" d="M82.9,83.45l-28.85-.07"/>
+  <path class="cls-2" d="M25.18,36.04l24.81,20.58"/>
+</svg>
