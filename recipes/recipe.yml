@@ -82,6 +82,8 @@ modules:
     scripts:
       - setup-permissions.sh
 
+  - type: initramfs
+
   - type: kargs
     kargs:
       - lockdown=integrity
