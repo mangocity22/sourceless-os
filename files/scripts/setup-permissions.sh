@@ -1,5 +1,13 @@
 #!/usr/bin/bash
-# Build-time permission setup script for Sourceless-OS
+# =============================================================================
+# Sourceless-OS Build-Time Security and System Branding Setup
+# =============================================================================
+
+set -uo pipefail
+
+# -----------------------------------------------------------------------------
+# 1. Terminal Lockdown & Execution Isolation
+# -----------------------------------------------------------------------------
 
 # Defensively verify and isolate the original Konsole binary
 if [ -f /usr/bin/konsole ] && [ ! -f /usr/bin/konsole.real ]; then
@@ -9,7 +17,7 @@ else
     echo "[Sourceless] Original Konsole binary not found or already relocated. Skipping."
 fi
 
-# Generate security trap wrapper
+# Generate security trap wrapper for Konsole
 echo "[Sourceless] Generating Konsole security wrapper..."
 cat << 'EOF' > /usr/bin/konsole
 #!/usr/bin/bash
@@ -27,15 +35,19 @@ EOF
 
 chmod +x /usr/bin/konsole
 
+# -----------------------------------------------------------------------------
+# 2. System Permissions and Security Access Controls
+# -----------------------------------------------------------------------------
+
 # Restrict critical internal scripts to root execution only
-chmod 700 /usr/bin/sourceless-unlock
-chmod 700 /usr/bin/sourceless-client-boot.sh
-chmod 644 /etc/profile.d/sourceless-shell-guard.sh
-chmod +x /etc/grub.d/40_custom_sourceless
+chmod 700 /usr/bin/sourceless-unlock 2>/dev/null || true
+chmod 700 /usr/bin/sourceless-client-boot.sh 2>/dev/null || true
+chmod 644 /etc/profile.d/sourceless-shell-guard.sh 2>/dev/null || true
+chmod +x /etc/grub.d/40_custom_sourceless 2>/dev/null || true
 
 # Apply strict permissions on security policies and sudoers
-chmod 0440 /etc/sudoers.d/sourceless-lockdown
-chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules
+chmod 0440 /etc/sudoers.d/sourceless-lockdown 2>/dev/null || true
+chmod 0644 /etc/polkit-1/rules.d/10-sourceless-security.rules 2>/dev/null || true
 
 # Configure offline emergency terminal launcher permissions
 chmod 755 /usr/bin/sourceless-emergency-terminal 2>/dev/null || true
@@ -43,13 +55,15 @@ chmod 644 /usr/share/applications/sourceless-emergency-terminal.desktop 2>/dev/n
 
 # Allow users group to write tamper flag into configuration directory
 mkdir -p /etc/sourceless
-chown root:users /etc/sourceless
-chmod 775 /etc/sourceless
+chown root:users /etc/sourceless 2>/dev/null || true
+chmod 775 /etc/sourceless 2>/dev/null || true
 
 chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
+chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 
-# Enable core client agent service
-systemctl enable sourceless-client.service
+# -----------------------------------------------------------------------------
+# 3. User Privilege Neutralization and Autostart Hardening
+# -----------------------------------------------------------------------------
 
 # Mask unnecessary network services (KDE Connect)
 systemctl --global mask kdeconnectd.service 2>/dev/null || true
@@ -57,7 +71,7 @@ systemctl --global mask kdeconnectd.service 2>/dev/null || true
 # Revoke administrative privileges from standard user
 if id "sourceless" &>/dev/null; then
     gpasswd -d sourceless wheel 2>/dev/null || true
-    usermod -g sourceless -G users sourceless
+    usermod -g sourceless -G users sourceless 2>/dev/null || true
 fi
 
 # Lock down user autostart directory to prevent startup persistence
@@ -66,33 +80,40 @@ chmod 555 /etc/skel/.config/autostart
 
 if [ -d "/var/home/sourceless" ]; then
     mkdir -p /var/home/sourceless/.config/autostart
-    chown root:root /var/home/sourceless/.config/autostart
-    chmod 555 /var/home/sourceless/.config/autostart
+    chown root:root /var/home/sourceless/.config/autostart 2>/dev/null || true
+    chmod 555 /var/home/sourceless/.config/autostart 2>/dev/null || true
 fi
 
 # Neutralize sudo privileges for wheel group
-sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers
+sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers 2>/dev/null || true
 
-# Configure secure Flatpak repositories
+# -----------------------------------------------------------------------------
+# 4. Secure Flatpak Configuration & PackageKit Removal
+# -----------------------------------------------------------------------------
+
 echo "[Sourceless] Configuring secure Flatpak remotes..."
 
-# 1. Add official Fedora Flatpaks OCI registry
-flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org
+# Add official Fedora Flatpaks OCI registry
+flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org 2>/dev/null || true
 
-# 2. Add Flathub filtered strictly to verified upstream applications
-flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak remote-modify --system --subset=verified flathub
+# Add Flathub filtered strictly to verified upstream applications
+flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+flatpak remote-modify --system --subset=verified flathub 2>/dev/null || true
 
-# 3. Ensure Discover and flatpak system paths are world-readable
+# Ensure Discover and Flatpak system paths are accessible
 chmod 755 /var/lib/flatpak 2>/dev/null || true
 
-# Forcefully purge PackageKit plugin and D-Bus activation service
+# Forcefully purge PackageKit backend from Discover to prevent unmanaged updates
 echo "[Sourceless] Purging PackageKit backend from Discover..."
 rpm -e --nodeps plasma-discover-packagekit plasma-discover-offline-updates 2>/dev/null || true
 rm -f /usr/lib64/qt6/plugins/discover/packagekit-backend.so 2>/dev/null || true
 rm -f /usr/share/dbus-1/system-services/org.freedesktop.PackageKit.service 2>/dev/null || true
 
-# Set executable rights for security agents
+# -----------------------------------------------------------------------------
+# 5. Security Daemons & Services Configuration
+# -----------------------------------------------------------------------------
+
+# Set executable rights for internal security daemons
 chmod 755 /usr/bin/sourceless-guard 2>/dev/null || true
 chmod 755 /usr/bin/sourceless-downloads-watcher 2>/dev/null || true
 chmod 755 /usr/bin/sourceless-sandbox 2>/dev/null || true
@@ -101,33 +122,20 @@ chmod 755 /usr/bin/sourceless-sandbox 2>/dev/null || true
 mkdir -p /var/quarantine
 chmod 700 /var/quarantine
 
-# Enable ClamAV updater and shield daemon
+# Enable core client agent and security services
+systemctl enable sourceless-client.service 2>/dev/null || true
 systemctl enable freshclam.service 2>/dev/null || true
 systemctl enable clamd@scan.service 2>/dev/null || true
 systemctl enable sourceless-shield.service 2>/dev/null || true
-
-update-desktop-database /usr/share/applications 2>/dev/null || true
-
 systemctl enable systemd-resolved.service 2>/dev/null || true
 
 sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/clamd.sock|' /etc/clamd.d/scan.conf 2>/dev/null || true
 
-echo "[Sourceless] setup-permissions.sh completed successfully."
+# -----------------------------------------------------------------------------
+# 6. Official OS Release Identification (/usr/lib/os-release)
+# -----------------------------------------------------------------------------
 
-# 1. Permission fix for first-login script to ensure it runs correctly on user sessions
-chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
-
-# 2. Delete default Fedora wallpapers to enforce SourceLess branding
-rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
-rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
-
-# 3. Refresh icon cache and desktop database to ensure proper application discovery
-gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
-update-desktop-database /usr/share/applications 2>/dev/null || true
-
-# -------------------------------------------------------------
-# Rebranding oficial OS (About System / KInfoCenter / Terminal)
-# -------------------------------------------------------------
+echo "[Sourceless] Patching OS release metadata..."
 if [[ -f /usr/lib/os-release ]]; then
     sed -i 's/^NAME=.*/NAME="Sourceless OS"/' /usr/lib/os-release
     sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' /usr/lib/os-release
@@ -136,42 +144,65 @@ if [[ -f /usr/lib/os-release ]]; then
     sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
     sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
     sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.io"/' /usr/lib/os-release
-    sed -i 's/^LOGO=.*/LOGO="sourceless-logo"/' /usr/lib/os-release
-    sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME="sourceless"/' /usr/lib/os-release
+    sed -i 's/^LOGO=.*/LOGO=sourceless-logo/' /usr/lib/os-release
+    sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME=sourceless/' /usr/lib/os-release
 fi
 
-# Refresh icon cache for hicolor and breeze themes to ensure proper branding
-touch /usr/share/icons/hicolor 2>/dev/null || true
-gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
-touch /usr/share/icons/breeze 2>/dev/null || true
-gtk-update-icon-cache -f /usr/share/icons/breeze 2>/dev/null || true
+# -----------------------------------------------------------------------------
+# 7. Visual Branding & Desktop Asset Overrides
+# -----------------------------------------------------------------------------
 
-# -------------------------------------------------------------
-# Overwrite default KDE Start Menu and system branding icons with official Sourceless OS logos
-# -------------------------------------------------------------
-START_ICON="/usr/share/icons/hicolor/scalable/apps/start-here.svg"
-LOGO_ICON="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.svg"
+echo "[Sourceless] Applying visual branding assets..."
 
-if [[ -f "$START_ICON" ]]; then
-    # Overwrite the Start Menu icon for all Breeze themes to ensure consistent branding
+# Remove default upstream Fedora wallpapers
+rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
+rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
+
+# Define branding asset source paths
+START_SRC="/usr/share/icons/hicolor/scalable/apps/start-here.svg"
+LOGO_SVG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.svg"
+LOGO_PNG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.png"
+
+# Aggressively overwrite KDE Plasma 6 Start Menu launcher across all Breeze themes and sizes
+if [[ -f "$START_SRC" ]]; then
     for theme in breeze breeze-dark; do
-        target_dir="/usr/share/icons/$theme/places/scalable"
-        if [[ -d "$target_dir" ]]; then
-            cp -f "$START_ICON" "$target_dir/start-here-kde.svg"
-            cp -f "$START_ICON" "$target_dir/start-here.svg"
-            cp -f "$START_ICON" "$target_dir/distributor-logo.svg"
-        fi
+        for size_dir in /usr/share/icons/"$theme"/places/*; do
+            if [[ -d "$size_dir" ]]; then
+                cp -f "$START_SRC" "$size_dir/start-here-kde-plasma.svg" 2>/dev/null || true
+                cp -f "$START_SRC" "$size_dir/start-here-kde.svg" 2>/dev/null || true
+                cp -f "$START_SRC" "$size_dir/start-here.svg" 2>/dev/null || true
+                cp -f "$START_SRC" "$size_dir/start-here-kde-plasma-symbolic.svg" 2>/dev/null || true
+                cp -f "$START_SRC" "$size_dir/start-here-symbolic.svg" 2>/dev/null || true
+                cp -f "$START_SRC" "$size_dir/distributor-logo.svg" 2>/dev/null || true
+            fi
+        done
     done
 fi
 
-if [[ -f "$LOGO_ICON" ]]; then
-    # Assign the official Sourceless logo to the hicolor theme for system-wide branding
-    cp -f "$LOGO_ICON" /usr/share/icons/hicolor/scalable/apps/distributor-logo.svg 2>/dev/null || true
+# Distribute official OS logo to fallback icon themes and pixmaps for KInfoCenter
+if [[ -f "$LOGO_SVG" ]]; then
+    cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/distributor-logo.svg 2>/dev/null || true
+    cp -f "$LOGO_SVG" /usr/share/pixmaps/sourceless-logo.svg 2>/dev/null || true
+    cp -f "$LOGO_SVG" /usr/share/pixmaps/distributor-logo.svg 2>/dev/null || true
 fi
 
-# Force refresh of icon caches
+if [[ -f "$LOGO_PNG" ]]; then
+    cp -f "$LOGO_PNG" /usr/share/pixmaps/sourceless-logo.png 2>/dev/null || true
+    cp -f "$LOGO_PNG" /usr/share/pixmaps/distributor-logo.png 2>/dev/null || true
+fi
+
+# -----------------------------------------------------------------------------
+# 8. Rebuild Icon Caches and Desktop Databases
+# -----------------------------------------------------------------------------
+
+echo "[Sourceless] Regenerating icon caches and application metadata..."
+update-desktop-database /usr/share/applications 2>/dev/null || true
+
 for theme_dir in /usr/share/icons/*; do
     if [[ -d "$theme_dir" ]]; then
+        touch "$theme_dir" 2>/dev/null || true
         gtk-update-icon-cache -f -q "$theme_dir" 2>/dev/null || true
     fi
 done
+
+echo "[Sourceless] setup-permissions.sh completed successfully."
