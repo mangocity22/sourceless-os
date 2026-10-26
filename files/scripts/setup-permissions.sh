@@ -67,7 +67,21 @@ fi
 mkdir -p /etc/skel/.config
 chmod 755 /etc/skel/.config
 mkdir -p /etc/skel/.config/autostart
-chmod 555 /etc/skel/.config/autostart
+
+# Enable runtime ownership repair service
+systemctl enable sourceless-fix-home.service 2>/dev/null || true
+
+# Fix permissions across standard skeleton directory
+mkdir -p /etc/skel/.config
+chmod 755 /etc/skel/.config
+mkdir -p /etc/skel/.config/autostart
+chmod 755 /etc/skel/.config/autostart
+
+# Pre-apply numeric UID 1000 ownership to any existing home tree
+if [ -d "/var/home/sourceless" ]; then
+    chown -R 1000:1000 /var/home/sourceless 2>/dev/null || true
+    chmod 755 /var/home/sourceless/.config 2>/dev/null || true
+fi
 
 # Ensure /var/home permissions are safe and fully writable by the user
 if [ -d "/var/home/sourceless" ]; then
@@ -115,6 +129,7 @@ systemctl enable sourceless-shield.service 2>/dev/null || true
 systemctl enable systemd-resolved.service 2>/dev/null || true
 
 systemctl mask fedora-atomic-desktop-appstream-cache-refresh.service 2>/dev/null || true
+systemctl enable rustdesk.service 2>/dev/null || true
 
 sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/clamd.sock|' /etc/clamd.d/scan.conf 2>/dev/null || true
 
@@ -159,6 +174,11 @@ if [[ -f /etc/default/grub ]]; then
     fi
     sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=3/' /etc/default/grub 2>/dev/null || true
     sed -i 's/^GRUB_TERMINAL_OUTPUT=.*/GRUB_TERMINAL_OUTPUT="gfxterm"/' /etc/default/grub 2>/dev/null || true
+fi
+
+THEME_DIR="/boot/grub2/themes/sourceless"
+if [[ -d "$THEME_DIR" && -f /usr/share/grub/unicode.pf2 ]]; then
+    cp -f /usr/share/grub/unicode.pf2 "$THEME_DIR/unicode.pf2" 2>/dev/null || true
 fi
 
 THEME_DIR="/boot/grub2/themes/sourceless"

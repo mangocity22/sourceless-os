@@ -16,7 +16,7 @@ terminal-box: ""
     height = 35%
     
     # Typography & Colors
-    item_font = "Sourceless Regular 16"
+    item_font = "Unifont Regular 16"
     item_color = "#8b949e"
     selected_item_color = "#ffffff"
     
@@ -52,6 +52,6 @@ terminal-box: ""
     height = 20
     align = "center"
     color = "#6e7681"
-    font = "Sourceless Regular 14"
+    font = "Unifont Regular 14"
     text = "Booting Sourceless OS in %d seconds..."
 }

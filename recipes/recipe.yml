@@ -46,6 +46,7 @@ modules:
         - konsole
         - p7zip
         - p7zip-plugins
+        - grub2-tools-extra
 
     remove:
       packages:
