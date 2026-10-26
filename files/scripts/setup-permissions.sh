@@ -129,6 +129,9 @@ systemctl enable clamd@scan.service 2>/dev/null || true
 systemctl enable sourceless-shield.service 2>/dev/null || true
 systemctl enable systemd-resolved.service 2>/dev/null || true
 
+# Mask intrusive upstream service that causes boot delay timeouts
+systemctl mask fedora-atomic-desktop-appstream-cache-refresh.service 2>/dev/null || true
+
 sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/clamd.sock|' /etc/clamd.d/scan.conf 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
@@ -150,22 +153,70 @@ for os_target in /usr/lib/os-release /etc/os-release; do
     fi
 done
 
+# Ensure KInfoCenter configuration has correct read permissions
+chmod 644 /etc/xdg/kcm-about-distrorc 2>/dev/null || true
+
 # -----------------------------------------------------------------------------
-# 7. Visual Branding & Desktop Asset Overrides
+# 7. GRUB Bootloader Configuration & Styling
 # -----------------------------------------------------------------------------
 
-echo "[Sourceless] Applying visual branding assets..."
+echo "[Sourceless] Configuring GRUB theme and fonts..."
+if [[ -f /etc/default/grub ]]; then
+    if grep -q "^GRUB_THEME=" /etc/default/grub; then
+        sed -i 's|^GRUB_THEME=.*|GRUB_THEME="/boot/grub2/themes/sourceless/theme.txt"|' /etc/default/grub 2>/dev/null || true
+    else
+        echo 'GRUB_THEME="/boot/grub2/themes/sourceless/theme.txt"' >> /etc/default/grub
+    fi
+    sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=3/' /etc/default/grub 2>/dev/null || true
+    sed -i 's/^GRUB_TERMINAL_OUTPUT=.*/GRUB_TERMINAL_OUTPUT="gfxterm"/' /etc/default/grub 2>/dev/null || true
+fi
 
-# Remove default upstream Fedora wallpapers
+# Compile GRUB theme fonts from system fonts
+THEME_DIR="/boot/grub2/themes/sourceless"
+if [[ -d "$THEME_DIR" ]]; then
+    TTF_SRC=$(find /usr/share/fonts -name "DejaVuSans.ttf" 2>/dev/null | head -n 1)
+    if [[ -n "$TTF_SRC" ]] && command -v grub2-mkfont >/dev/null 2>&1; then
+        grub2-mkfont -s 16 -n "Sourceless Regular" -o "$THEME_DIR/font-16.pf2" "$TTF_SRC" 2>/dev/null || true
+        grub2-mkfont -s 14 -n "Sourceless Regular" -o "$THEME_DIR/font-14.pf2" "$TTF_SRC" 2>/dev/null || true
+    fi
+    if [[ ! -f "$THEME_DIR/font-16.pf2" && -f /usr/share/grub/unicode.pf2 ]]; then
+        cp -f /usr/share/grub/unicode.pf2 "$THEME_DIR/font-16.pf2" 2>/dev/null || true
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# 8. Wallpaper Packaging & Default Overrides
+# -----------------------------------------------------------------------------
+
+echo "[Sourceless] Configuring system wallpapers..."
+
+# Purge default upstream Fedora wallpapers
 rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
 rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
 
-# Define branding asset source paths
+# Enforce Sourceless Dark as the system fallback wallpaper for the Next package
+WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
+if [[ -f "$WALLPAPER_DARK" ]]; then
+    mkdir -p /usr/share/wallpapers/Next/contents/images
+    mkdir -p /usr/share/wallpapers/Next/contents/images_dark
+    for size in 3840x2160.png 5120x2880.png 1920x1080.png; do
+        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/Next/contents/images/$size" 2>/dev/null || true
+        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/Next/contents/images_dark/$size" 2>/dev/null || true
+    done
+fi
+
+# -----------------------------------------------------------------------------
+# 9. Visual Branding & Desktop Icon Overrides
+# -----------------------------------------------------------------------------
+
+echo "[Sourceless] Injecting branding icons into Breeze themes..."
+
 START_SRC="/usr/share/icons/hicolor/scalable/apps/start-here.svg"
 LOGO_SVG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.svg"
 LOGO_PNG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.png"
+APPS_SRC="/usr/share/icons/breeze/apps/scalable"
 
-# Overwrite Start Menu launcher across all Breeze themes and sizes (places context)
+# 9.1 Overwrite Start Menu launcher across all Breeze themes and sizes
 if [[ -f "$START_SRC" ]]; then
     for theme in breeze breeze-dark; do
         for size_dir in /usr/share/icons/"$theme"/places/*; do
@@ -175,32 +226,15 @@ if [[ -f "$START_SRC" ]]; then
                 cp -f "$START_SRC" "$size_dir/start-here.svg" 2>/dev/null || true
                 cp -f "$START_SRC" "$size_dir/start-here-kde-plasma-symbolic.svg" 2>/dev/null || true
                 cp -f "$START_SRC" "$size_dir/start-here-symbolic.svg" 2>/dev/null || true
+                cp -f "$START_SRC" "$size_dir/distributor-logo.svg" 2>/dev/null || true
             fi
         done
     done
 fi
 
-# -----------------------------------------------------------------------------
-# Wallpaper Packaging & Default Overrides
-# -----------------------------------------------------------------------------
-WALLPAPER_SRC="/usr/share/wallpapers/SourceLess/contents/images/3840x2160.png"
-
-# Delete Fedora stock wallpapers
-rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
-rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
-
-# Overwrite KDE Breeze default wallpaper (Next) so it defaults to Sourceless
-if [[ -f "$WALLPAPER_SRC" ]]; then
-    if [[ -d /usr/share/wallpapers/Next/contents/images ]]; then
-        cp -f "$WALLPAPER_SRC" /usr/share/wallpapers/Next/contents/images/3840x2160.png 2>/dev/null || true
-        cp -f "$WALLPAPER_SRC" /usr/share/wallpapers/Next/contents/images/5120x2880.png 2>/dev/null || true
-    fi
-fi
-
-# Aggressively overwrite OS and Distributor logos across all Breeze themes (apps and status contexts)
+# 9.2 Overwrite OS and Distributor logos across Breeze, hicolor and pixmaps
 if [[ -f "$LOGO_SVG" ]]; then
     for theme in breeze breeze-dark; do
-        # Overwrite in apps directories (where KInfoCenter and system dialogs look)
         for size_dir in /usr/share/icons/"$theme"/apps/*; do
             if [[ -d "$size_dir" ]]; then
                 cp -f "$LOGO_SVG" "$size_dir/sourceless-logo.svg" 2>/dev/null || true
@@ -210,25 +244,20 @@ if [[ -f "$LOGO_SVG" ]]; then
             fi
         done
 
-        # Overwrite in places scalable as fallback
         if [[ -d "/usr/share/icons/$theme/places/scalable" ]]; then
             cp -f "$LOGO_SVG" "/usr/share/icons/$theme/places/scalable/distributor-logo.svg" 2>/dev/null || true
             cp -f "$LOGO_SVG" "/usr/share/icons/$theme/places/scalable/distributor-logo-fedora.svg" 2>/dev/null || true
         fi
     done
 
-    # Overwrite in hicolor scalable apps
     cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/distributor-logo.svg 2>/dev/null || true
     cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/distributor-logo-fedora.svg 2>/dev/null || true
     cp -f "$LOGO_SVG" /usr/share/icons/hicolor/scalable/apps/fedora-logo-icon.svg 2>/dev/null || true
-
-    # Overwrite pixmap fallbacks
     cp -f "$LOGO_SVG" /usr/share/pixmaps/sourceless-logo.svg 2>/dev/null || true
     cp -f "$LOGO_SVG" /usr/share/pixmaps/distributor-logo.svg 2>/dev/null || true
     cp -f "$LOGO_SVG" /usr/share/pixmaps/fedora-logo.svg 2>/dev/null || true
 fi
 
-# Overwrite raster pixmap fallbacks if PNG is available
 if [[ -f "$LOGO_PNG" ]]; then
     cp -f "$LOGO_PNG" /usr/share/pixmaps/sourceless-logo.png 2>/dev/null || true
     cp -f "$LOGO_PNG" /usr/share/pixmaps/distributor-logo.png 2>/dev/null || true
@@ -236,48 +265,30 @@ if [[ -f "$LOGO_PNG" ]]; then
     cp -f "$LOGO_PNG" /usr/share/pixmaps/system-logo-white.png 2>/dev/null || true
 fi
 
-# -----------------------------------------------------------------------------
-# 8. Rebuild Icon Caches and Desktop Databases
-# -----------------------------------------------------------------------------
-
-echo "[Sourceless] Regenerating icon caches and application metadata..."
-update-desktop-database /usr/share/applications 2>/dev/null || true
-
-for theme_dir in /usr/share/icons/*; do
-    if [[ -d "$theme_dir" ]]; then
-        touch "$theme_dir" 2>/dev/null || true
-        gtk-update-icon-cache -f -q "$theme_dir" 2>/dev/null || true
-    fi
-done
-
-# -----------------------------------------------------------------------------
-# Aggressive Application Icon Overrides (Breeze & Breeze-Dark)
-# -----------------------------------------------------------------------------
-APPS_SRC="/usr/share/icons/breeze/apps/scalable"
-
+# 9.3 Overwrite core application icons across all resolution directories
 if [[ -d "$APPS_SRC" ]]; then
     for theme in breeze breeze-dark; do
         for size_dir in /usr/share/icons/"$theme"/apps/*; do
             if [[ -d "$size_dir" ]]; then
-                # Dolphin
+                # Dolphin (org.kde.dolphin)
                 if [[ -f "$APPS_SRC/org.kde.dolphin.svg" ]]; then
                     cp -f "$APPS_SRC/org.kde.dolphin.svg" "$size_dir/org.kde.dolphin.svg" 2>/dev/null || true
                     cp -f "$APPS_SRC/org.kde.dolphin.svg" "$size_dir/system-file-manager.svg" 2>/dev/null || true
                 fi
 
-                # Konsole
+                # Konsole (utilities-terminal)
                 if [[ -f "$APPS_SRC/org.kde.konsole.svg" ]]; then
-                    cp -f "$APPS_SRC/org.kde.konsole.svg" "$size_dir/org.kde.konsole.svg" 2>/dev/null || true
                     cp -f "$APPS_SRC/org.kde.konsole.svg" "$size_dir/utilities-terminal.svg" 2>/dev/null || true
+                    cp -f "$APPS_SRC/org.kde.konsole.svg" "$size_dir/org.kde.konsole.svg" 2>/dev/null || true
                 fi
 
-                # System Settings
+                # System Settings (preferences-system)
                 if [[ -f "$APPS_SRC/systemsettings.svg" ]]; then
-                    cp -f "$APPS_SRC/systemsettings.svg" "$size_dir/systemsettings.svg" 2>/dev/null || true
                     cp -f "$APPS_SRC/systemsettings.svg" "$size_dir/preferences-system.svg" 2>/dev/null || true
+                    cp -f "$APPS_SRC/systemsettings.svg" "$size_dir/systemsettings.svg" 2>/dev/null || true
                 fi
 
-                # Discover
+                # Discover (plasmadiscover)
                 if [[ -f "$APPS_SRC/plasmadiscover.svg" ]]; then
                     cp -f "$APPS_SRC/plasmadiscover.svg" "$size_dir/plasmadiscover.svg" 2>/dev/null || true
                     cp -f "$APPS_SRC/plasmadiscover.svg" "$size_dir/org.kde.discover.svg" 2>/dev/null || true
@@ -286,5 +297,19 @@ if [[ -d "$APPS_SRC" ]]; then
         done
     done
 fi
+
+# -----------------------------------------------------------------------------
+# 10. Rebuild Icon Caches and Desktop Databases (Executed Last)
+# -----------------------------------------------------------------------------
+
+echo "[Sourceless] Regenerating system icon caches and application metadata..."
+update-desktop-database /usr/share/applications 2>/dev/null || true
+
+for theme_dir in /usr/share/icons/*; do
+    if [[ -d "$theme_dir" ]]; then
+        touch "$theme_dir" 2>/dev/null || true
+        gtk-update-icon-cache -f -q "$theme_dir" 2>/dev/null || true
+    fi
+done
 
 echo "[Sourceless] setup-permissions.sh completed successfully."

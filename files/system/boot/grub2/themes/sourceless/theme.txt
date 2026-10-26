@@ -1,0 +1,57 @@
+# =============================================================================
+# Sourceless OS - Official GRUB 2 Theme Configuration
+# =============================================================================
+
+# General settings
+title-text: ""
+desktop-image: "background.png"
+desktop-color: "#0b0e14"
+terminal-box: ""
+
+# Boot Menu Layout
++ boot_menu {
+    left = 30%
+    top = 42%
+    width = 40%
+    height = 35%
+    
+    # Typography & Colors
+    item_font = "Sourceless Regular 16"
+    item_color = "#8b949e"
+    selected_item_color = "#ffffff"
+    
+    # Spacing
+    item_height = 36
+    item_padding = 6
+    item_spacing = 8
+    
+    # Selection Indicator (clean bracket style without missing 9-slice images)
+    selected_item_pixmap_style = ""
+    icon_width = 0
+    icon_height = 0
+}
+
+# Boot Countdown / Timeout Bar
++ progress_bar {
+    id = "__timeout__"
+    left = 35%
+    top = 80%
+    width = 30%
+    height = 4
+    show_text = false
+    bg_color = "#21262d"
+    fg_color = "#58a6ff"
+    border_color = "#21262d"
+}
+
+# Timeout Text
++ label {
+    top = 82%
+    left = 35%
+    width = 30%
+    height = 20
+    align = "center"
+    color = "#6e7681"
+    font = "Sourceless Regular 14"
+    text = "Booting Sourceless OS in %d seconds..."
+}
