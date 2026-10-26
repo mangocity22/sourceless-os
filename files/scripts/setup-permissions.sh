@@ -144,6 +144,14 @@ for os_target in /usr/lib/os-release /etc/os-release; do
         sed -i 's/^NAME=.*/NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
         sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
         sed -i 's/^ID=.*/ID=sourceless/' "$os_target" 2>/dev/null || true
+        
+        # Enforce parent distribution so bootc-image-builder can load Fedora 44 manifests
+        if grep -q "^ID_LIKE=" "$os_target"; then
+            sed -i 's/^ID_LIKE=.*/ID_LIKE="fedora"/' "$os_target" 2>/dev/null || true
+        else
+            echo 'ID_LIKE="fedora"' >> "$os_target"
+        fi
+
         sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
         sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
         sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
