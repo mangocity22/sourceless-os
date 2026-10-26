@@ -8,23 +8,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+      packages: read
       id-token: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Eliberare spatiu pe runner
+      # 1. Eliberare agresiva a spatiului pe runner (Android SDK + Docker + Compilatoare)
       - name: Free Disk Space
         run: |
+          echo "Free disk space before cleanup:"
+          df -h /
+          sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           sudo docker image prune --all --force 2>/dev/null || true
+          echo "Free disk space after cleanup:"
+          df -h /
 
-      # 2. Normalizare nume imagine
+      # 2. Normalizare nume imagine container
       - name: Set Image Name
         run: |
           IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
@@ -36,7 +42,7 @@ jobs:
           sudo mkdir -p /root/.config/containers
           echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin --authfile /root/.config/containers/auth.json
 
-      # 4. Descarcare imagine OS
+      # 4. Descarcare imagine OS (pre-pull pentru verificarea existentei)
       - name: Pull Target OS Image
         run: |
           sudo podman pull --authfile /root/.config/containers/auth.json "$IMAGE_NAME"
@@ -56,21 +62,28 @@ jobs:
             --config /config.toml \
             "$IMAGE_NAME"
 
-      # 6. Comprimare si split in bucati de 1.8GB
+      # 6. Comprimare, split in volume de 1.8GB si curatare ISO original pentru spatiu
       - name: Split and Compress ISO
         run: |
           sudo apt-get update && sudo apt-get install -y p7zip-full
           sudo chown -R $USER:$USER output/
           cd output/bootiso
+          
+          # Comprimare rapida in bucati de 1.8GB
           7z a -v1800m -mx=1 sourceless-os.7z install.iso
+          
+          # Stergem ISO-ul brut dupa arhivare pentru a nu bloca runnerul
+          rm -f install.iso
 
-      # 7. Upload volume pe GitHub Releases
+      # 7. Upload volume pe GitHub Releases (cu suprascriere garantata)
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-iso
           name: "Sourceless OS Live ISO"
-          body: "Automated multi-part build. Download all parts and extract the .001 file."
+          body: "Automated multi-part build. Download all parts (.001, .002...) and extract using 7-Zip or PeaZip."
           files: output/bootiso/sourceless-os.7z.*
+          overwrite: true
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
