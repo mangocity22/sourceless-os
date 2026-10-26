@@ -70,7 +70,7 @@ jobs:
           cd output/bootiso
           
           # Comprimare rapida in bucati de 1.8GB
-          7z a -v1800m -mx=1 sourceless-os.7z install.iso
+          7z a -v1800m -mx=0 sourceless-os.7z install.iso
           
           # Stergem ISO-ul brut dupa arhivare pentru a nu bloca runnerul
           rm -f install.iso
@@ -83,7 +83,6 @@ jobs:
           name: "Sourceless OS Live ISO"
           body: "Automated multi-part build. Download all parts (.001, .002...) and extract using 7-Zip or PeaZip."
           files: output/bootiso/sourceless-os.7z.*
-          overwrite: true
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
