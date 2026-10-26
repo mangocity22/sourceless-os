@@ -1,18 +1,12 @@
 [Unit]
 Description=Sourceless OS Home Directory Ownership and SELinux Guard
+After=local-fs.target
 Before=sddm.service display-manager.service
-DefaultDependencies=no
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/bash -c '\
-    if [ -d /var/home/sourceless ]; then \
-        chown -R 1000:1000 /var/home/sourceless; \
-        chmod 700 /var/home/sourceless; \
-        chmod 755 /var/home/sourceless/.config 2>/dev/null || true; \
-        restorecon -RF /var/home/sourceless 2>/dev/null || true; \
-    fi'
+ExecStart=/usr/bin/sourceless-fix-home.sh
 RemainAfterExit=yes
 
 [Install]
-WantedBy=sysinit.target
+WantedBy=graphical.target

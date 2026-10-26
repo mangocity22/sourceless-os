@@ -52,6 +52,8 @@ chmod 775 /etc/sourceless 2>/dev/null || true
 chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
 chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 
+chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
+
 # -----------------------------------------------------------------------------
 # 3. User Privilege and Clean Home Directory Permissions
 # -----------------------------------------------------------------------------
@@ -167,21 +169,15 @@ chmod 644 /etc/xdg/kcm-about-distrorc 2>/dev/null || true
 
 echo "[Sourceless] Configuring GRUB theme and compiling configuration..."
 if [[ -f /etc/default/grub ]]; then
-    if grep -q "^GRUB_THEME=" /etc/default/grub; then
-        sed -i 's|^GRUB_THEME=.*|GRUB_THEME="/boot/grub2/themes/sourceless/theme.txt"|' /etc/default/grub 2>/dev/null || true
-    else
-        echo 'GRUB_THEME="/boot/grub2/themes/sourceless/theme.txt"' >> /etc/default/grub
+    sed -i 's|^GRUB_THEME=.*|GRUB_THEME="/usr/share/grub/themes/sourceless/theme.txt"|' /etc/default/grub 2>/dev/null || true
+    if ! grep -q "^GRUB_THEME=" /etc/default/grub; then
+        echo 'GRUB_THEME="/usr/share/grub/themes/sourceless/theme.txt"' >> /etc/default/grub
     fi
     sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=3/' /etc/default/grub 2>/dev/null || true
     sed -i 's/^GRUB_TERMINAL_OUTPUT=.*/GRUB_TERMINAL_OUTPUT="gfxterm"/' /etc/default/grub 2>/dev/null || true
 fi
 
-THEME_DIR="/boot/grub2/themes/sourceless"
-if [[ -d "$THEME_DIR" && -f /usr/share/grub/unicode.pf2 ]]; then
-    cp -f /usr/share/grub/unicode.pf2 "$THEME_DIR/unicode.pf2" 2>/dev/null || true
-fi
-
-THEME_DIR="/boot/grub2/themes/sourceless"
+THEME_DIR="/usr/share/grub/themes/sourceless"
 if [[ -d "$THEME_DIR" ]]; then
     TTF_SRC=$(find /usr/share/fonts -name "DejaVuSans.ttf" 2>/dev/null | head -n 1)
     if [[ -n "$TTF_SRC" ]] && command -v grub2-mkfont >/dev/null 2>&1; then
@@ -191,6 +187,11 @@ if [[ -d "$THEME_DIR" ]]; then
     if [[ ! -f "$THEME_DIR/font-16.pf2" && -f /usr/share/grub/unicode.pf2 ]]; then
         cp -f /usr/share/grub/unicode.pf2 "$THEME_DIR/font-16.pf2" 2>/dev/null || true
     fi
+fi
+
+THEME_DIR="/boot/grub2/themes/sourceless"
+if [[ -d "$THEME_DIR" && -f /usr/share/grub/unicode.pf2 ]]; then
+    cp -f /usr/share/grub/unicode.pf2 "$THEME_DIR/unicode.pf2" 2>/dev/null || true
 fi
 
 # Regenerate GRUB config so the theme is baked into bootloader
