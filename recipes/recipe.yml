@@ -43,6 +43,9 @@ modules:
         - yara
         - libnotify
         - kinfocenter
+        - konsole
+        - p7zip
+        - p7zip-plugins
 
     remove:
       packages:
