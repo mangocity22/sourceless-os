@@ -28,6 +28,14 @@ else
 fi
 EOF
 
+# Unhide native Konsole desktop launcher
+KONSOLE_DESKTOP="/usr/share/applications/org.kde.konsole.desktop"
+if [[ -f "$KONSOLE_DESKTOP" ]]; then
+    echo "[Sourceless] Unhiding Konsole desktop entry..."
+    sed -i '/^NoDisplay=/d' "$KONSOLE_DESKTOP" 2>/dev/null || true
+    sed -i 's/^Hidden=.*/Hidden=false/' "$KONSOLE_DESKTOP" 2>/dev/null || true
+fi
+
 chmod +x /usr/bin/konsole
 
 # -----------------------------------------------------------------------------
@@ -211,15 +219,21 @@ echo "[Sourceless] Configuring wallpapers and global KDE defaults..."
 rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
 rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
 
+# Remove all upstream KDE/Fedora wallpapers, keeping only SourceLess
+find /usr/share/wallpapers/ -mindepth 1 -maxdepth 1 ! -name 'SourceLess*' -exec rm -rf {} + 2>/dev/null || true
+
+# Recreate Waterfall and Next fallbacks pointing directly to SourceLess Dark
 WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
-if [[ -f "$WALLPAPER_DARK" ]]; then
-    mkdir -p /usr/share/wallpapers/Next/contents/images
-    mkdir -p /usr/share/wallpapers/Next/contents/images_dark
+for fallback in Waterfall Next Breeze; do
+    mkdir -p "/usr/share/wallpapers/$fallback/contents/images"
+    mkdir -p "/usr/share/wallpapers/$fallback/contents/images_dark"
     for size in 3840x2160.png 5120x2880.png 1920x1080.png; do
-        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/Next/contents/images/$size" 2>/dev/null || true
-        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/Next/contents/images_dark/$size" 2>/dev/null || true
+        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/$fallback/contents/images/$size" 2>/dev/null || true
+        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/$fallback/contents/images_dark/$size" 2>/dev/null || true
     done
-fi
+done
+
+
 
 # Bake Sourceless Dark as the default wallpaper into system-wide kdeglobals
 mkdir -p /etc/xdg

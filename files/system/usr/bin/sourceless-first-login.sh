@@ -35,5 +35,18 @@ if [[ -f "$WALLPAPER_IMG" ]] && command -v plasma-apply-wallpaperimage >/dev/nul
     plasma-apply-wallpaperimage "$WALLPAPER_IMG" >/dev/null 2>&1 || true
 fi
 
+# Wait up to 10 seconds for plasmashell to register on DBus
+for i in {1..20}; do
+    if qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+WALLPAPER_TARGET="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
+if [[ -f "$WALLPAPER_TARGET" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
+    plasma-apply-wallpaperimage "$WALLPAPER_TARGET" >/dev/null 2>&1 || true
+fi
+
 touch "$MARKER"
 exit 0

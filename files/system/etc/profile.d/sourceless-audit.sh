@@ -11,6 +11,7 @@ log_command_to_journal() {
         export SOURCELESS_LAST_LOGGED="$LAST_CMD"
     fi
 }
+export -f log_command_to_journal
 
 # Injectam functia in lantul de executie al promptului Bash
 # Modul robust de adăugare în PROMPT_COMMAND (evită recursivitatea și splitting-ul în Bash)
