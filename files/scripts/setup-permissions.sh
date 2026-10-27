@@ -212,26 +212,38 @@ if command -v grub2-mkconfig >/dev/null 2>&1; then
 fi
 
 # -----------------------------------------------------------------------------
-# 8. Wallpaper Packaging & Global KDE Enforcement
+# 8. Wallpaper Packaging & Safe Global KDE Enforcement
 # -----------------------------------------------------------------------------
 
-echo "[Sourceless] Configuring wallpapers and global KDE defaults..."
-rm -rf /usr/share/wallpapers/Fedora* 2>/dev/null || true
-rm -rf /usr/share/wallpapers/f[0-9]* 2>/dev/null || true
-
-# Remove all upstream KDE/Fedora wallpapers, keeping only SourceLess
-find /usr/share/wallpapers/ -mindepth 1 -maxdepth 1 ! -name 'SourceLess*' -exec rm -rf {} + 2>/dev/null || true
-
-# Recreate Waterfall and Next fallbacks pointing directly to SourceLess Dark
+echo "[Sourceless] Applying custom wallpapers safely..."
 WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
-for fallback in Waterfall Next Breeze; do
-    mkdir -p "/usr/share/wallpapers/$fallback/contents/images"
-    mkdir -p "/usr/share/wallpapers/$fallback/contents/images_dark"
-    for size in 3840x2160.png 5120x2880.png 1920x1080.png; do
-        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/$fallback/contents/images/$size" 2>/dev/null || true
-        cp -f "$WALLPAPER_DARK" "/usr/share/wallpapers/$fallback/contents/images_dark/$size" 2>/dev/null || true
+
+if [[ -f "$WALLPAPER_DARK" ]]; then
+    # Overwrite images inside default KDE packages WITHOUT touching metadata.json
+    for pkg in Waterfall Next Breeze; do
+        PKG_DIR="/usr/share/wallpapers/$pkg"
+        if [[ -d "$PKG_DIR" ]]; then
+            mkdir -p "$PKG_DIR/contents/images"
+            mkdir -p "$PKG_DIR/contents/images_dark"
+            for size in 3840x2160.png 5120x2880.png 1920x1080.png; do
+                cp -f "$WALLPAPER_DARK" "$PKG_DIR/contents/images/$size" 2>/dev/null || true
+                cp -f "$WALLPAPER_DARK" "$PKG_DIR/contents/images_dark/$size" 2>/dev/null || true
+            done
+        fi
     done
-done
+fi
+
+# Ensure SourceLess package itself has a valid metadata.json for Plasma 6
+mkdir -p /usr/share/wallpapers/SourceLess
+cat << 'EOF' > /usr/share/wallpapers/SourceLess/metadata.json
+{
+    "KPlugin": {
+        "Id": "SourceLess",
+        "Name": "SourceLess Dark"
+    }
+}
+EOF
+chmod 644 /usr/share/wallpapers/SourceLess/metadata.json 2>/dev/null || true
 
 
 
