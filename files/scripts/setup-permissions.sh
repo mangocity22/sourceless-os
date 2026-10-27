@@ -36,6 +36,16 @@ if [[ -f "$KONSOLE_DESKTOP" ]]; then
     sed -i 's/^Hidden=.*/Hidden=false/' "$KONSOLE_DESKTOP" 2>/dev/null || true
 fi
 
+# Force global Starship config for all users
+if ! grep -q "STARSHIP_CONFIG" /etc/bashrc; then
+    echo 'export STARSHIP_CONFIG="/etc/starship.toml"' >> /etc/bashrc
+fi
+
+# Ensure starship initializes if not already appended
+if ! grep -q "starship init bash" /etc/bashrc; then
+    echo 'eval "$(starship init bash)"' >> /etc/bashrc
+fi
+
 # -----------------------------------------------------------------------------
 # Force native Konsole visible and mask Flatpak Konsole
 # -----------------------------------------------------------------------------
