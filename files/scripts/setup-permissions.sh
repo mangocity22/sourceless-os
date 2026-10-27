@@ -36,6 +36,18 @@ if [[ -f "$KONSOLE_DESKTOP" ]]; then
     sed -i 's/^Hidden=.*/Hidden=false/' "$KONSOLE_DESKTOP" 2>/dev/null || true
 fi
 
+# -----------------------------------------------------------------------------
+# Force native Konsole visible and mask Flatpak Konsole
+# -----------------------------------------------------------------------------
+KONSOLE_DESKTOP="/usr/share/applications/org.kde.konsole.desktop"
+if [[ -f "$KONSOLE_DESKTOP" ]]; then
+    sed -i '/^NoDisplay=/d' "$KONSOLE_DESKTOP" 2>/dev/null || true
+    sed -i 's/^Hidden=.*/Hidden=false/' "$KONSOLE_DESKTOP" 2>/dev/null || true
+fi
+
+# Previne instalarea sau suprascrierea de catre utilizator a versiunii Flatpak
+flatpak mask org.kde.konsole 2>/dev/null || true
+
 chmod +x /usr/bin/konsole
 
 # -----------------------------------------------------------------------------
