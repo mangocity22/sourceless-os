@@ -49,7 +49,7 @@ Item {
     Image {
         id: loaderSequence
         anchors.top: mainLogo.bottom
-        anchors.topMargin: 18
+        anchors.topMargin: 40
         anchors.horizontalCenter: mainLogo.horizontalCenter
         width: 36
         height: 36
