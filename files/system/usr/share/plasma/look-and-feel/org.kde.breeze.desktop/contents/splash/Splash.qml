@@ -49,12 +49,12 @@ Item {
     Image {
         id: loaderSequence
         anchors.top: mainLogo.bottom
-        anchors.topMargin: 24
+        anchors.topMargin: 18
         anchors.horizontalCenter: mainLogo.horizontalCenter
-        width: 40
-        height: 40
-        sourceSize.width: 40
-        sourceSize.height: 40
+        width: 36
+        height: 36
+        sourceSize.width: 36
+        sourceSize.height: 36
         smooth: true
         fillMode: Image.PreserveAspectFit
 
