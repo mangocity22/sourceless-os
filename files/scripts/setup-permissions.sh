@@ -245,6 +245,56 @@ cat << 'EOF' > /usr/share/wallpapers/SourceLess/metadata.json
 EOF
 chmod 644 /usr/share/wallpapers/SourceLess/metadata.json 2>/dev/null || true
 
+# -----------------------------------------------------------------------------
+# Lock Screen (KScreenLocker) & SDDM Branding Enforcement
+# -----------------------------------------------------------------------------
+WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
+
+# 1. Fortam wallpaper-ul pe Lock Screen la nivel global de sistem
+mkdir -p /etc/xdg
+cat << 'EOF' > /etc/xdg/kscreenlockerrc
+[Greeter]
+WallpaperPlugin=org.kde.image
+
+[Greeter][Wallpaper][org.kde.image][General]
+Image=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png
+PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png
+EOF
+chmod 644 /etc/xdg/kscreenlockerrc 2>/dev/null || true
+
+# Replicam si in skeleton pentru orice profil nou de utilizator
+mkdir -p /etc/skel/.config
+cp -f /etc/xdg/kscreenlockerrc /etc/skel/.config/kscreenlockerrc 2>/dev/null || true
+
+# 2. Fortam wallpaper-ul pe ecranul de login SDDM (tema Breeze)
+for sddm_theme in /usr/share/sddm/themes/*; do
+    if [[ -d "$sddm_theme" ]]; then
+        cat << EOF > "$sddm_theme/theme.conf.user"
+[General]
+background=$WALLPAPER_DARK
+EOF
+    fi
+done
+
+# -----------------------------------------------------------------------------
+# Clean purge of upstream wallpapers via symlinks (Crash-proof for Plasma 6)
+# -----------------------------------------------------------------------------
+TARGET_WP="/usr/share/wallpapers/SourceLess"
+
+if [[ -d "$TARGET_WP" ]]; then
+    # Stergem imaginile upstream din /usr/share/backgrounds
+    rm -rf /usr/share/backgrounds/* 2>/dev/null || true
+
+    # Parcurgem toate pachetele de wallpaper si le legam simbolic pe SourceLess
+    for wp_dir in /usr/share/wallpapers/*; do
+        dir_name=$(basename "$wp_dir")
+        if [[ "$dir_name" != "SourceLess" ]]; then
+            rm -rf "$wp_dir"
+            ln -sf "$TARGET_WP" "/usr/share/wallpapers/$dir_name"
+        fi
+    done
+fi
+
 
 
 # Bake Sourceless Dark as the default wallpaper into system-wide kdeglobals
