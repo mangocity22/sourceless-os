@@ -299,23 +299,60 @@ EOF
 done
 
 # -----------------------------------------------------------------------------
-# Clean purge of upstream wallpapers via symlinks (Crash-proof for Plasma 6)
+# Clean purge of upstream KDE wallpapers while keeping ALL Sourceless assets
 # -----------------------------------------------------------------------------
-TARGET_WP="/usr/share/wallpapers/SourceLess"
+echo "[Sourceless] Cleaning upstream wallpapers and protecting custom packages..."
 
-if [[ -d "$TARGET_WP" ]]; then
-    # Stergem imaginile upstream din /usr/share/backgrounds
-    rm -rf /usr/share/backgrounds/* 2>/dev/null || true
+# Stergem imaginile upstream generice din /usr/share/backgrounds (cele de Fedora/GNOME)
+rm -rf /usr/share/backgrounds/* 2>/dev/null || true
 
-    # Parcurgem toate pachetele de wallpaper si le legam simbolic pe SourceLess
-    for wp_dir in /usr/share/wallpapers/*; do
-        dir_name=$(basename "$wp_dir")
-        if [[ "$dir_name" != "SourceLess" ]]; then
-            rm -rf "$wp_dir"
-            ln -sf "$TARGET_WP" "/usr/share/wallpapers/$dir_name"
+# Lista neagră cu tapetele native KDE care trebuie suprascrise/eliminate
+UPSTREAM_DEFAULTS=("Waterfall" "Next" "Breeze" "Altai" "Flow" "Shell" "Opal" "Kay")
+
+# Calea către pachetul principal de fallback
+MAIN_TARGET="/usr/share/wallpapers/SourceLess"
+
+# 1. Eliminăm strict pachetele upstream cunoscute și le redirecționăm către tema principală
+for wp in "${UPSTREAM_DEFAULTS[@]}"; do
+    WP_PATH="/usr/share/wallpapers/$wp"
+    if [[ -d "$WP_PATH" || -L "$WP_PATH" ]]; then
+        rm -rf "$WP_PATH"
+        # Punem symlink doar peste cele implicite ca să nu crăpe Plasma când le caută
+        if [[ -d "$MAIN_TARGET" ]]; then
+            ln -sf "$MAIN_TARGET" "$WP_PATH"
         fi
-    done
-fi
+    fi
+done
+
+# 2. Ștergem orice alt folder care NU conține 'sourceless' în nume (case-insensitive)
+shopt -s nocasematch
+for wp_dir in /usr/share/wallpapers/*; do
+    dir_name=$(basename "$wp_dir")
+    
+    # Dacă numele NU conține 'sourceless' și NU este în lista neagră procesată deja
+    if [[ ! "$dir_name" =~ sourceless ]] && [[ ! " ${UPSTREAM_DEFAULTS[*]} " =~ " ${dir_name} " ]]; then
+        rm -rf "$wp_dir"
+    fi
+done
+shopt -u nocasematch
+
+# 3. Asigurăm metadata.json valid în FIECARE folder Sourceless rămas
+for custom_wp in /usr/share/wallpapers/*; do
+    if [[ -d "$custom_wp" && ! -L "$custom_wp" ]]; then
+        name=$(basename "$custom_wp")
+        if [[ ! -f "$custom_wp/metadata.json" ]]; then
+            cat << EOF > "$custom_wp/metadata.json"
+{
+    "KPlugin": {
+        "Id": "$name",
+        "Name": "$name"
+    }
+}
+EOF
+            chmod 644 "$custom_wp/metadata.json" 2>/dev/null || true
+        fi
+    fi
+done
 
 
 
