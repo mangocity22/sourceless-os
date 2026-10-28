@@ -4,7 +4,7 @@ for (var i = 0; i < existingPanels.length; i++) {
     existingPanels[i].remove();
 }
 
-// 1. BOTTOM-LEFT CORNER (Liquid Glass Start Launcher)
+// 1. BOTTOM-LEFT CORNER (Official Plasma Application Launcher)
 var startPanel = new Panel;
 startPanel.location = "bottom";
 startPanel.alignment = "left";
@@ -14,12 +14,10 @@ startPanel.minimumLength = 90;
 startPanel.maximumLength = 90;
 startPanel.height = 90;
 startPanel.floating = false;
-startPanel.addWidget("org.sourceless.start");
 
-// Register system kickoff applet in startPanel for D-Bus invocation
-var kickoffApplet = startPanel.addWidget("org.kde.plasma.kickoff");
-kickoffApplet.currentConfigGroup = ["General"];
-kickoffApplet.writeConfig("icon", "sourceless-logo");
+var kickoff = startPanel.addWidget("org.kde.plasma.kickoff");
+kickoff.currentConfigGroup = ["General"];
+kickoff.writeConfig("icon", "sourceless-logo");
 
 // 2. CENTER FLOATING ISLAND (Application Dock)
 var dockPanel = new Panel;
