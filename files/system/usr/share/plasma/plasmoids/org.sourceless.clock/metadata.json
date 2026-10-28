@@ -12,5 +12,6 @@
         "Id": "org.sourceless.clock",
         "Name": "Sourceless Clock",
         "Version": "1.0"
-    }
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
 }

@@ -6,11 +6,12 @@
                 "Name": "Sourceless Team"
             }
         ],
-        "Category": "Windows and Tasks",
+        "Category": "Application Launchers",
         "Description": "Liquid Glass Start Button Corner",
         "Icon": "sourceless-logo",
         "Id": "org.sourceless.start",
         "Name": "Sourceless Start",
         "Version": "1.0"
-    }
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
 }

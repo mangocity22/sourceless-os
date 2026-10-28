@@ -4,7 +4,7 @@ for (var i = 0; i < existingPanels.length; i++) {
     existingPanels[i].remove();
 }
 
-// 1. BOTTOM-LEFT CORNER (Official Plasma Application Launcher)
+// 1. BOTTOM-LEFT CORNER (Liquid Glass Start Launcher)
 var startPanel = new Panel;
 startPanel.location = "bottom";
 startPanel.alignment = "left";
@@ -14,10 +14,12 @@ startPanel.minimumLength = 90;
 startPanel.maximumLength = 90;
 startPanel.height = 90;
 startPanel.floating = false;
+startPanel.addWidget("org.sourceless.start");
 
-var kickoff = startPanel.addWidget("org.kde.plasma.kickoff");
-kickoff.currentConfigGroup = ["General"];
-kickoff.writeConfig("icon", "sourceless-logo");
+// Register system kickoff applet in startPanel for D-Bus invocation
+var kickoffApplet = startPanel.addWidget("org.kde.plasma.kickoff");
+kickoffApplet.currentConfigGroup = ["General"];
+kickoffApplet.writeConfig("icon", "sourceless-logo");
 
 // 2. CENTER FLOATING ISLAND (Application Dock)
 var dockPanel = new Panel;
@@ -35,7 +37,7 @@ tasks.writeConfig("launchers", [
     "preferred://browser"
 ]);
 
-// 3. BOTTOM-RIGHT CORNER (Clock & Date)
+// 3. BOTTOM-RIGHT CORNER (Liquid Glass Clock & Date)
 var clockPanel = new Panel;
 clockPanel.location = "bottom";
 clockPanel.alignment = "right";
@@ -47,11 +49,12 @@ clockPanel.height = 90;
 clockPanel.floating = false;
 clockPanel.addWidget("org.sourceless.clock");
 
-// 4. STATUS PILL (Vertical Floating System Tray)
+// 4. TOP-RIGHT FLOATING STATUS PILL (System Tray)
 var trayPanel = new Panel;
 trayPanel.location = "right";
-trayPanel.alignment = "right";
-trayPanel.offset = 95;
+// "left" on a vertical panel aligns to the top of the display
+trayPanel.alignment = "left";
+trayPanel.offset = 12;
 trayPanel.lengthMode = "fit";
 trayPanel.writeConfig("panelLengthMode", 1);
 trayPanel.height = 44;

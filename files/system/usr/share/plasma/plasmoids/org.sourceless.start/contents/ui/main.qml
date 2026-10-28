@@ -1,65 +1,63 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
+import org.kde.kirigami as Kirigami
+import org.kde.plasma.plasma5support as Plasma5Support
 
 PlasmoidItem {
     id: root
-    preferredRepresentation: PlasmoidItem.CompactRepresentation
-    backgroundHints: 0
+    Layout.preferredWidth: 90
+    Layout.preferredHeight: 90
+    implicitWidth: 90
+    implicitHeight: 90
 
-    // Compact representation anchored to bottom-right corner
-    compactRepresentation: Item {
-        id: compactRoot
-        Layout.preferredWidth: 110
-        Layout.preferredHeight: 90
-        implicitWidth: 110
-        implicitHeight: 90
+    // Remove default panel frame container behind custom glass shape
+    Plasmoid.backgroundHints: 0
 
-        // Corner background SVG (Left.svg is right-corner geometry)
-        Image {
-            id: bg
-            anchors.fill: parent
-            source: "/usr/share/sourceless/theme/Left.svg"
-            fillMode: Image.PreserveAspectFit
-            smooth: true
+    // Runner for desktop environment shell actions
+    Plasma5Support.DataSource {
+        id: executable
+        engine: "executable"
+        connectedSources: []
+        onNewData: (sourceName, data) => {
+            disconnectSource(sourceName)
         }
-
-        // Live date & time refresh ticker
-        Timer {
-            interval: 1000
-            running: true
-            repeat: true
-            triggeredOnStart: true
-            onTriggered: {
-                var d = new Date();
-                timeText.text = Qt.formatTime(d, "hh:mm");
-                dateText.text = Qt.formatDate(d, "dd.MM.yyyy");
-            }
+        function exec(cmd) {
+            connectSource(cmd)
         }
+    }
 
-        // Offset clock typography centered within the glass curve
-        ColumnLayout {
-            anchors.centerIn: parent
-            anchors.horizontalCenterOffset: 6
-            anchors.verticalCenterOffset: 6
-            spacing: 2
+    // Corner background SVG (right.svg provides bottom-left geometry)
+    Image {
+        id: bg
+        anchors.fill: parent
+        source: "/usr/share/sourceless/theme/right.svg"
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+    }
 
-            Text {
-                id: timeText
-                text: Qt.formatTime(new Date(), "hh:mm")
-                color: "#ffffff"
-                font.pixelSize: 13
-                font.bold: true
-                Layout.alignment: Qt.AlignHCenter
-            }
+    // Centered branding icon
+    Kirigami.Icon {
+        id: appIcon
+        anchors.centerIn: parent
+        anchors.horizontalCenterOffset: -8
+        anchors.verticalCenterOffset: 8
+        width: 32
+        height: 32
+        source: "sourceless-logo"
 
-            Text {
-                id: dateText
-                text: Qt.formatDate(new Date(), "dd.MM.yyyy")
-                color: Qt.rgba(1, 1, 1, 0.70)
-                font.pixelSize: 10
-                Layout.alignment: Qt.AlignHCenter
-            }
+        scale: mouseArea.pressed ? 0.90 : (mouseArea.containsMouse ? 1.05 : 1.0)
+        Behavior on scale { NumberAnimation { duration: 100 } }
+    }
+
+    // Click handler triggering the global Plasma application launcher
+    MouseArea {
+        id: mouseArea
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            executable.exec("qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.activateLauncherMenu")
         }
     }
 }
