@@ -4,7 +4,7 @@ for (var i = 0; i < existingPanels.length; i++) {
     existingPanels[i].remove();
 }
 
-// 1. BOTTOM-LEFT CORNER (Start Launcher)
+// 1. BOTTOM-LEFT CORNER (Official Plasma Application Launcher)
 var startPanel = new Panel;
 startPanel.location = "bottom";
 startPanel.alignment = "left";
@@ -14,14 +14,17 @@ startPanel.minimumLength = 90;
 startPanel.maximumLength = 90;
 startPanel.height = 90;
 startPanel.floating = false;
-startPanel.addWidget("org.sourceless.start");
+
+var kickoff = startPanel.addWidget("org.kde.plasma.kickoff");
+kickoff.currentConfigGroup = ["General"];
+kickoff.writeConfig("icon", "sourceless-logo");
 
 // 2. CENTER FLOATING ISLAND (Application Dock)
 var dockPanel = new Panel;
 dockPanel.location = "bottom";
 dockPanel.alignment = "center";
 dockPanel.lengthMode = "fit";
-dockPanel.writeConfig("panelLengthMode", 1); // Enforce Fit Content containment mode in Plasma 6
+dockPanel.writeConfig("panelLengthMode", 1);
 dockPanel.height = 56;
 dockPanel.floating = true;
 
@@ -47,14 +50,10 @@ clockPanel.addWidget("org.sourceless.clock");
 // 4. STATUS PILL (Vertical Floating System Tray)
 var trayPanel = new Panel;
 trayPanel.location = "right";
-
-// Note: In Plasma vertical panels, "right" aligns to the screen BOTTOM, and "left" aligns to the screen TOP
-// Use "right" with offset 95 to float right above the 90px clock corner
 trayPanel.alignment = "right";
 trayPanel.offset = 95;
-
 trayPanel.lengthMode = "fit";
 trayPanel.writeConfig("panelLengthMode", 1);
-trayPanel.height = 44; // Controls panel width on vertical layout
+trayPanel.height = 44;
 trayPanel.floating = true;
 trayPanel.addWidget("org.kde.plasma.systemtray");

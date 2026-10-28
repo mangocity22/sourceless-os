@@ -1,20 +1,21 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
-import org.kde.kirigami as Kirigami
 
 PlasmoidItem {
     id: root
     preferredRepresentation: PlasmoidItem.CompactRepresentation
+    backgroundHints: 0
 
-    // Compact representation: Corner circle sector
+    // Compact representation anchored to bottom-right corner
     compactRepresentation: Item {
         id: compactRoot
-        Layout.preferredWidth: 90
+        Layout.preferredWidth: 110
         Layout.preferredHeight: 90
-        implicitWidth: 90
+        implicitWidth: 110
         implicitHeight: 90
 
+        // Corner background SVG (Left.svg is right-corner geometry)
         Image {
             id: bg
             anchors.fill: parent
@@ -23,49 +24,41 @@ PlasmoidItem {
             smooth: true
         }
 
-        Kirigami.Icon {
-            id: appIcon
-            anchors.centerIn: parent
-            anchors.horizontalCenterOffset: -8
-            anchors.verticalCenterOffset: 8
-            width: 32
-            height: 32
-            source: "sourceless-logo"
-
-            scale: mouseArea.pressed ? 0.90 : (mouseArea.containsMouse ? 1.05 : 1.0)
-            Behavior on scale { NumberAnimation { duration: 100 } }
-        }
-
-        MouseArea {
-            id: mouseArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                root.expanded = !root.expanded
+        // Live date & time refresh ticker
+        Timer {
+            interval: 1000
+            running: true
+            repeat: true
+            triggeredOnStart: true
+            onTriggered: {
+                var d = new Date();
+                timeText.text = Qt.formatTime(d, "hh:mm");
+                dateText.text = Qt.formatDate(d, "dd.MM.yyyy");
             }
         }
-    }
 
-    // Temporary popup menu opened on click
-    fullRepresentation: Item {
-        Layout.preferredWidth: 380
-        Layout.preferredHeight: 520
-        implicitWidth: 380
-        implicitHeight: 520
-
-        Rectangle {
-            anchors.fill: parent
-            radius: 20
-            color: Qt.rgba(0.04, 0.06, 0.10, 0.85)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.15)
+        // Offset clock typography centered within the glass curve
+        ColumnLayout {
+            anchors.centerIn: parent
+            anchors.horizontalCenterOffset: 6
+            anchors.verticalCenterOffset: 6
+            spacing: 2
 
             Text {
-                anchors.centerIn: parent
-                text: "Sourceless Application Menu"
+                id: timeText
+                text: Qt.formatTime(new Date(), "hh:mm")
                 color: "#ffffff"
-                font.pixelSize: 14
+                font.pixelSize: 13
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Text {
+                id: dateText
+                text: Qt.formatDate(new Date(), "dd.MM.yyyy")
+                color: Qt.rgba(1, 1, 1, 0.70)
+                font.pixelSize: 10
+                Layout.alignment: Qt.AlignHCenter
             }
         }
     }

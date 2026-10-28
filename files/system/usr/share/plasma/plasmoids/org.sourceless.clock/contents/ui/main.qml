@@ -5,8 +5,9 @@ import org.kde.plasma.plasmoid
 PlasmoidItem {
     id: root
     preferredRepresentation: PlasmoidItem.CompactRepresentation
+    backgroundHints: 0
 
-    // Compact representation rendered directly on the panel
+    // Compact representation anchored to bottom-right corner
     compactRepresentation: Item {
         id: compactRoot
         Layout.preferredWidth: 110
@@ -14,16 +15,16 @@ PlasmoidItem {
         implicitWidth: 110
         implicitHeight: 90
 
-        // Background SVG asset
+        // Corner background SVG (Left.svg is right-corner geometry)
         Image {
             id: bg
             anchors.fill: parent
-            source: "/usr/share/sourceless/theme/right.svg"
+            source: "/usr/share/sourceless/theme/Left.svg"
             fillMode: Image.PreserveAspectFit
             smooth: true
         }
 
-        // Timer updating time and date every second
+        // Live date & time refresh ticker
         Timer {
             interval: 1000
             running: true
@@ -36,7 +37,7 @@ PlasmoidItem {
             }
         }
 
-        // Offset text layout centered inside the glass sector
+        // Offset clock typography centered within the glass curve
         ColumnLayout {
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: 6
@@ -55,7 +56,7 @@ PlasmoidItem {
             Text {
                 id: dateText
                 text: Qt.formatDate(new Date(), "dd.MM.yyyy")
-                color: Qt.rgba(1, 1, 1, 0.65)
+                color: Qt.rgba(1, 1, 1, 0.70)
                 font.pixelSize: 10
                 Layout.alignment: Qt.AlignHCenter
             }
