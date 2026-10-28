@@ -4,26 +4,31 @@ import org.kde.plasma.plasmoid
 
 PlasmoidItem {
     id: root
-    preferredRepresentation: fullRepresentation
-    Layout.fillWidth: true
-    Layout.fillHeight: true
+    preferredRepresentation: PlasmoidItem.CompactRepresentation
 
-    fullRepresentation: Item {
-        anchors.fill: parent
+    // Compact representation rendered directly on the panel
+    compactRepresentation: Item {
+        id: compactRoot
+        Layout.preferredWidth: 110
+        Layout.preferredHeight: 90
+        implicitWidth: 110
+        implicitHeight: 90
 
-        // 1. Fundalul SVG trimis de colegă
+        // Background SVG asset
         Image {
+            id: bg
             anchors.fill: parent
             source: "/usr/share/sourceless/theme/right.svg"
             fillMode: Image.PreserveAspectFit
             smooth: true
         }
 
-        // 2. Timer care actualizează ora la fiecare secundă
+        // Timer updating time and date every second
         Timer {
             interval: 1000
             running: true
             repeat: true
+            triggeredOnStart: true
             onTriggered: {
                 var d = new Date();
                 timeText.text = Qt.formatTime(d, "hh:mm");
@@ -31,7 +36,7 @@ PlasmoidItem {
             }
         }
 
-        // 3. Afișarea textului decalat în interiorul sfertului de cerc
+        // Offset text layout centered inside the glass sector
         ColumnLayout {
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: 6

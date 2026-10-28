@@ -1,10 +1,16 @@
 {
+    "KPackageStructure": "Plasma/Applet",
     "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Sourceless Team"
+            }
+        ],
+        "Category": "Date and Time",
+        "Description": "Liquid Glass Clock Corner",
+        "Icon": "preferences-system-time",
         "Id": "org.sourceless.clock",
         "Name": "Sourceless Clock",
-        "Description": "Liquid Glass Clock Corner",
-        "Category": "Date and Time"
-    },
-    "KPackageStructure": "Plasma/Applet",
-    "X-Plasma-API-Minimum-Version": "6.0"
+        "Version": "1.0"
+    }
 }
