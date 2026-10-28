@@ -5,6 +5,7 @@ import org.kde.plasma.plasmoid
 PlasmoidItem {
     id: root
 
+    // Disable default theme panel frame to keep the glass curve transparent
     Plasmoid.backgroundHints: 0
 
     compactRepresentation: Item {
@@ -14,7 +15,7 @@ PlasmoidItem {
         implicitWidth: 110
         implicitHeight: 90
 
-        // Corner background SVG (Left.svg provides bottom-right geometry)
+        // Glass background SVG (Left.svg provides bottom-right geometry)
         Image {
             id: bg
             anchors.fill: parent
@@ -36,7 +37,7 @@ PlasmoidItem {
             }
         }
 
-        // Typography aligned inside the glass corner curve
+        // Typography centered inside the glass curve
         ColumnLayout {
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: 6

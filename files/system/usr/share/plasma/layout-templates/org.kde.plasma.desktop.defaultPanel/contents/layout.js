@@ -4,7 +4,7 @@ for (var i = 0; i < existingPanels.length; i++) {
     existingPanels[i].remove();
 }
 
-// 1. BOTTOM-LEFT CORNER (Official Plasma Application Launcher)
+// 1. BOTTOM-LEFT CORNER (Start Launcher Placeholder)
 var startPanel = new Panel;
 startPanel.location = "bottom";
 startPanel.alignment = "left";
@@ -17,6 +17,7 @@ startPanel.floating = false;
 
 var kickoff = startPanel.addWidget("org.kde.plasma.kickoff");
 kickoff.currentConfigGroup = ["General"];
+// Temporary icon mapping until designer delivers the composite glass SVG
 kickoff.writeConfig("icon", "sourceless-logo");
 
 // 2. CENTER FLOATING ISLAND (Application Dock)
