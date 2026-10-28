@@ -1,0 +1,11 @@
+{
+    "KPlugin": {
+        "Id": "org.sourceless.start",
+        "Name": "Sourceless Start",
+        "Description": "Liquid Glass Start Button Corner",
+        "Icon": "sourceless",
+        "Category": "Windows and Tasks"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
