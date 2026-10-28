@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="56" viewBox="0 0 400 56" fill="none">
+  <title>Liquid Glass — Floating dock</title>
+  <desc>400 × 56 px pill, outer radius 28 px. Transparent background. Same colors and base opacities as the Start and Clock corners. One-pixel inner perimeter highlight; upper gloss limited to the first 18 px. Editable vector gradients simulate glass, with no live background blur. Fixed-size asset; empty content group for icons.</desc>
+  <defs>
+    <linearGradient id="glass" x1="20" y1="4.48" x2="332" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3FAFF" stop-opacity=".35"/>
+      <stop offset=".28" stop-color="#DDEFFF" stop-opacity=".19"/>
+      <stop offset=".62" stop-color="#96B3D0" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#E0F3FF" stop-opacity=".26"/>
+    </linearGradient>
+    <linearGradient id="upperGloss" x1="0" y1="0" x2="0" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".26"/>
+      <stop offset=".4" stop-color="#EFFAFF" stop-opacity=".10"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="lowerReflection" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(316 54) scale(140 19)">
+      <stop stop-color="#D2F2FF" stop-opacity=".30"/>
+      <stop offset="1" stop-color="#D2F2FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="150" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".94"/>
+      <stop offset=".34" stop-color="#F4FBFF" stop-opacity=".82"/>
+      <stop offset=".60" stop-color="#D7ECFF" stop-opacity=".25"/>
+      <stop offset=".83" stop-color="#EAF9FF" stop-opacity=".48"/>
+      <stop offset="1" stop-color="white" stop-opacity=".87"/>
+    </linearGradient>
+    <linearGradient id="innerShadow" x1="0" y1="0" x2="0" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102438" stop-opacity=".02"/>
+      <stop offset=".50" stop-color="#142C48" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#102438" stop-opacity=".04"/>
+    </linearGradient>
+    <clipPath id="silhouette"><rect width="400" height="56" rx="28"/></clipPath>
+  </defs>
+  <g id="glass-surface" clip-path="url(#silhouette)">
+    <rect id="base" width="400" height="56" rx="28" fill="url(#glass)"/>
+    <rect id="top-reflection-18px" width="400" height="18" fill="url(#upperGloss)"/>
+    <rect id="bottom-reflection" width="400" height="56" rx="28" fill="url(#lowerReflection)"/>
+    <rect id="refracted-edge-shadow" x="2.4" y="2.4" width="395.2" height="51.2" rx="25.6" stroke="url(#innerShadow)" stroke-width="2.8"/>
+    <rect id="inner-light" x="4.3" y="4.3" width="391.4" height="47.4" rx="23.7" stroke="#EEFAFF" stroke-opacity=".16" stroke-width=".65"/>
+    <!-- Clipping the centred 2 px boundary stroke leaves a 1 px inner perimeter. -->
+    <rect id="perimeter-highlight-1px" width="400" height="56" rx="28" stroke="url(#rim)" stroke-width="2"/>
+  </g>
+  <g id="dock-icons"/>
+</svg>

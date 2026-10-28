@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "SourcelessGlass",
+        "Name": "Sourceless Glass",
+        "Description": "Liquid Glass Theme for Sourceless OS",
+        "Authors": [
+            {
+                "Name": "Sourceless Team"
+            }
+        ]
+    }
+}

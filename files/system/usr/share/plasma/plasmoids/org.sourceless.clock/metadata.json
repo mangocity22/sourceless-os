@@ -1,0 +1,9 @@
+{
+    "KPlugin": {
+        "Id": "org.sourceless.clock",
+        "Name": "Sourceless Clock",
+        "Description": "Liquid Glass Clock Corner",
+        "Category": "Date and Time"
+    },
+    "KPackageStructure": "Plasma/Applet"
+}

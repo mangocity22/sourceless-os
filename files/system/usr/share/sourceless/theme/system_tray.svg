@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="120" viewBox="0 0 44 120" fill="none">
+  <title>Liquid Glass — System tray</title>
+  <desc>44 × 120 px vertical pill, outer radius 22 px. Transparent background. Same palette and base opacities as the Start, Clock and Dock assets. One-pixel inner perimeter highlight. Editable vector gradients simulate glass, with no live background blur. Empty content group for status icons.</desc>
+  <defs>
+    <linearGradient id="glass" x1="2.2" y1="9.6" x2="36.52" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3FAFF" stop-opacity=".35"/>
+      <stop offset=".28" stop-color="#DDEFFF" stop-opacity=".19"/>
+      <stop offset=".62" stop-color="#96B3D0" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#E0F3FF" stop-opacity=".26"/>
+    </linearGradient>
+    <linearGradient id="upperGloss" x1="0" y1="0" x2="0" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".26"/>
+      <stop offset=".4" stop-color="#EFFAFF" stop-opacity=".10"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="lowerReflection" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(35 108) scale(21 41)">
+      <stop stop-color="#D2F2FF" stop-opacity=".30"/>
+      <stop offset="1" stop-color="#D2F2FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="44" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".94"/>
+      <stop offset=".34" stop-color="#F4FBFF" stop-opacity=".82"/>
+      <stop offset=".60" stop-color="#D7ECFF" stop-opacity=".25"/>
+      <stop offset=".83" stop-color="#EAF9FF" stop-opacity=".48"/>
+      <stop offset="1" stop-color="white" stop-opacity=".87"/>
+    </linearGradient>
+    <linearGradient id="innerShadow" x1="0" y1="0" x2="0" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102438" stop-opacity=".02"/>
+      <stop offset=".50" stop-color="#142C48" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#102438" stop-opacity=".04"/>
+    </linearGradient>
+    <clipPath id="silhouette"><rect width="44" height="120" rx="22"/></clipPath>
+  </defs>
+  <g id="glass-surface" clip-path="url(#silhouette)">
+    <rect id="base" width="44" height="120" rx="22" fill="url(#glass)"/>
+    <rect id="top-reflection-18px" width="44" height="18" fill="url(#upperGloss)"/>
+    <rect id="bottom-reflection" width="44" height="120" rx="22" fill="url(#lowerReflection)"/>
+    <rect id="refracted-edge-shadow" x="2.4" y="2.4" width="39.2" height="115.2" rx="19.6" stroke="url(#innerShadow)" stroke-width="2.8"/>
+    <rect id="inner-light" x="4.3" y="4.3" width="35.4" height="111.4" rx="17.7" stroke="#EEFAFF" stroke-opacity=".16" stroke-width=".65"/>
+    <!-- Clipping the centred 2 px boundary stroke leaves a 1 px inner perimeter. -->
+    <rect id="perimeter-highlight-1px" width="44" height="120" rx="22" stroke="url(#rim)" stroke-width="2"/>
+  </g>
+  <g id="status-icons"/>
+</svg>
