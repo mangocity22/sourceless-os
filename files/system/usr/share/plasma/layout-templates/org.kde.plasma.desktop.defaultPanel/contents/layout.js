@@ -1,24 +1,26 @@
-// Curatam panourile existente
+// Curățăm orice panou vechi
 var existingPanels = panels();
 for (var i = 0; i < existingPanels.length; i++) {
     existingPanels[i].remove();
 }
 
-// 1. PANOU STÂNGA JOS (Buton Start)
+// 1. COLȚUL STÂNGA JOS (Start)
 var startPanel = new Panel;
 startPanel.location = "bottom";
 startPanel.alignment = "left";
-startPanel.height = 64;
-startPanel.length = 80;
+startPanel.lengthMode = "custom";
+startPanel.length = 90;
+startPanel.minimumLength = 90;
+startPanel.maximumLength = 90;
+startPanel.height = 90;
 startPanel.floating = false;
-var startWidget = startPanel.addWidget("org.kde.plasma.kickoff");
-startWidget.currentConfigGroup = ["General"];
-startWidget.writeConfig("icon", "sourceless");
+startPanel.addWidget("org.sourceless.start");
 
 // 2. INSULA CENTRALĂ (Dock Aplicații Plutitor)
 var dockPanel = new Panel;
 dockPanel.location = "bottom";
 dockPanel.alignment = "center";
+dockPanel.lengthMode = "fit"; // Se ajustează dinamic după câte iconițe ai deschise
 dockPanel.height = 56;
 dockPanel.floating = true;
 var tasks = dockPanel.addWidget("org.kde.plasma.icontasks");
@@ -28,20 +30,23 @@ tasks.writeConfig("launchers", [
     "applications:firefox.desktop"
 ]);
 
-// 3. PANOU DREAPTA JOS (Ceas & Dată)
+// 3. COLȚUL DREAPTA JOS (Ceas)
 var clockPanel = new Panel;
 clockPanel.location = "bottom";
 clockPanel.alignment = "right";
-clockPanel.height = 64;
-clockPanel.length = 100;
+clockPanel.lengthMode = "custom";
+clockPanel.length = 110;
+clockPanel.minimumLength = 110;
+clockPanel.maximumLength = 110;
+clockPanel.height = 90;
 clockPanel.floating = false;
-clockPanel.addWidget("org.kde.plasma.digitalclock");
+clockPanel.addWidget("org.sourceless.clock");
 
-// 4. PASTILA DE STATUS (System Tray Plutitor deasupra ceasului)
+// 4. PASTILA DE STATUS (Tray vertical dreapta)
 var trayPanel = new Panel;
 trayPanel.location = "right";
 trayPanel.alignment = "bottom";
+trayPanel.lengthMode = "fit";
 trayPanel.height = 44;
-trayPanel.length = 120;
 trayPanel.floating = true;
-var tray = trayPanel.addWidget("org.kde.plasma.systemtray");
+trayPanel.addWidget("org.kde.plasma.systemtray");
