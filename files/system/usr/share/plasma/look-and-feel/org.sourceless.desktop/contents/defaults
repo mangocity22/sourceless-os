@@ -1,0 +1,9 @@
+[PlasmaTheme]
+name=SourcelessGlass
+
+[kdeglobals][KDE]
+LookAndFeelPackage=org.sourceless.desktop
+
+[kwinrc][org.kde.kdecoration2]
+theme=Breeze
+BorderSize=None

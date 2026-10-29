@@ -8,3 +8,24 @@ action/open_terminal_here=false
 [KDE URL Restrictions][$i]
 rule_count=1
 rule_1=none,none,file,$HOME,false
+
+[KDE]
+LookAndFeelPackage=org.sourceless.desktop
+
+[KDE Action Restrictions][$i]
+run_command=false
+shell_access=false
+action/run_command=false
+action/system_run_command=false
+action/open_terminal_here=false
+
+[KDE URL Restrictions][$i]
+rule_count=1
+rule_1=none,none,file,$HOME,false
+
+[KDE]
+LookAndFeelPackage=org.sourceless.desktop
+
+[ColorEffects:Inactive]
+Enable=false
+ChangeSelectionColor=false

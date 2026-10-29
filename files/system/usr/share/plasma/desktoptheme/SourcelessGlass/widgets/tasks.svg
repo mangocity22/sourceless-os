@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
+  <defs>
+    <linearGradient id="hoverGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.06" />
+    </linearGradient>
+    <linearGradient id="activeGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.30" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.12" />
+    </linearGradient>
+  </defs>
+
+  <!-- HINTS: 8px sus/jos (forteaza iconita la 36px) si 8px lateral (16px spatiu intre ele) -->
+  <rect id="hint-top-margin" x="0" y="0" width="1" height="8" opacity="0" />
+  <rect id="hint-bottom-margin" x="0" y="44" width="1" height="8" opacity="0" />
+  <rect id="hint-left-margin" x="0" y="0" width="8" height="1" opacity="0" />
+  <rect id="hint-right-margin" x="44" y="0" width="8" height="1" opacity="0" />
+
+  <!-- STARE NORMALA (9-slice complet, invizibil) -->
+  <rect id="normal-topleft" x="0" y="0" width="8" height="8" opacity="0" />
+  <rect id="normal-top" x="8" y="0" width="36" height="8" opacity="0" />
+  <rect id="normal-topright" x="44" y="0" width="8" height="8" opacity="0" />
+  <rect id="normal-left" x="0" y="8" width="8" height="36" opacity="0" />
+  <rect id="normal-center" x="8" y="8" width="36" height="36" opacity="0" />
+  <rect id="normal-right" x="44" y="8" width="8" height="36" opacity="0" />
+  <rect id="normal-bottomleft" x="0" y="44" width="8" height="8" opacity="0" />
+  <rect id="normal-bottom" x="8" y="44" width="36" height="8" opacity="0" />
+  <rect id="normal-bottomright" x="44" y="44" width="8" height="8" opacity="0" />
+
+  <!-- STARE HOVER (Pastila de sticla) -->
+  <rect id="hover-topleft" x="0" y="0" width="8" height="8" opacity="0" />
+  <rect id="hover-top" x="8" y="0" width="36" height="8" opacity="0" />
+  <rect id="hover-topright" x="44" y="0" width="8" height="8" opacity="0" />
+  <rect id="hover-left" x="0" y="8" width="8" height="36" opacity="0" />
+  <rect id="hover-center" x="2" y="2" width="48" height="48" rx="12" ry="12" fill="url(#hoverGrad)" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1" />
+  <rect id="hover-right" x="44" y="8" width="8" height="36" opacity="0" />
+  <rect id="hover-bottomleft" x="0" y="44" width="8" height="8" opacity="0" />
+  <rect id="hover-bottom" x="8" y="44" width="36" height="8" opacity="0" />
+  <rect id="hover-bottomright" x="44" y="44" width="8" height="8" opacity="0" />
+
+  <!-- STARE ACTIVE -->
+  <rect id="active-topleft" x="0" y="0" width="8" height="8" opacity="0" />
+  <rect id="active-top" x="8" y="0" width="36" height="8" opacity="0" />
+  <rect id="active-topright" x="44" y="0" width="8" height="8" opacity="0" />
+  <rect id="active-left" x="0" y="8" width="8" height="36" opacity="0" />
+  <rect id="active-center" x="2" y="2" width="48" height="48" rx="12" ry="12" fill="url(#activeGrad)" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1" />
+  <rect id="active-right" x="44" y="8" width="8" height="36" opacity="0" />
+  <rect id="active-bottomleft" x="0" y="44" width="8" height="8" opacity="0" />
+  <rect id="active-bottom" x="8" y="44" width="36" height="8" opacity="0" />
+  <rect id="active-bottomright" x="44" y="44" width="8" height="8" opacity="0" />
+</svg>

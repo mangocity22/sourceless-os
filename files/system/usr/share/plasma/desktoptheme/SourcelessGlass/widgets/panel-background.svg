@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="104" height="52" viewBox="0 0 104 52">
+  <defs>
+    <linearGradient id="glassFill" x1="0" y1="0" x2="0" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32" />
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.22" />
+    </linearGradient>
+
+    <linearGradient id="glassBorderTop" x1="0" y1="0" x2="0" y2="2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.90" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.20" />
+    </linearGradient>
+
+    <linearGradient id="glassBorderBottom" x1="0" y1="50" x2="0" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.45" />
+    </linearGradient>
+  </defs>
+
+  <!-- HINTS: 1px sus/jos pentru a lasa Kickoff mare; 16px lateral -->
+  <rect id="hint-stretch-borders" x="0" y="0" width="1" height="1" opacity="0" />
+  <rect id="hint-top-margin" x="0" y="0" width="1" height="1" opacity="0" />
+  <rect id="hint-bottom-margin" x="0" y="51" width="1" height="1" opacity="0" />
+  <rect id="hint-left-margin" x="0" y="0" width="16" height="1" opacity="0" />
+  <rect id="hint-right-margin" x="88" y="0" width="16" height="1" opacity="0" />
+
+  <!-- ================= COLOANA STANGA (0 -> 27 cu overlap) ================= -->
+  <g id="topleft">
+    <path d="M 0 26 A 26 26 0 0 1 26 0 L 27 0 L 27 26 L 0 26 Z" fill="url(#glassFill)" />
+    <path d="M 0 26 A 26 26 0 0 1 26 0 L 27 0 L 27 1 L 26 1 A 25 25 0 0 0 1 26 Z" fill="url(#glassBorderTop)" />
+  </g>
+
+  <g id="left">
+    <rect x="0" y="25" width="26" height="2" fill="url(#glassFill)" />
+  </g>
+
+  <g id="bottomleft">
+    <path d="M 26 52 A 26 26 0 0 1 0 26 L 27 26 L 27 52 Z" fill="url(#glassFill)" />
+    <path d="M 26 52 A 26 26 0 0 1 0 26 L 1 26 A 25 25 0 0 0 26 51 L 27 51 L 27 52 Z" fill="url(#glassBorderBottom)" />
+  </g>
+
+  <!-- ================= COLOANA CENTRU (25 -> 79) ================= -->
+  <g id="top">
+    <rect x="25" y="0" width="54" height="26" fill="url(#glassFill)" />
+    <rect x="25" y="0" width="54" height="1" fill="url(#glassBorderTop)" />
+  </g>
+
+  <g id="center">
+    <rect x="25" y="25" width="54" height="2" fill="url(#glassFill)" />
+  </g>
+
+  <g id="bottom">
+    <rect x="25" y="26" width="54" height="26" fill="url(#glassFill)" />
+    <rect x="25" y="51" width="54" height="1" fill="url(#glassBorderBottom)" />
+  </g>
+
+  <!-- ================= COLOANA DREAPTA (77 -> 104) ================= -->
+  <g id="topright">
+    <path d="M 78 0 A 26 26 0 0 1 104 26 L 77 26 L 77 0 Z" fill="url(#glassFill)" />
+    <path d="M 78 0 A 26 26 0 0 1 104 26 L 103 26 A 25 25 0 0 0 78 1 L 77 1 L 77 0 Z" fill="url(#glassBorderTop)" />
+  </g>
+
+  <g id="right">
+    <rect x="78" y="25" width="26" height="2" fill="url(#glassFill)" />
+  </g>
+
+  <g id="bottomright">
+    <path d="M 104 26 A 26 26 0 0 1 78 52 L 77 52 L 77 26 L 104 26 Z" fill="url(#glassFill)" />
+    <path d="M 104 26 A 26 26 0 0 1 78 52 L 77 52 L 77 51 L 78 51 A 25 25 0 0 0 103 26 Z" fill="url(#glassBorderBottom)" />
+  </g>
+</svg>

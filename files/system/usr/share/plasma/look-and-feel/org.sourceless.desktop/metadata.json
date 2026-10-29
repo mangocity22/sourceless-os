@@ -1,0 +1,9 @@
+{
+    "KPlugin": {
+        "Id": "org.sourceless.desktop",
+        "Name": "Sourceless OS",
+        "Description": "Sourceless OS Glass Shell",
+        "ServiceTypes": ["Plasma/LookAndFeel"],
+        "Version": "1.0"
+    }
+}

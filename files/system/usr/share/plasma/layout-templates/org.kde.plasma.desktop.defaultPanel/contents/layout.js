@@ -1,61 +1,57 @@
-// Clean up any pre-existing panels before applying the Liquid Glass layout
+// Clean up any pre-existing panels
 var existingPanels = panels();
-for (var i = 0; i < existingPanels.length; i++) {
+for (var i = existingPanels.length - 1; i >= 0; i--) {
     existingPanels[i].remove();
 }
 
-// 1. BOTTOM-LEFT CORNER (Start Launcher Placeholder)
-var startPanel = new Panel;
-startPanel.location = "bottom";
-startPanel.alignment = "left";
-startPanel.lengthMode = "custom";
-startPanel.length = 90;
-startPanel.minimumLength = 90;
-startPanel.maximumLength = 90;
-startPanel.height = 90;
-startPanel.floating = false;
+// 1. Unified Floating Liquid Glass Island (52px)
+var bar = new Panel;
+bar.location = "bottom";
+bar.height = 52;
+bar.floating = true;
+bar.hiding = "windowsgobelow";
 
-var kickoff = startPanel.addWidget("org.kde.plasma.kickoff");
+// 2. Kickoff Start Launcher (Sourceless Logo)
+var kickoff = bar.addWidget("org.kde.plasma.kickoff");
 kickoff.currentConfigGroup = ["General"];
-// Temporary icon mapping until designer delivers the composite glass SVG
 kickoff.writeConfig("icon", "sourceless-logo");
 
-// 2. CENTER FLOATING ISLAND (Application Dock)
-var dockPanel = new Panel;
-dockPanel.location = "bottom";
-dockPanel.alignment = "center";
-dockPanel.lengthMode = "fit";
-dockPanel.writeConfig("panelLengthMode", 1);
-dockPanel.height = 56;
-dockPanel.floating = true;
+// 3. Distantier elastic stanga (centreaza task manager-ul)
+bar.addWidget("org.kde.plasma.panelspacer");
 
-var tasks = dockPanel.addWidget("org.kde.plasma.icontasks");
+// 4. Centered Icons-Only Task Manager
+var tasks = bar.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
     "preferred://filemanager",
     "preferred://browser"
 ]);
 
-// 3. BOTTOM-RIGHT CORNER (Liquid Glass Clock & Date)
-var clockPanel = new Panel;
-clockPanel.location = "bottom";
-clockPanel.alignment = "right";
-clockPanel.lengthMode = "custom";
-clockPanel.length = 110;
-clockPanel.minimumLength = 110;
-clockPanel.maximumLength = 110;
-clockPanel.height = 90;
-clockPanel.floating = false;
-clockPanel.addWidget("org.sourceless.clock");
+// 5. Distantier elastic dreapta
+bar.addWidget("org.kde.plasma.panelspacer");
 
-// 4. TOP-RIGHT FLOATING STATUS PILL (System Tray)
-var trayPanel = new Panel;
-trayPanel.location = "right";
-// "left" on a vertical panel aligns to the top of the display
-trayPanel.alignment = "left";
-trayPanel.offset = 12;
-trayPanel.lengthMode = "fit";
-trayPanel.writeConfig("panelLengthMode", 1);
-trayPanel.height = 44;
-trayPanel.floating = true;
-trayPanel.addWidget("org.kde.plasma.systemtray");
+// 6. System Tray compact
+var tray = bar.addWidget("org.kde.plasma.systemtray");
+tray.currentConfigGroup = ["General"];
+tray.writeConfig("scaleIconsToFit", false);
+tray.writeConfig("shownItems", [
+    "org.kde.plasma.networkmanagement",
+    "org.kde.plasma.volume"
+]);
+tray.writeConfig("hiddenItems", [
+    "org.kde.plasma.clipboard",
+    "org.kde.plasma.brightness",
+    "org.kde.plasma.devicenotifier",
+    "org.kde.plasma.notifications"
+]);
+
+// 7. Ceas & Data (Digital Clock)
+var clock = bar.addWidget("org.kde.plasma.digitalclock");
+clock.currentConfigGroup = ["Appearance"];
+clock.writeConfig("autoFontAndSize", false);
+clock.writeConfig("fontSize", 10.5);
+clock.writeConfig("boldText", true);
+clock.writeConfig("showDate", true);
+clock.writeConfig("dateFormat", "shortDate");
+clock.writeConfig("showSeconds", "Never");
+clock.writeConfig("use24hFormat", "2");
