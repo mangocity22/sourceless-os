@@ -1,0 +1,5 @@
+[Theme]
+name=SourcelessGlass
+
+[Defaults]
+containment=org.kde.plasma.folder
