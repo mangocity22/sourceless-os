@@ -3,7 +3,21 @@ name=SourcelessGlass
 
 [kdeglobals][KDE]
 LookAndFeelPackage=org.sourceless.desktop
+widgetStyle=Breeze
+
+[kdeglobals][General]
+ColorScheme=BreezeDark
+
+[kdeglobals][Icons]
+Theme=breeze-dark
 
 [kwinrc][org.kde.kdecoration2]
 theme=Breeze
 BorderSize=None
+
+[plasmarc][Theme]
+name=SourcelessGlass
+
+[ColorEffects:Inactive]
+Enable=false
+ChangeSelectionColor=false

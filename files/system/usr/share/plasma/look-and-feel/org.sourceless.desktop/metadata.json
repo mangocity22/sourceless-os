@@ -1,9 +1,20 @@
 {
     "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Sourceless",
+                "Email": "support@sourceless.net"
+            }
+        ],
+        "Category": "Global Theme",
+        "Description": "Sourceless OS Liquid Glass Global Theme",
+        "Icon": "sourceless-logo",
         "Id": "org.sourceless.desktop",
-        "Name": "Sourceless OS",
-        "Description": "Sourceless OS Glass Shell",
-        "ServiceTypes": ["Plasma/LookAndFeel"],
-        "Version": "1.0"
+        "Name": "Sourceless",
+        "ServiceTypes": [
+            "Plasma/LookAndFeel"
+        ],
+        "Version": "1.0",
+        "Website": "https://sourceless.net"
     }
 }

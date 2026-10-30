@@ -87,6 +87,7 @@ modules:
   - type: script
     scripts:
       - setup-permissions.sh
+      - clean-default-themes.sh
 
   - type: initramfs
 
