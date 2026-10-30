@@ -1,25 +1,25 @@
-// Curatam panouri existente daca este cazul
-var pList = panels();
-for (var i = pList.length - 1; i >= 0; i--) {
-    pList[i].remove();
+// 1. Configurarea spatiului de lucru (Desktop / Wallpaper)
+var desktopsArray = desktopsForActivity(currentActivity());
+for (var j = 0; j < desktopsArray.length; j++) {
+    desktopsArray[j].wallpaperPlugin = "org.kde.image";
 }
 
-// 1. Capsula flotanta Sourceless (52px)
+// 2. Capsula flotanta Sourceless (52px)
 var bar = new Panel;
 bar.location = "bottom";
 bar.height = 52;
 bar.floating = true;
 bar.hiding = "windowsgobelow";
 
-// 2. Buton Start (Kickoff cu logo Sourceless)
+// 3. Buton Start (Kickoff cu logo Sourceless)
 var kickoff = bar.addWidget("org.kde.plasma.kickoff");
 kickoff.currentConfigGroup = ["General"];
 kickoff.writeConfig("icon", "sourceless-logo");
 
-// 3. Distantier elastic stanga
+// 4. Distantier elastic stanga
 bar.addWidget("org.kde.plasma.panelspacer");
 
-// 4. Icons-Only Task Manager centrat
+// 5. Icons-Only Task Manager centrat
 var tasks = bar.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
@@ -27,10 +27,10 @@ tasks.writeConfig("launchers", [
     "preferred://browser"
 ]);
 
-// 5. Distantier elastic dreapta
+// 6. Distantier elastic dreapta
 bar.addWidget("org.kde.plasma.panelspacer");
 
-// 6. System Tray compact
+// 7. System Tray compact
 var tray = bar.addWidget("org.kde.plasma.systemtray");
 tray.currentConfigGroup = ["General"];
 tray.writeConfig("scaleIconsToFit", false);
@@ -45,7 +45,7 @@ tray.writeConfig("hiddenItems", [
     "org.kde.plasma.notifications"
 ]);
 
-// 7. Ceas Digital
+// 8. Ceas Digital (text alb, lizibil)
 var clock = bar.addWidget("org.kde.plasma.digitalclock");
 clock.currentConfigGroup = ["Appearance"];
 clock.writeConfig("autoFontAndSize", false);
