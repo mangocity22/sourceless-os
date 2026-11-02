@@ -1,39 +1,36 @@
-// 1. Configurarea spatiului de lucru (Desktop / Wallpaper)
-var desktopsArray = desktopsForActivity(currentActivity());
+// 1. Setare activitate curenta
+var activityId = currentActivity();
+
+// 2. Configurarea spatiului de lucru (Desktop / Wallpaper)
+var desktopsArray = desktopsForActivity(activityId);
 for (var j = 0; j < desktopsArray.length; j++) {
     desktopsArray[j].wallpaperPlugin = "org.kde.image";
 }
 
-// 2. Capsula flotanta Sourceless (52px)
-var bar = new Panel;
+// 3. Creare Panou cu asociere explicita de template
+var bar = new Panel("org.kde.panel");
 bar.location = "bottom";
 bar.thickness = 52;
 bar.floating = true;
-
-// Aici e magia: "windowsgobelow" este valoarea corecta din API-ul KDE 
-// pentru a opri rezervarea de spatiu (strut=0).
 bar.hiding = "windowsgobelow";
 
-// Pentru a te asigura ca nu devine opac cand atinge o fereastra:
-bar.writeConfig("panelOpacity", 2); 
+// Scriem activitatea explicit ca sa nu mai rateze System Settings
+bar.writeConfig("activityId", activityId);
+bar.writeConfig("panelOpacity", 2);
 
-// 3. Buton Start (Kickoff cu logo Sourceless)
+// 4. Populam widget-urile
 var kickoff = bar.addWidget("org.kde.plasma.kickoff");
 kickoff.currentConfigGroup = ["General"];
 kickoff.writeConfig("icon", "sourceless-logo");
 
-// 4. Distantier elastic stanga
 bar.addWidget("org.kde.plasma.panelspacer");
 
-// 5. Icons-Only Task Manager centrat
 var tasks = bar.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", "preferred://filemanager,preferred://browser");
 
-// 6. Distantier elastic dreapta
 bar.addWidget("org.kde.plasma.panelspacer");
 
-// 7. System Tray compact
 var tray = bar.addWidget("org.kde.plasma.systemtray");
 tray.currentConfigGroup = ["General"];
 tray.writeConfig("scaleIconsToFit", false);
@@ -48,5 +45,4 @@ tray.writeConfig("hiddenItems", [
     "org.kde.plasma.notifications"
 ]);
 
-// 8. Ceas Digital Sourceless (QML-ul custom)
-var clock = bar.addWidget("org.sourceless.clock");
+bar.addWidget("org.sourceless.clock");
