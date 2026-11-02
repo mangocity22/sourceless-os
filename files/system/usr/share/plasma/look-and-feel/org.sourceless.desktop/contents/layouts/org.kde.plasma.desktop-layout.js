@@ -7,7 +7,7 @@ for (var j = 0; j < desktopsArray.length; j++) {
 // 2. Capsula flotanta Sourceless (52px)
 var bar = new Panel;
 bar.location = "bottom";
-bar.height = 52;
+bar.thickness = 52; // Modificat din height în thickness
 bar.floating = true;
 bar.hiding = "windowsgobelow";
 
@@ -45,13 +45,5 @@ tray.writeConfig("hiddenItems", [
     "org.kde.plasma.notifications"
 ]);
 
-// 8. Ceas Digital (text alb, lizibil)
-var clock = bar.addWidget("org.kde.plasma.digitalclock");
-clock.currentConfigGroup = ["Appearance"];
-clock.writeConfig("autoFontAndSize", false);
-clock.writeConfig("fontSize", 10.5);
-clock.writeConfig("boldText", true);
-clock.writeConfig("showDate", true);
-clock.writeConfig("dateFormat", "shortDate");
-clock.writeConfig("showSeconds", "Never");
-clock.writeConfig("use24hFormat", "2");
+// 8. Ceas Digital Sourceless (text alb, lizibil)
+var clock = bar.addWidget("org.sourceless.clock");
