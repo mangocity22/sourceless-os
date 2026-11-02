@@ -24,7 +24,7 @@ immutability=1
 lastScreen=0
 location=4
 panelLengthMode=0
-panelOpacity=1
+panelOpacity=2
 panelVisibility=2
 plugin=org.kde.panel
 thickness=52
@@ -32,20 +32,7 @@ wallpaperplugin=org.kde.image
 
 [Containments][2][Applets][22]
 immutability=1
-plugin=org.kde.plasma.digitalclock
-
-[Containments][2][Applets][22][Configuration]
-popupHeight=400
-popupWidth=560
-
-[Containments][2][Applets][22][Configuration][Appearance]
-autoFontAndSize=false
-boldText=true
-dateFormat=shortDate
-fontSize=10.5
-showDate=true
-showSeconds=Never
-use24hFormat=2
+plugin=org.sourceless.clock
 
 [Containments][2][Applets][3]
 immutability=1
