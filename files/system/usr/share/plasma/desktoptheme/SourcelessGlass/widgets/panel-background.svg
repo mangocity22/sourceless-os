@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="104" height="52" viewBox="0 0 104 52">
   <defs>
     <linearGradient id="glassFill" x1="0" y1="0" x2="0" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32" />
-      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.10" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.22" />
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.65" />
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.40" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.55" />
     </linearGradient>
 
     <linearGradient id="glassBorderTop" x1="0" y1="0" x2="0" y2="2" gradientUnits="userSpaceOnUse">
@@ -68,4 +68,7 @@
     <path d="M 104 26 A 26 26 0 0 1 78 52 L 77 52 L 77 26 L 104 26 Z" fill="url(#glassFill)" />
     <path d="M 104 26 A 26 26 0 0 1 78 52 L 77 52 L 77 51 L 78 51 A 25 25 0 0 0 103 26 Z" fill="url(#glassBorderBottom)" />
   </g>
+
+  <rect id="hint-apply-blur-behind" x="0" y="0" width="0" height="0" style="opacity:0" />
+
 </svg>

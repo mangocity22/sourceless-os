@@ -7,9 +7,15 @@ for (var j = 0; j < desktopsArray.length; j++) {
 // 2. Capsula flotanta Sourceless (52px)
 var bar = new Panel;
 bar.location = "bottom";
-bar.thickness = 52; // Modificat din height în thickness
+bar.thickness = 52;
 bar.floating = true;
+
+// Aici e magia: "windowsgobelow" este valoarea corecta din API-ul KDE 
+// pentru a opri rezervarea de spatiu (strut=0).
 bar.hiding = "windowsgobelow";
+
+// Pentru a te asigura ca nu devine opac cand atinge o fereastra:
+bar.writeConfig("panelOpacity", 2); 
 
 // 3. Buton Start (Kickoff cu logo Sourceless)
 var kickoff = bar.addWidget("org.kde.plasma.kickoff");
@@ -22,10 +28,7 @@ bar.addWidget("org.kde.plasma.panelspacer");
 // 5. Icons-Only Task Manager centrat
 var tasks = bar.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
-tasks.writeConfig("launchers", [
-    "preferred://filemanager",
-    "preferred://browser"
-]);
+tasks.writeConfig("launchers", "preferred://filemanager,preferred://browser");
 
 // 6. Distantier elastic dreapta
 bar.addWidget("org.kde.plasma.panelspacer");
@@ -45,5 +48,5 @@ tray.writeConfig("hiddenItems", [
     "org.kde.plasma.notifications"
 ]);
 
-// 8. Ceas Digital Sourceless (text alb, lizibil)
+// 8. Ceas Digital Sourceless (QML-ul custom)
 var clock = bar.addWidget("org.sourceless.clock");
