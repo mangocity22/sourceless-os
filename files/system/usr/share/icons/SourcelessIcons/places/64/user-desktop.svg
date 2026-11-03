@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="uuid-31f62af2-f0bf-4e27-865d-12c1ad2406ad" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="uuid-dc61a9fe-981e-497d-9277-f27e3555efe0" x1="129.929" y1="381.814" x2="386.073" y2="171.351" gradientTransform="translate(0 511.197) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c4b2ff" stop-opacity=".84"/>
+      <stop offset=".38" stop-color="#8660f2" stop-opacity=".73"/>
+      <stop offset="1" stop-color="#3d238e" stop-opacity=".88"/>
+    </linearGradient>
+    <linearGradient id="uuid-bb729c08-faa1-4329-aa2b-45dcfc12217b" x1="120.365" y1="391.188" x2="393.639" y2="163.595" gradientTransform="translate(0 511.197) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6f1ff" stop-opacity=".88"/>
+      <stop offset=".48" stop-color="#bea6ff" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#6841c2" stop-opacity=".34"/>
+    </linearGradient>
+    <linearGradient id="uuid-39490b82-2bfd-4f92-b6f7-4ae88ec0a187" x1="215.319" y1="175.355" x2="299.34" y2="109.28" gradientTransform="translate(0 511.197) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e6dcff" stop-opacity=".82"/>
+      <stop offset=".45" stop-color="#9b7df2" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#5132a1" stop-opacity=".88"/>
+    </linearGradient>
+    <linearGradient id="uuid-007dcb25-f0ac-4743-973b-9bbb2bc5dc56" x1="53.944" y1="311.435" x2="327.218" y2="83.842" xlink:href="#uuid-bb729c08-faa1-4329-aa2b-45dcfc12217b"/>
+    <linearGradient id="uuid-bcc75a46-51cf-45a1-bd6f-3345e486ee6d" x1="203.556" y1="160.398" x2="287.578" y2="94.323" xlink:href="#uuid-39490b82-2bfd-4f92-b6f7-4ae88ec0a187"/>
+    <linearGradient id="uuid-9c0741ac-bc65-4e35-b459-ff3f5ea1a6a0" x1="42.089" y1="297.309" x2="315.363" y2="69.716" xlink:href="#uuid-bb729c08-faa1-4329-aa2b-45dcfc12217b"/>
+  </defs>
+  <rect x="110.797" y="120.398" width="290.405" height="225.145" rx="31.814" ry="31.814" fill="url(#uuid-dc61a9fe-981e-497d-9277-f27e3555efe0)" stroke="url(#uuid-bb729c08-faa1-4329-aa2b-45dcfc12217b)" stroke-width="3.263"/>
+  <path d="M129.56,316.176h252.881" fill="none" stroke="rgba(255, 255, 255, .2)" stroke-linecap="round" stroke-width="2.447"/>
+  <path d="M236.422,345.543h39.156l8.973,37.524h-57.102l8.973-37.524Z" fill="url(#uuid-39490b82-2bfd-4f92-b6f7-4ae88ec0a187)" stroke="url(#uuid-007dcb25-f0ac-4743-973b-9bbb2bc5dc56)" stroke-linejoin="round" stroke-width="3.263"/>
+  <path d="M200.529,380.62h110.941c6.307,0,11.42,5.113,11.42,11.42h0c0,6.307-5.113,11.42-11.42,11.42h-110.941c-6.307,0-11.42-5.113-11.42-11.42h0c0-6.307,5.113-11.42,11.42-11.42Z" fill="url(#uuid-bcc75a46-51cf-45a1-bd6f-3345e486ee6d)" stroke="url(#uuid-9c0741ac-bc65-4e35-b459-ff3f5ea1a6a0)" stroke-width="3.263"/>
+</svg>

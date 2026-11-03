@@ -20,10 +20,7 @@ Item {
         id: mainFaceIcon
         source: kuser.faceIconUrl
         anchors {
-            //fill: parent
-            anchors.left: parent.left
-            anchors.leftMargin: 24
-            Layout.alignment: Qt.AlignLeft
+            fill: parent
             margins: Kirigami.Units.smallSpacing
         }
         MouseArea {

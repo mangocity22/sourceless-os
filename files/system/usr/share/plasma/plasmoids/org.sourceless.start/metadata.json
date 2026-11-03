@@ -3,8 +3,8 @@
 	"KPlugin": {
 		"Authors": [
 			{
-				"Email": "support@sourceless.net",
-				"Name": "Sourceless Team"
+				"Email": "eliverlara@gmail.com",
+				"Name": "EliverLara"
 			}
 		],
 		"Category": "Application Launchers",
@@ -17,13 +17,13 @@
 		"EnabledByDefault": true,
 		"Icon": "start-here-kde",
 		"Id": "org.sourceless.start",
-		"Name": "Sourceless Launcher",
-		"Name[cs]": "Spouštěč Sourceless",
-		"Name[el]": "Sourceless Launcher",
-		"Name[fi]": "Sourceless-käynnistin",
-		"Name[pl]": "Sourceless Launcher",
+		"Name": "Andromeda Launcher",
+		"Name[cs]": "Spouštěč Andromeda",
+		"Name[el]": "Andromeda Launcher",
+		"Name[fi]": "Andromeda-käynnistin",
+		"Name[pl]": "Andromeda Launcher",
 		"Version": "0.6",
-		"Website": "sourceless.net"
+		"Website": "https://github.com/EliverLara/AndromedaLauncher"
 	},
 	"X-Plasma-API-Minimum-Version": "6.0",
 	"X-Plasma-Provides": [
