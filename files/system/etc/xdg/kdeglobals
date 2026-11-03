@@ -15,6 +15,9 @@ LookAndFeelPackage=org.sourceless.desktop
 [Theme]
 name=SourcelessGlass
 
+[Icons]
+Theme=SourcelessIcons
+
 [KDE Action Restrictions][$i]
 run_command=false
 shell_access=false
