@@ -1,12 +1,18 @@
 {
+    "KPackageStructure": "Plasma/Theme",
     "KPlugin": {
         "Id": "SourcelessGlass",
-        "Name": "Sourceless Glass",
-        "Description": "Liquid Glass Theme for Sourceless OS",
-        "Authors": [
-            {
-                "Name": "Sourceless Team"
-            }
-        ]
-    }
+        "Name": "Sourceless Liquid Glass",
+        "Version": "1.0"
+    },
+    "ContrastEffect": {
+        "enabled": true,
+        "contrast": 0.45,
+        "intensity": 1.4,
+        "saturation": 1.7
+    },
+    "BlurEffect": {
+        "enabled": true
+    },
+    "X-Plasma-API": "5.0"
 }

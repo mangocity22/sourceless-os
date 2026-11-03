@@ -7,11 +7,12 @@
             }
         ],
         "Category": "Date and Time",
-        "Description": "Liquid Glass Clock Corner",
+        "Description": "Liquid Glass Clock",
         "Icon": "preferences-system-time",
         "Id": "org.sourceless.clock",
         "Name": "Sourceless Clock",
         "Version": "1.0"
     },
-    "X-Plasma-API-Minimum-Version": "6.0"
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
 }

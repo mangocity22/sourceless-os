@@ -1,46 +1,21 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
+import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.workspace.calendar as PlasmaCalendar
 
 PlasmoidItem {
     id: root
 
-    Plasmoid.backgroundHints: "NoBackground"
+    // Folosim enum-ul nativ Plasma 6 ca să nu arunce eroare QML la boot
+    // și NU mai modificăm Plasmoid.containment.backgroundHints!
+    Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
 
-    function stripPanelBackground() {
-        if (Plasmoid.containment) {
-            Plasmoid.containment.backgroundHints = "NoBackground";
-        }
-    }
-
-    Component.onCompleted: stripPanelBackground()
-
-    Connections {
-        target: Plasmoid
-        function onContainmentChanged() {
-            stripPanelBackground();
-        }
-    }
-
-    // Compact Representation: Corner Glass Widget
     compactRepresentation: Item {
         id: compactRoot
-        Layout.preferredWidth: 135
-        Layout.preferredHeight: 135
-        implicitWidth: 135
-        implicitHeight: 135
-
-        Image {
-            id: bg
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: parent.height
-            source: "/usr/share/sourceless/theme/Left.svg"
-            fillMode: Image.Stretch
-            smooth: true
-        }
+        Layout.minimumWidth: timeColumn.implicitWidth + 24
+        Layout.preferredWidth: timeColumn.implicitWidth + 24
+        Layout.fillHeight: true
 
         Timer {
             interval: 1000
@@ -55,16 +30,15 @@ PlasmoidItem {
         }
 
         ColumnLayout {
+            id: timeColumn
             anchors.centerIn: parent
-            anchors.horizontalCenterOffset: 12
-            anchors.verticalCenterOffset: 12
-            spacing: 2
+            spacing: 1
 
             Text {
                 id: timeLabel
                 text: Qt.formatTime(new Date(), "hh:mm")
                 color: "#ffffff"
-                font.pixelSize: 15
+                font.pixelSize: 14
                 font.bold: true
                 Layout.alignment: Qt.AlignHCenter
             }
@@ -72,24 +46,19 @@ PlasmoidItem {
             Text {
                 id: dateLabel
                 text: Qt.formatDate(new Date(), "dd.MM.yyyy")
-                color: Qt.rgba(1, 1, 1, 0.75)
+                color: Qt.rgba(1, 1, 1, 0.78)
                 font.pixelSize: 11
                 Layout.alignment: Qt.AlignHCenter
             }
         }
 
         MouseArea {
-            id: clickArea
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            hoverEnabled: true
-            onClicked: {
-                root.expanded = !root.expanded;
-            }
+            onClicked: root.expanded = !root.expanded
         }
     }
 
-    // Full Representation: Native Plasma Calendar Popup
     fullRepresentation: Item {
         Layout.preferredWidth: 340
         Layout.preferredHeight: 360

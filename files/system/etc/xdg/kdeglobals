@@ -12,6 +12,9 @@ rule_1=none,none,file,$HOME,false
 [KDE]
 LookAndFeelPackage=org.sourceless.desktop
 
+[Theme]
+name=SourcelessGlass
+
 [KDE Action Restrictions][$i]
 run_command=false
 shell_access=false
@@ -23,8 +26,6 @@ action/open_terminal_here=false
 rule_count=1
 rule_1=none,none,file,$HOME,false
 
-[KDE]
-LookAndFeelPackage=org.sourceless.desktop
 
 [ColorEffects:Inactive]
 Enable=false

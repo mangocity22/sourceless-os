@@ -34,6 +34,9 @@ wallpaperplugin=org.kde.image
 immutability=1
 plugin=org.sourceless.clock
 
+[Containments][2][Applets][22][Configuration]
+PreloadWeight=100
+
 [Containments][2][Applets][3]
 immutability=1
 plugin=org.kde.plasma.kickoff
