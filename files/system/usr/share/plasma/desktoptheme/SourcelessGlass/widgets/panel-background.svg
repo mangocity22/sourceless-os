@@ -1,86 +1,69 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120">
-  <defs>
-    <linearGradient id="glassFill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22" />
-      <stop offset="100%" stop-color="#d8e6ff" stop-opacity="0.12" />
-    </linearGradient>
-    <clipPath id="clip-tl"><rect x="0" y="0" width="24" height="24" /></clipPath>
-    <clipPath id="clip-tr"><rect x="56" y="0" width="24" height="24" /></clipPath>
-    <clipPath id="clip-bl"><rect x="0" y="28" width="24" height="24" /></clipPath>
-    <clipPath id="clip-br"><rect x="56" y="28" width="24" height="24" /></clipPath>
-  </defs>
 
   <!-- ==================== HINTS ==================== -->
   <rect id="hint-apply-blur-behind" x="0" y="90" width="8" height="8" fill="#ff00ff" />
   <rect id="hint-stretch-borders" x="12" y="90" width="8" height="8" fill="#ff00ff" />
-  <rect id="hint-top-margin" x="38" y="0" width="4" height="6" fill="#ff00ff" />
-  <rect id="hint-bottom-margin" x="38" y="46" width="4" height="6" fill="#ff00ff" />
-  <rect id="hint-left-margin" x="0" y="24" width="10" height="4" fill="#ff00ff" />
-  <rect id="hint-right-margin" x="70" y="24" width="10" height="4" fill="#ff00ff" />
+  <!-- Margini de 2px sus/jos ca să nu micșoreze iconița de Start -->
+  <rect id="hint-top-margin" x="38" y="0" width="4" height="2" fill="#ff00ff" />
+  <rect id="hint-bottom-margin" x="38" y="50" width="4" height="2" fill="#ff00ff" />
+  <rect id="hint-left-margin" x="0" y="24" width="12" height="4" fill="#ff00ff" />
+  <rect id="hint-right-margin" x="68" y="24" width="12" height="4" fill="#ff00ff" />
 
-  <!-- ==================== 9-SLICE VISUAL (LIQUID GLASS) ==================== -->
-  <g id="topleft" clip-path="url(#clip-tl)">
-    <rect x="0.5" y="0.5" width="79" height="51" rx="23.5" ry="23.5" fill="url(#glassFill)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1" />
+  <!-- ==================== 9-SLICE VISUAL (PURE PATHS, ZERO CLIPPATH) ==================== -->
+  <g id="topleft">
+    <path d="M 0,24 A 24,24 0 0 1 24,0 L 24,24 Z" fill="#141820" fill-opacity="0.28" />
+    <path d="M 0,24 A 24,24 0 0 1 24,0 L 24,1.2 A 22.8,22.8 0 0 0 1.2,24 Z" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
   <g id="top">
-    <rect x="24" y="0" width="32" height="24" fill="url(#glassFill)" />
-    <rect x="24" y="0" width="32" height="1" fill="#ffffff" fill-opacity="0.45" />
+    <rect x="24" y="0" width="32" height="24" fill="#141820" fill-opacity="0.28" />
+    <rect x="24" y="0" width="32" height="1.2" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
-  <g id="topright" clip-path="url(#clip-tr)">
-    <rect x="0.5" y="0.5" width="79" height="51" rx="23.5" ry="23.5" fill="url(#glassFill)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1" />
+  <g id="topright">
+    <path d="M 56,0 A 24,24 0 0 1 80,24 L 56,24 Z" fill="#141820" fill-opacity="0.28" />
+    <path d="M 56,0 A 24,24 0 0 1 80,24 L 78.8,24 A 22.8,22.8 0 0 0 56,1.2 Z" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
   <g id="left">
-    <rect x="0" y="24" width="24" height="4" fill="url(#glassFill)" />
-    <rect x="0" y="24" width="1" height="4" fill="#ffffff" fill-opacity="0.45" />
+    <rect x="0" y="24" width="24" height="4" fill="#141820" fill-opacity="0.28" />
+    <rect x="0" y="24" width="1.2" height="4" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
   <g id="center">
-    <rect x="24" y="24" width="32" height="4" fill="url(#glassFill)" />
+    <rect x="24" y="24" width="32" height="4" fill="#141820" fill-opacity="0.28" />
   </g>
 
   <g id="right">
-    <rect x="56" y="24" width="24" height="4" fill="url(#glassFill)" />
-    <rect x="79" y="24" width="1" height="4" fill="#ffffff" fill-opacity="0.45" />
+    <rect x="56" y="24" width="24" height="4" fill="#141820" fill-opacity="0.28" />
+    <rect x="78.8" y="24" width="1.2" height="4" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
-  <g id="bottomleft" clip-path="url(#clip-bl)">
-    <rect x="0.5" y="0.5" width="79" height="51" rx="23.5" ry="23.5" fill="url(#glassFill)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1" />
+  <g id="bottomleft">
+    <path d="M 24,52 A 24,24 0 0 1 0,28 L 24,28 Z" fill="#141820" fill-opacity="0.28" />
+    <path d="M 24,52 A 24,24 0 0 1 0,28 L 1.2,28 A 22.8,22.8 0 0 0 24,50.8 Z" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
   <g id="bottom">
-    <rect x="24" y="28" width="32" height="24" fill="url(#glassFill)" />
-    <rect x="24" y="51" width="32" height="1" fill="#ffffff" fill-opacity="0.45" />
+    <rect x="24" y="28" width="32" height="24" fill="#141820" fill-opacity="0.28" />
+    <rect x="24" y="50.8" width="32" height="1.2" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
-  <g id="bottomright" clip-path="url(#clip-br)">
-    <rect x="0.5" y="0.5" width="79" height="51" rx="23.5" ry="23.5" fill="url(#glassFill)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1" />
+  <g id="bottomright">
+    <path d="M 80,28 A 24,24 0 0 1 56,52 L 56,28 Z" fill="#141820" fill-opacity="0.28" />
+    <path d="M 80,28 A 24,24 0 0 1 56,52 L 56,50.8 A 22.8,22.8 0 0 0 78.8,28 Z" fill="#ffffff" fill-opacity="0.38" />
   </g>
 
-  <!-- ==================== 9-SLICE KWIN BLUR MASK (100% ALPHA) ==================== -->
-  <g id="mask-topleft" transform="translate(100,0)" clip-path="url(#clip-tl)">
-    <rect x="0" y="0" width="80" height="52" rx="24" ry="24" fill="#000000" fill-opacity="1" />
-  </g>
-
+  <!-- ==================== 9-SLICE KWIN BLUR MASK (PURE PATHS) ==================== -->
+  <path id="mask-topleft" d="M 100,24 A 24,24 0 0 1 124,0 L 124,24 Z" fill="#000000" fill-opacity="1" />
   <rect id="mask-top" x="124" y="0" width="32" height="24" fill="#000000" fill-opacity="1" />
-
-  <g id="mask-topright" transform="translate(100,0)" clip-path="url(#clip-tr)">
-    <rect x="0" y="0" width="80" height="52" rx="24" ry="24" fill="#000000" fill-opacity="1" />
-  </g>
+  <path id="mask-topright" d="M 156,0 A 24,24 0 0 1 180,24 L 156,24 Z" fill="#000000" fill-opacity="1" />
 
   <rect id="mask-left" x="100" y="24" width="24" height="4" fill="#000000" fill-opacity="1" />
   <rect id="mask-center" x="124" y="24" width="32" height="4" fill="#000000" fill-opacity="1" />
   <rect id="mask-right" x="156" y="24" width="24" height="4" fill="#000000" fill-opacity="1" />
 
-  <g id="mask-bottomleft" transform="translate(100,0)" clip-path="url(#clip-bl)">
-    <rect x="0" y="0" width="80" height="52" rx="24" ry="24" fill="#000000" fill-opacity="1" />
-  </g>
-
+  <path id="mask-bottomleft" d="M 124,52 A 24,24 0 0 1 100,28 L 124,28 Z" fill="#000000" fill-opacity="1" />
   <rect id="mask-bottom" x="124" y="28" width="32" height="24" fill="#000000" fill-opacity="1" />
-
-  <g id="mask-bottomright" transform="translate(100,0)" clip-path="url(#clip-br)">
-    <rect x="0" y="0" width="80" height="52" rx="24" ry="24" fill="#000000" fill-opacity="1" />
-  </g>
+  <path id="mask-bottomright" d="M 180,28 A 24,24 0 0 1 156,52 L 156,28 Z" fill="#000000" fill-opacity="1" />
 </svg>

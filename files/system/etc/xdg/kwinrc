@@ -1,0 +1,7 @@
+[Effect-blur]
+BlurStrength=5
+NoiseStrength=0
+
+[Plugins]
+blurEnabled=true
+contrastEnabled=true

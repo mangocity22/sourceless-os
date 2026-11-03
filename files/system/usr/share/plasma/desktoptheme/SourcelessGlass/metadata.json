@@ -7,9 +7,9 @@
     },
     "ContrastEffect": {
         "enabled": true,
-        "contrast": 0.45,
-        "intensity": 1.4,
-        "saturation": 1.7
+        "contrast": 1.05,
+        "intensity": 1.0,
+        "saturation": 1.25
     },
     "BlurEffect": {
         "enabled": true
