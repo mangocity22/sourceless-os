@@ -1,17 +1,32 @@
 {
-    "KPackageStructure": "Plasma/Applet",
-    "KPlugin": {
-        "Authors": [
-            {
-                "Name": "Sourceless Team"
-            }
-        ],
-        "Category": "Application Launchers",
-        "Description": "Liquid Glass Start Button Corner",
-        "Icon": "sourceless-logo",
-        "Id": "org.sourceless.start",
-        "Name": "Sourceless Start",
-        "Version": "1.0"
-    },
-    "X-Plasma-API-Minimum-Version": "6.0"
+	"KPackageStructure": "Plasma/Applet",
+	"KPlugin": {
+		"Authors": [
+			{
+				"Email": "support@sourceless.net",
+				"Name": "Sourceless Team"
+			}
+		],
+		"Category": "Application Launchers",
+		"Description": "A modern Launcher for plasma!",
+		"Description[cs]": "Moderní spouštěč pro Plasma!",
+		"Description[el]": "Μοντέρνος Εκκινητής plasma",
+		"Description[fi]": "Moderni käynnistin Plasman työpöydälle!",
+		"Description[it_IT]": "Un launcher moderno per plasma!",
+		"Description[pl]": "Nowoczesne menu programów dla Plasmy!",
+		"EnabledByDefault": true,
+		"Icon": "start-here-kde",
+		"Id": "org.sourceless.start",
+		"Name": "Sourceless Launcher",
+		"Name[cs]": "Spouštěč Sourceless",
+		"Name[el]": "Sourceless Launcher",
+		"Name[fi]": "Sourceless-käynnistin",
+		"Name[pl]": "Sourceless Launcher",
+		"Version": "0.6",
+		"Website": "sourceless.net"
+	},
+	"X-Plasma-API-Minimum-Version": "6.0",
+	"X-Plasma-Provides": [
+		"org.kde.plasma.launchermenu"
+	]
 }

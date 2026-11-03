@@ -9,6 +9,9 @@ widgetStyle=Breeze
 ColorScheme=BreezeDark
 
 [kdeglobals][Icons]
+Theme=SourcelessIcons
+
+[kdeglobals][Icons]
 Theme=breeze-dark
 
 [kwinrc][org.kde.kdecoration2]
