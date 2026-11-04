@@ -16,7 +16,8 @@
  *                                                                           *
  *   You should have received a copy of the GNU General Public License       *
  *   along with this program; if not, write to the                           *
-    *
+ *   Free Software Foundation, Inc.,                                         *
+ *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA .          *
  ****************************************************************************/
 
 import QtQuick 2.15
@@ -118,6 +119,7 @@ PlasmaCore.Dialog {
                               + main.searchBar.height
                               + main.contentY.y
                               + main.itemSpacing * 3
+                              + main.searchBarBottomMargin
                               + root.cellSizeHeight * rows
                               + innerPadding / 2
         Layout.maximumWidth: Layout.minimumWidth

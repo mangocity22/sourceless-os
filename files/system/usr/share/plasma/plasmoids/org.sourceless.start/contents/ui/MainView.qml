@@ -60,6 +60,8 @@ Item {
   property alias searchBar: searchBar
   property alias contentY: backdrop
   property int itemSpacing: 8
+  // Gap between the search bar and the bottom edge of the menu
+  property int searchBarBottomMargin: 12
 
   KCoreAddons.KUser {
       id: kuser
@@ -313,9 +315,10 @@ Item {
     SearchBar {
       id: searchBar
       Layout.fillWidth: true
-      Layout.preferredHeight: 60
+      Layout.preferredHeight: 40
       Layout.maximumHeight: Layout.preferredHeight
       Layout.alignment: Qt.AlignBottom
+      Layout.bottomMargin: main.searchBarBottomMargin
       Keys.priority: Keys.AfterItem
       Keys.forwardTo: stack.currentItem.viewItem
     }
