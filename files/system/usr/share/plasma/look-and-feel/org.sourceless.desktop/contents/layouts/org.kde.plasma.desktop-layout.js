@@ -12,7 +12,7 @@ bar.floating = true;
 bar.hiding = "windowsgobelow";
 
 // 3. Buton Start 
-var kickoff = bar.addWidget("org.kde.plasma.kickoff");
+var kickoff = bar.addWidget("org.sourceless.start");
 kickoff.currentConfigGroup = ["General"];
 kickoff.writeConfig("icon", "sourceless-logo");
 

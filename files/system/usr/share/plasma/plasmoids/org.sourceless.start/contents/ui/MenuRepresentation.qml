@@ -58,6 +58,8 @@ PlasmaCore.Dialog {
     property int cellSizeWidth: cellSizeHeight //+ Kirigami.Units.gridUnit
     
     property int rows: Plasmoid.configuration.numberOfRows
+    // Fixed number of app columns (apps per row)
+    property int columns: 4
     
     onVisibleChanged: {
         if (!visible) {
@@ -90,63 +92,15 @@ PlasmaCore.Dialog {
         main.reset()
     }
 
+    // Fixed popup offsets from the screen edges (px)
+    property int marginLeft: 20
+    property int marginBottom: 72
+
     function popupPosition(width, height) {
-        var screenAvail = Plasmoid.availableScreenRect;
-        var screen/*Geom*/ = kicker.screenGeometry;
-        //QtBug - QTBUG-64115
-        /*var screen = Qt.rect(screenAvail.x + screenGeom.x,
-            screenAvail.y + screenGeom.y,
-            screenAvail.width,
-            screenAvail.height);*/
+        var screen = kicker.screenGeometry;
 
-        var offset = 0
-
-        if (Plasmoid.configuration.offsetX > 0 && Plasmoid.configuration.floating) {
-          offset = Plasmoid.configuration.offsetX
-        } else {
-          offset = plasmoid.configuration.floating ? parent.height * 0.35 : 0
-        }
-        // Fall back to bottom-left of screen area when the applet is on the desktop or floating.
-        var x = offset;
-        var y = screen.height - height - offset;
-        var horizMidPoint = screen.x + (screen.width / 2);
-        var vertMidPoint = screen.y + (screen.height / 2);
-        var appletTopLeft = parent.mapToGlobal(0, 0);
-        var appletBottomLeft = parent.mapToGlobal(0, parent.height);
-
-        if (Plasmoid.configuration.launcherPosition != 0){
-          x = horizMidPoint - width / 2;
-        } else {
-          x = (appletTopLeft.x < horizMidPoint) ? screen.x : (screen.x + screen.width) - width;
-          if (Plasmoid.configuration.floating) {
-            if (appletTopLeft.x < horizMidPoint) {
-              x += offset
-            } else if (appletTopLeft.x + width > horizMidPoint){
-              x -= offset
-            }
-          }
-        }
-
-        if (Plasmoid.configuration.launcherPosition != 2){
-          if (Plasmoid.location == PlasmaCore.Types.TopEdge) {
-            if (Plasmoid.configuration.floating) {
-                          /*this is floatingAvatar.width*/
-              if (Plasmoid.configuration.offsetY > 0) {
-                offset = (125 * 1) / 2 + Plasmoid.configuration.offsetY
-              } else {
-                offset = (125 * 1) / 2 + parent.height * 0.125
-              }
-            }
-            y = screen.y + parent.height + panelSvg.margins.bottom + offset;
-          } else {
-            if (Plasmoid.configuration.offsetY > 0) {
-              offset = Plasmoid.configuration.offsetY
-            }
-            y = screen.y + screen.height - parent.height - height - panelSvg.margins.top - offset * 2.5;
-          }
-        } else {
-          y = vertMidPoint - height / 2
-        }
+        var x = screen.x + marginLeft;
+        var y = screen.y + screen.height - height - marginBottom;
 
         return Qt.point(x, y);
     }
@@ -154,7 +108,7 @@ PlasmaCore.Dialog {
     FocusScope {
         id: fs
         focus: true
-        Layout.minimumWidth:  (root.cellSizeWidth * Plasmoid.configuration.numberColumns) + scrollBarMetrics.width + innerPadding*2
+        Layout.minimumWidth:  (root.cellSizeWidth * root.columns) + scrollBarMetrics.width + innerPadding*2
         Layout.minimumHeight: main.headerLabelRow.height
                               + main.searchBar.height
                               + main.contentY.y

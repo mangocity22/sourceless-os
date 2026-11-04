@@ -107,8 +107,10 @@ Item {
         width: 80
         height: width
         visible: !floatingAvatar.visible
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.horizontalCenterOffset: width / 2
+        anchors.left: parent.left
+        anchors.leftMargin: 28
+        anchors.top: parent.top
+        anchors.topMargin: 20
       }
     }
 
@@ -125,8 +127,9 @@ Item {
   Greeting {
     id: greeting
     visible: true//floatingAvatar.visible
-    x: main.width / 2 - textWidth / 2 //This centeres the Text
-    y: main.isTop ? 95 : 50 
+    anchors.left: floatingAvatar.right // sau parent.left cu leftMargin: 95
+    anchors.leftMargin: 14
+    anchors.verticalCenter: floatingAvatar.verticalCenter
     textSize: 20 
   }
 

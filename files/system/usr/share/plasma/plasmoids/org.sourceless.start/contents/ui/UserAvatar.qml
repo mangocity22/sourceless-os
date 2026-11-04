@@ -16,23 +16,15 @@ Item {
                                                 plasmoid.configuration.glowColor == 1 ? "#5433ff" :
                                                 "#ff8b26"
 
-   // KirigamiComponents.AvatarButton {
-        //id: mainFaceIcon
-       // source: kuser.faceIconUrl
-       // anchors {
-        //    fill: parent
-       //     margins: Kirigami.Units.smallSpacing
-      //  }
-      //  MouseArea {
-       //     anchors.fill: parent
-       //     cursorShape: Qt.PointingHandCursor
-        //    hoverEnabled: false
-        //    onClicked: {
-        //    KCM.KCMLauncher.openSystemSettings("kcm_users")
-        //    root.toggle()
-       //     }
-      //  }
-   // }
+KirigamiComponents.Avatar {
+        id: mainFaceIcon
+        source: kuser.faceIconUrl
+        name: kuser.fullName
+        anchors {
+            fill: parent
+            margins: Kirigami.Units.smallSpacing
+        }
+    }
 
     Rectangle {
         visible: plasmoid.configuration.enableGlow
