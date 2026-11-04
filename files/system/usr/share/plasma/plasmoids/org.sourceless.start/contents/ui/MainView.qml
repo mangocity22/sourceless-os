@@ -128,7 +128,7 @@ Item {
   //Greeting
   Greeting {
     id: greeting
-    visible: true//floatingAvatar.visible
+    visible: false//floatingAvatar.visible
     anchors.left: floatingAvatar.right // sau parent.left cu leftMargin: 95
     anchors.leftMargin: 14
     anchors.verticalCenter: floatingAvatar.verticalCenter
