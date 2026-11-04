@@ -39,6 +39,10 @@ PlasmaCore.Dialog {
     location: Plasmoid.configuration.floating || Plasmoid.configuration.launcherPosition == 2 ? "Floating" : Plasmoid.location
     hideOnWindowDeactivate: true
 
+    // Disable the Plasma theme's dialog frame (its corner radius is fixed by the theme)
+    // and draw our own rounded background instead (see `menuBackground` below).
+    backgroundHints: PlasmaCore.Types.NoBackground
+
     Plasmoid.status: root.visible ? PlasmaCore.Types.RequiresAttentionStatus : PlasmaCore.Types.PassiveStatus
 
     property int iconSize: { 
@@ -58,6 +62,8 @@ PlasmaCore.Dialog {
     property int cellSizeWidth: cellSizeHeight //+ Kirigami.Units.gridUnit
     
     property int rows: Plasmoid.configuration.numberOfRows
+    // Corner radius of the menu (same for top and bottom corners)
+    property int cornerRadius: 24
     // Fixed number of app columns (apps per row)
     property int columns: 4
     
@@ -123,10 +129,22 @@ PlasmaCore.Dialog {
 
         Item {
           id: mainItem
-          x: - dialogSvg.margins.left
-          y: - dialogSvg.margins.top
-          width: parent.width + dialogSvg.margins.left + dialogSvg.margins.right
-          height: parent.height + dialogSvg.margins.top + dialogSvg.margins.bottom
+          x: - root.margins.left
+          y: - root.margins.top
+          width: parent.width + root.margins.left + root.margins.right
+          height: parent.height + root.margins.top + root.margins.bottom
+
+          Rectangle {
+            id: menuBackground
+            anchors.fill: parent
+            radius: root.cornerRadius
+            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                           Kirigami.Theme.backgroundColor.g,
+                           Kirigami.Theme.backgroundColor.b,
+                           0.95)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+          }
 
           MainView {
             id: main
