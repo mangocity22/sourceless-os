@@ -313,7 +313,7 @@ Item {
     SearchBar {
       id: searchBar
       Layout.fillWidth: true
-      Layout.preferredHeight: 45
+      Layout.preferredHeight: 60
       Layout.maximumHeight: Layout.preferredHeight
       Layout.alignment: Qt.AlignBottom
       Keys.priority: Keys.AfterItem
