@@ -5,3 +5,9 @@ NoiseStrength=0
 [Plugins]
 blurEnabled=true
 contrastEnabled=true
+
+[org.kde.kdecoration2]
+library=org.kde.kwin.aurorae
+theme=__aurorae__svg__SourcelessGlass
+ButtonsOnLeft=
+ButtonsOnRight=IAX

@@ -6,14 +6,16 @@ LookAndFeelPackage=org.sourceless.desktop
 widgetStyle=Breeze
 
 [kdeglobals][General]
-ColorScheme=BreezeDark
+ColorScheme=SourcelessGlass
 
 [kdeglobals][Icons]
 Theme=SourcelessIcons
 
 [kwinrc][org.kde.kdecoration2]
-theme=Breeze
-BorderSize=None
+library=org.kde.kwin.aurorae
+theme=__aurorae__svg__SourcelessGlass
+ButtonsOnLeft=
+ButtonsOnRight=IAX
 
 [plasmarc][Theme]
 name=SourcelessGlass

@@ -1,0 +1,20 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "vinceliuice@hotmail.com",
+                "Name": "Vinceliuice"
+            }
+        ],
+        "Category": "",
+        "Dependencies": [
+        ],
+        "Description": "SourcelessGlass theme for plasma",
+        "EnabledByDefault": true,
+        "Id": "SourcelessGlass",
+        "License": "GPL 3.0",
+        "Name": "SourcelessGlass",
+        "Version": "0.1",
+        "Website": "sourceless.net"
+    }
+}
