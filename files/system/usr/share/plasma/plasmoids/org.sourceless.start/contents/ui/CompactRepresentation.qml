@@ -35,8 +35,8 @@ Item {
     Kirigami.Icon {
         id: buttonIcon
 
-        width: Plasmoid.configuration.activationIndicator ? parent.width * 1.2 : parent.width
-        height: Plasmoid.configuration.activationIndicator ? parent.height * 1.2 : parent.height
+        width: Plasmoid.configuration.activationIndicator ? parent.width * 1.1 : parent.width
+        height: Plasmoid.configuration.activationIndicator ? parent.height * 1.1 : parent.height
         anchors.centerIn: parent
 
         source: useCustomButtonImage ? Plasmoid.configuration.customButtonImage : Plasmoid.configuration.icon
