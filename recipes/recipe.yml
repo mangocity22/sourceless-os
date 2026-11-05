@@ -47,6 +47,8 @@ modules:
         - p7zip
         - p7zip-plugins
         - grub2-tools-extra
+        - kvantum
+        - kvantum-qt5
 
     remove:
       packages:
