@@ -14,7 +14,7 @@ rule_1=none,none,file,$HOME,false
 
 [KDE]
 LookAndFeelPackage=org.sourceless.desktop
-
+widgetStyle=kvantum
 [Theme]
 name=SourcelessGlass
 

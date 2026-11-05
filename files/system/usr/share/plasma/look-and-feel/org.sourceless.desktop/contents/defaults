@@ -3,7 +3,7 @@ name=SourcelessGlass
 
 [kdeglobals][KDE]
 LookAndFeelPackage=org.sourceless.desktop
-widgetStyle=Breeze
+widgetStyle=kvantum
 
 [kdeglobals][General]
 ColorScheme=SourcelessGlass
