@@ -26,7 +26,7 @@ class SupportDialog(QDialog):
 
         # Iconita Cheie Fixa
         icon_label = QLabel()
-        pixmap = QPixmap("\usr\share\sourceless\Resources\support-key.svg") # Inlocuieste cu calea reala
+        pixmap = QPixmap("/usr/share/sourceless/Resources/support-key.svg") # 
         # Daca pixmap-ul nu se incarca, poti folosi o iconita din sistem
         # icon = QIcon.fromTheme("preferences-system")
         # pixmap = icon.pixmap(64, 64)
