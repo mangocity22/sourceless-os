@@ -388,24 +388,16 @@ interior.element=progress-pattern
 
 [ItemView]
 inherits=PanelButtonCommand
-text.margin=0
 frame.element=itemview
-interior.element=itemview
-frame.top=2
-frame.bottom=2
-frame.left=2
-frame.right=2
-text.margin.top=2
-text.margin.bottom=2
-text.margin.left=4
-text.margin.right=4
-text.normal.color=#dfdfdf
-text.focus.color=white
-text.press.color=white
-text.toggle.color=white
-min_width=+0.3font
-min_height=+0.3font
-frame.expansion=0
+interior=false
+frame=true
+frame.top=1
+frame.bottom=1
+frame.left=1
+frame.right=1
+text.focus.color=#ffffff
+text.press.color=#ffffff
+text.toggle.color=#ffffff
 
 [Splitter]
 indicator.size=48

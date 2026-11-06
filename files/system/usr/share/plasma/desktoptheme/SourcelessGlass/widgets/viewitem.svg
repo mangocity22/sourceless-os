@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" viewBox="0 0 100 40">
+  <defs>
+    <!-- Template intern pentru chenarul subtire de 1.2px -->
+    <g id="box-tl">
+      <rect x="0" y="0" width="6" height="6" fill="#000000" fill-opacity="0" />
+      <path d="M 0,6 A 6,6 0 0 1 6,0 L 6,1.2 A 4.8,4.8 0 0 0 1.2,6 Z" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-t">
+      <rect x="6" y="0" width="12" height="6" fill="#7c6aff" fill-opacity="0.05" />
+      <rect x="6" y="0" width="12" height="1.2" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-tr">
+      <rect x="18" y="0" width="6" height="6" fill="#000000" fill-opacity="0" />
+      <path d="M 18,0 A 6,6 0 0 1 24,6 L 22.8,6 A 4.8,4.8 0 0 0 18,1.2 Z" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-l">
+      <rect x="0" y="6" width="6" height="12" fill="#7c6aff" fill-opacity="0.05" />
+      <rect x="0" y="6" width="1.2" height="12" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-c">
+      <rect x="6" y="6" width="12" height="12" fill="#7c6aff" fill-opacity="0.05" />
+    </g>
+    <g id="box-r">
+      <rect x="18" y="6" width="6" height="12" fill="#7c6aff" fill-opacity="0.05" />
+      <rect x="22.8" y="6" width="1.2" height="12" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-bl">
+      <rect x="0" y="18" width="6" height="6" fill="#000000" fill-opacity="0" />
+      <path d="M 6,24 A 6,6 0 0 1 0,18 L 1.2,18 A 4.8,4.8 0 0 0 6,22.8 Z" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-b">
+      <rect x="6" y="18" width="12" height="6" fill="#7c6aff" fill-opacity="0.05" />
+      <rect x="6" y="22.8" width="12" height="1.2" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+    <g id="box-br">
+      <rect x="18" y="18" width="6" height="6" fill="#000000" fill-opacity="0" />
+      <path d="M 24,18 A 6,6 0 0 1 18,24 L 18,22.8 A 4.8,4.8 0 0 0 22.8,18 Z" fill="#7c6aff" fill-opacity="0.95" />
+    </g>
+  </defs>
+
+  <!-- HOVER (folosit de Status & Notifications si liste Plasma) -->
+  <use id="hover-topleft" href="#box-tl" />
+  <use id="hover-top" href="#box-t" />
+  <use id="hover-topright" href="#box-tr" />
+  <use id="hover-left" href="#box-l" />
+  <use id="hover-center" href="#box-c" />
+  <use id="hover-right" href="#box-r" />
+  <use id="hover-bottomleft" href="#box-bl" />
+  <use id="hover-bottom" href="#box-b" />
+  <use id="hover-bottomright" href="#box-br" />
+
+  <!-- SELECTED -->
+  <use id="selected-topleft" href="#box-tl" x="30" />
+  <use id="selected-top" href="#box-t" x="30" />
+  <use id="selected-topright" href="#box-tr" x="30" />
+  <use id="selected-left" href="#box-l" x="30" />
+  <use id="selected-center" href="#box-c" x="30" />
+  <use id="selected-right" href="#box-r" x="30" />
+  <use id="selected-bottomleft" href="#box-bl" x="30" />
+  <use id="selected-bottom" href="#box-b" x="30" />
+  <use id="selected-bottomright" href="#box-br" x="30" />
+
+  <!-- SELECTED + HOVER -->
+  <use id="selected+hover-topleft" href="#box-tl" x="60" />
+  <use id="selected+hover-top" href="#box-t" x="60" />
+  <use id="selected+hover-topright" href="#box-tr" x="60" />
+  <use id="selected+hover-left" href="#box-l" x="60" />
+  <use id="selected+hover-center" href="#box-c" x="60" />
+  <use id="selected+hover-right" href="#box-r" x="60" />
+  <use id="selected+hover-bottomleft" href="#box-bl" x="60" />
+  <use id="selected+hover-bottom" href="#box-b" x="60" />
+  <use id="selected+hover-bottomright" href="#box-br" x="60" />
+</svg>
