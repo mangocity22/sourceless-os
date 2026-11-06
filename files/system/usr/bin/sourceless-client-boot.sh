@@ -112,8 +112,8 @@ while true; do
             --setenv=WAYLAND_DISPLAY="$WAYLAND_NAME" \
             --setenv=XDG_RUNTIME_DIR="/run/user/${ACTIVE_UID}" \
             --setenv=DISPLAY=":0" \
-            kdialog --yesno "An administrator would like to initiate a remote support session.\n\nDo you approve the RustDesk connection?" \
-            --title "Sourceless OS // Support Request"; then
+            --setenv=QT_QPA_PLATFORM="wayland;xcb" \
+            /usr/bin/sourceless-support-dialog.py; then
 
             touch /tmp/sourceless_support_active
             systemctl start rustdesk.service

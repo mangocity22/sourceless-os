@@ -70,6 +70,7 @@ chmod 775 /etc/sourceless 2>/dev/null || true
 chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
 chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
+chmod +x /usr/bin/sourceless-support-dialog.py 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # 3. User Privilege and Clean Home Directory Permissions
