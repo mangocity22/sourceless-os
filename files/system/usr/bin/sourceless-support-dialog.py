@@ -54,7 +54,7 @@ class SupportDialog(QDialog):
         # --- 1. LOGO LUNG SOURCELESS SUPPORT TEAM (Sus) ---
         # Spune-le celor de la design sa faca un logo orizontal (ex: 400x50px), cu fundal transparent (PNG)
         logo_label = QLabel()
-        logo_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-support-logo.png") # Pune calea corecta aici
+        logo_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-team.png") # Pune calea corecta aici
         if not logo_pixmap.isNull():
             logo_label.setPixmap(logo_pixmap.scaledToHeight(35, Qt.TransformationMode.SmoothTransformation))
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
