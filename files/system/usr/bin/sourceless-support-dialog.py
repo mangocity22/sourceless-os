@@ -29,6 +29,7 @@ class SupportDialog(QDialog):
                 border-radius: 6px;
                 padding: 8px 24px;
                 border: none;
+                outline: none;
             }
             QPushButton#btnYes {
                 background-color: #7aa2f7;
@@ -64,7 +65,7 @@ class SupportDialog(QDialog):
         content_layout.setSpacing(25)
 
         icon_label = QLabel()
-        icon_pixmap = QPixmap("/usr/share/icons/SourcelessIcons/places/64/support-key.svg")
+        icon_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-key.svg") # Pune calea corecta aici
         if not icon_pixmap.isNull():
             icon_label.setPixmap(icon_pixmap.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         icon_label.setFixedSize(72, 72)
