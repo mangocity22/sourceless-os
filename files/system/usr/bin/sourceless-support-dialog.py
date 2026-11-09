@@ -65,7 +65,7 @@ class SupportDialog(QDialog):
         content_layout.setSpacing(25)
 
         icon_label = QLabel()
-        icon_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-key.svg") # Pune calea corecta aici
+        icon_pixmap = QPixmap("/usr/share/sourceless/Resources/support-key.svg") # Pune calea corecta aici
         if not icon_pixmap.isNull():
             icon_label.setPixmap(icon_pixmap.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         icon_label.setFixedSize(72, 72)
