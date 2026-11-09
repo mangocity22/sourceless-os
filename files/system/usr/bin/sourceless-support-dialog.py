@@ -1,90 +1,121 @@
 #!/usr/bin/env python3
 import sys
-from PyQt6.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout
-from PyQt6.QtGui import QIcon, QPixmap, QFont
+from PyQt6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtGui import QPixmap, QFont
 from PyQt6.QtCore import Qt
 
 class SupportDialog(QDialog):
     def __init__(self):
         super().__init__()
 
-        # --- Setari Fereastra ---
-        self.setWindowTitle("Sourceless Support Team")
-        # Poti folosi o imagine lunga pentru titlu daca elimini bara de sus a sistemului
-        # self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        self.setFixedSize(500, 200) # Dimensiune mai mare si aerisita
+        # Bara de titlu KWin clasica (fara text ca sa lase loc logo-ului)
+        self.setWindowTitle(" ")
+        self.setFixedSize(550, 240)
 
-        # --- Fundal custom (optional) ---
-        # self.setStyleSheet("background-image: url(/cale/catre/fundal-sourceless.png); color: white;")
-        self.setStyleSheet("background-color: #1a1b26; color: #a9b1d6;")
+        # Magia CSS: Izolam fundalul DOAR pentru fereastra (QDialog)
+        # Si fortam fundal transparent pentru text (QLabel) ca sa scapam de patratele negre
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1a1b26;
+            }
+            QLabel {
+                background: transparent;
+                color: #a9b1d6;
+            }
+            QPushButton {
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                font-weight: bold;
+                border-radius: 6px;
+                padding: 8px 24px;
+                border: none;
+            }
+            QPushButton#btnYes {
+                background-color: #7aa2f7;
+                color: #1a1b26;
+            }
+            QPushButton#btnYes:hover {
+                background-color: #8db0f8;
+            }
+            QPushButton#btnNo {
+                background-color: #414868;
+                color: #c0caf5;
+            }
+            QPushButton#btnNo:hover {
+                background-color: #565f89;
+            }
+        """)
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(30, 30, 30, 30) # Spatiere generoasa (aerisire)
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(30, 20, 30, 30)
+        main_layout.setSpacing(20)
 
-        # --- Zona Iconita + Text ---
-        top_layout = QHBoxLayout()
+        # --- 1. LOGO LUNG SOURCELESS SUPPORT TEAM (Sus) ---
+        # Spune-le celor de la design sa faca un logo orizontal (ex: 400x50px), cu fundal transparent (PNG)
+        logo_label = QLabel()
+        logo_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-support-logo.png") # Pune calea corecta aici
+        if not logo_pixmap.isNull():
+            logo_label.setPixmap(logo_pixmap.scaledToHeight(35, Qt.TransformationMode.SmoothTransformation))
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(logo_label)
 
-        # Iconita Cheie Fixa
+        # --- 2. ICONITA CHEIE SI TEXTUL (Mijloc) ---
+        content_layout = QHBoxLayout()
+        content_layout.setSpacing(25)
+
         icon_label = QLabel()
-        pixmap = QPixmap("/usr/share/sourceless/Resources/support-key.svg") # 
-        # Daca pixmap-ul nu se incarca, poti folosi o iconita din sistem
-        # icon = QIcon.fromTheme("preferences-system")
-        # pixmap = icon.pixmap(64, 64)
-        icon_label.setPixmap(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        icon_label.setFixedSize(80, 80)
-        top_layout.addWidget(icon_label)
+        icon_pixmap = QPixmap("/usr/share/icons/SourcelessIcons/places/64/support-key.svg")
+        if not icon_pixmap.isNull():
+            icon_label.setPixmap(icon_pixmap.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        icon_label.setFixedSize(72, 72)
+        content_layout.addWidget(icon_label)
 
-        # Textul
         text_layout = QVBoxLayout()
-        msg_font = QFont("Inter", 12) # Font custom
+        text_layout.setSpacing(5)
+
+        font_normal = QFont("Inter", 12)
+        font_bold = QFont("Inter", 12, QFont.Weight.Bold)
 
         lbl_msg1 = QLabel("An administrator would like to initiate a remote support session.")
-        lbl_msg1.setFont(msg_font)
+        lbl_msg1.setFont(font_normal)
         lbl_msg1.setWordWrap(True)
 
         lbl_msg2 = QLabel("Do you approve the RustDesk connection?")
-        lbl_msg2.setFont(msg_font)
+        lbl_msg2.setFont(font_bold)
         lbl_msg2.setWordWrap(True)
-        lbl_msg2.setStyleSheet("margin-top: 10px; font-weight: bold;")
 
         text_layout.addWidget(lbl_msg1)
         text_layout.addWidget(lbl_msg2)
         text_layout.addStretch()
 
-        top_layout.addLayout(text_layout)
-        layout.addLayout(top_layout)
+        content_layout.addLayout(text_layout)
+        main_layout.addLayout(content_layout)
 
-        # --- Zona Butoane ---
+        # --- 3. BUTOANELE (Jos) ---
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
         btn_yes = QPushButton("Yes")
-        btn_yes.setFixedSize(100, 35)
-        # Stil custom pentru butoane
-        btn_yes.setStyleSheet("background-color: #7aa2f7; color: #15161e; font-weight: bold; border-radius: 5px;")
+        btn_yes.setObjectName("btnYes")
+        btn_yes.setFixedSize(110, 38)
+        btn_yes.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_yes.clicked.connect(self.accept)
 
         btn_no = QPushButton("No")
-        btn_no.setFixedSize(100, 35)
-        btn_no.setStyleSheet("background-color: #414868; color: #c0caf5; font-weight: bold; border-radius: 5px;")
+        btn_no.setObjectName("btnNo")
+        btn_no.setFixedSize(110, 38)
+        btn_no.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_no.clicked.connect(self.reject)
 
         btn_layout.addWidget(btn_yes)
         btn_layout.addWidget(btn_no)
 
-        layout.addLayout(btn_layout)
-        self.setLayout(layout)
+        main_layout.addLayout(btn_layout)
+        self.setLayout(main_layout)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    
-    # Fortam utilizarea unei teme specifice daca este necesar
-    # app.setStyle("kvantum")
-    
     dialog = SupportDialog()
     
-    # Returnam 0 pentru Yes, 1 pentru No (comportament similar kdialog)
-    if dialog.exec():
-        sys.exit(0)
-    else:
-        sys.exit(1)
+    # Returneaza 0 pentru Yes, 1 pentru No
+    sys.exit(0 if dialog.exec() else 1)
