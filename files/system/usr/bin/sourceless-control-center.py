@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
 import sys
+import os
+import pwd
 import subprocess
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
-                             QPushButton, QLabel, QFrame, QScrollArea, QGridLayout)
-from PyQt6.QtGui import QFont, QIcon, QPixmap
+                             QPushButton, QLabel, QFrame, QScrollArea, QStackedWidget)
+from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, QSize
 
 class ControlCenter(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sourceless Settings")
+        self.setWindowTitle("Sourceless Control Center")
         self.resize(1100, 750)
 
-        # Styling de bază pentru "Liquid Glass" și aspect Windows 11
+        # Styling de bază pentru "Liquid Glass"
         self.setStyleSheet("""
             QWidget {
-                background-color: #1c1d25; /* Fundal întunecat */
+                background-color: #1c1d25;
                 color: #e0e5ff;
                 font-family: 'Inter', sans-serif;
             }
-            /* Sidebar stânga */
             QFrame#sidebar {
                 background-color: rgba(25, 27, 38, 0.7);
                 border-right: 1px solid rgba(255, 255, 255, 0.05);
             }
-            /* Butoane din sidebar */
             QPushButton.sidebar_btn {
                 background: transparent;
                 border: none;
@@ -39,19 +39,19 @@ class ControlCenter(QWidget):
             QPushButton.sidebar_btn:checked {
                 background-color: rgba(122, 162, 247, 0.2);
                 color: #7aa2f7;
+                font-weight: bold;
             }
-            /* Carduri în zona principală */
             QFrame.card {
                 background-color: rgba(30, 32, 48, 0.6);
                 border-radius: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.05);
+                margin-bottom: 10px;
             }
             QLabel.section_title {
                 font-size: 18px;
                 font-weight: bold;
                 padding-bottom: 5px;
             }
-            /* Butoane în interiorul cardurilor */
             QPushButton.card_action_btn {
                 background-color: rgba(255, 255, 255, 0.05);
                 border-radius: 6px;
@@ -59,6 +59,7 @@ class ControlCenter(QWidget):
                 text-align: left;
                 border: none;
                 font-size: 14px;
+                margin: 5px;
             }
             QPushButton.card_action_btn:hover {
                 background-color: rgba(255, 255, 255, 0.1);
@@ -79,78 +80,153 @@ class ControlCenter(QWidget):
         sidebar_layout.setContentsMargins(15, 20, 15, 20)
         sidebar_layout.setSpacing(5)
 
-        # (Aici se pot adăuga elementele de profil utilizator, ca în mockup)
-        lbl_profile = QLabel("Adrian Calin\nadrian.c@sourceless.com")
-        lbl_profile.setStyleSheet("padding-bottom: 20px; font-weight: bold;")
+        # Preluare dinamică a userului din Sourceless OS
+        username = os.environ.get('USER', 'sourceless')
+        try:
+            full_name = pwd.getpwnam(username).pw_gecos.split(',')[0]
+            if not full_name: 
+                full_name = username.capitalize()
+        except KeyError:
+            full_name = "Sourceless Admin"
+            
+        lbl_profile = QLabel(f"{full_name}\n@{username}")
+        lbl_profile.setStyleSheet("padding-bottom: 20px; font-weight: bold; font-size: 15px;")
         sidebar_layout.addWidget(lbl_profile)
 
-        # Butoane Navigație (mockup)
-        nav_buttons = [
-            ("Home", "home"),
-            ("System", "computer"),
-            ("Bluetooth & devices", "bluetooth"),
-            ("Network & internet", "network-wireless"),
-            ("Personalization", "preferences-desktop-wallpaper")
+        self.nav_buttons_group = []
+        
+        # -----------------------------------------------------
+        # ZONA PRINCIPALĂ (Dreapta) - QStackedWidget
+        # -----------------------------------------------------
+        self.stacked_widget = QStackedWidget()
+        
+        # Definirea paginilor și a modulelor aferente
+        self.pages_data = [
+            ("Home", "home", self.create_home_page()),
+            ("System", "computer", self.create_system_page()),
+            ("Network & Internet", "network-wireless", self.create_network_page()),
+            ("Bluetooth & Devices", "bluetooth", self.create_devices_page()),
+            ("Personalization", "preferences-desktop-wallpaper", self.create_personalization_page())
         ]
 
-        for text, icon_name in nav_buttons:
+        for index, (text, icon_name, widget) in enumerate(self.pages_data):
             btn = QPushButton(text)
             btn.setProperty("class", "sidebar_btn")
-            btn.setIcon(QIcon.fromTheme(icon_name)) # Preia iconițele din tema sistemului
+            btn.setIcon(QIcon.fromTheme(icon_name))
             btn.setIconSize(QSize(20, 20))
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda checked, idx=index: self.switch_page(idx))
             sidebar_layout.addWidget(btn)
+            self.nav_buttons_group.append(btn)
+            self.stacked_widget.addWidget(widget)
 
         sidebar_layout.addStretch()
         main_layout.addWidget(sidebar)
+        main_layout.addWidget(self.stacked_widget)
+        
+        if self.nav_buttons_group:
+            self.nav_buttons_group[0].setChecked(True)
+            self.stacked_widget.setCurrentIndex(0)
 
-        # -----------------------------------------------------
-        # ZONA PRINCIPALĂ (Dreapta)
-        # -----------------------------------------------------
-        content_area = QScrollArea()
-        content_area.setWidgetResizable(True)
-        content_area.setFrameShape(QFrame.Shape.NoFrame)
-        content_area.setStyleSheet("background: transparent;")
+    def switch_page(self, index):
+        for i, btn in enumerate(self.nav_buttons_group):
+            btn.setChecked(i == index)
+        self.stacked_widget.setCurrentIndex(index)
+
+    def create_scrollable_page(self, title, cards_data):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("background: transparent;")
         
         content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(40, 30, 40, 30)
-        content_layout.setSpacing(20)
+        layout = QVBoxLayout(content_widget)
+        layout.setContentsMargins(40, 30, 40, 30)
+        layout.setSpacing(15)
 
-        # Titlu Pagină
-        lbl_page_title = QLabel("Home")
-        lbl_page_title.setStyleSheet("font-size: 28px; font-weight: bold;")
-        content_layout.addWidget(lbl_page_title)
-
-        # --- CARD: Recommended Settings ---
-        lbl_rec = QLabel("Recommended settings")
-        lbl_rec.setProperty("class", "section_title")
-        content_layout.addWidget(lbl_rec)
-
-        card_rec = QFrame()
-        card_rec.setProperty("class", "card")
-        card_rec_layout = QVBoxLayout(card_rec)
-
-        btn_display = QPushButton("Display Configuration")
-        btn_display.setProperty("class", "card_action_btn")
-        btn_display.setIcon(QIcon.fromTheme("preferences-desktop-display-randr"))
-        btn_display.clicked.connect(lambda: self.open_kcm("kcm_kscreen"))
-        card_rec_layout.addWidget(btn_display)
-
-        btn_wifi = QPushButton("Wi-Fi & Networks")
-        btn_wifi.setProperty("class", "card_action_btn")
-        btn_wifi.setIcon(QIcon.fromTheme("network-wireless"))
-        btn_wifi.clicked.connect(lambda: self.open_kcm("kcm_networkmanagement"))
-        card_rec_layout.addWidget(btn_wifi)
+        lbl_page_title = QLabel(title)
+        lbl_page_title.setStyleSheet("font-size: 28px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(lbl_page_title)
         
-        content_layout.addWidget(card_rec)
+        for section_title, actions in cards_data:
+            lbl_sec = QLabel(section_title)
+            lbl_sec.setProperty("class", "section_title")
+            layout.addWidget(lbl_sec)
+            
+            card = QFrame()
+            card.setProperty("class", "card")
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(10, 10, 10, 10)
+            card_layout.setSpacing(5)
+            
+            for btn_text, icon_name, kcm_mod in actions:
+                btn = QPushButton(btn_text)
+                btn.setProperty("class", "card_action_btn")
+                btn.setIcon(QIcon.fromTheme(icon_name))
+                btn.setIconSize(QSize(24, 24))
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                # kcmshell6 deschide strict fereastra acelui modul
+                btn.clicked.connect(lambda checked, m=kcm_mod: self.open_kcm(m))
+                card_layout.addWidget(btn)
+                
+            layout.addWidget(card)
+            
+        layout.addStretch()
+        scroll.setWidget(content_widget)
+        return scroll
 
-        content_layout.addStretch()
-        content_area.setWidget(content_widget)
-        main_layout.addWidget(content_area)
+    def create_home_page(self):
+        return self.create_scrollable_page("Home", [
+            ("Recommended Settings", [
+                ("Display Configuration", "preferences-desktop-display-randr", "kcm_kscreen"),
+                ("Wi-Fi & Networks", "network-wireless", "kcm_networkmanagement"),
+                ("Sound Output & Input", "preferences-desktop-sound", "kcm_pulseaudio")
+            ])
+        ])
+
+    def create_system_page(self):
+        return self.create_scrollable_page("System", [
+            ("Hardware", [
+                ("Display Configuration", "preferences-desktop-display-randr", "kcm_kscreen"),
+                ("Power Management", "preferences-system-power-management", "kcm_powerdevilprofilesconfig")
+            ]),
+            ("Administration", [
+                ("About This System", "help-about", "kcm_about-distro"),
+                ("User Accounts", "preferences-system-login", "kcm_users")
+            ])
+        ])
+
+    def create_network_page(self):
+        return self.create_scrollable_page("Network & Internet", [
+            ("Connectivity", [
+                ("Wi-Fi & Ethernet", "network-wireless", "kcm_networkmanagement"),
+                ("Firewall Configuration", "security-high", "kcm_firewall")
+            ])
+        ])
+        
+    def create_devices_page(self):
+        return self.create_scrollable_page("Bluetooth & Devices", [
+            ("Peripherals", [
+                ("Bluetooth Devices", "preferences-system-bluetooth", "kcm_bluetooth"),
+                ("Printers", "printer", "kcm_printers"),
+                ("Mouse & Touchpad", "input-mouse", "kcm_mouse")
+            ])
+        ])
+        
+    def create_personalization_page(self):
+        return self.create_scrollable_page("Personalization", [
+            ("Appearance", [
+                ("Global Theme", "preferences-desktop-theme-global", "kcm_lookandfeel"),
+                ("System Colors", "preferences-desktop-color", "kcm_colors"),
+                ("Icons", "preferences-desktop-icons", "kcm_icons"),
+                ("Wallpapers", "preferences-desktop-wallpaper", "kcm_wallpaper")
+            ])
+        ])
 
     def open_kcm(self, kcm_module):
-        # Rulează modulul KDE izolat, în fundal
+        # Apelează strict kcmshell6 pentru a randa doar panoul specific, 
+        # fără să deschidă tot meniul de systemsettings.
         subprocess.Popen(["kcmshell6", kcm_module])
 
 if __name__ == '__main__':
