@@ -14,17 +14,38 @@ class ControlCenter(QWidget):
         self.setWindowTitle("Sourceless Control Center")
         self.resize(1100, 750)
 
-        # Styling de bază pentru "Liquid Glass"
+        # 1. ACTIVARE TRANSPARENȚĂ FEREASTRĂ LA NIVEL DE SISTEM
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        # 2. STYLING STRICT TARGETAT (Fără moșteniri dubioase de chenare)
         self.setStyleSheet("""
+            /* Fereastra principală - aici aplicăm opacitatea pentru Liquid Glass */
+            ControlCenter {
+                background-color: rgba(28, 29, 37, 0.65); 
+            }
+            
+            /* Setări de bază pentru text, DAR fără fundal opac */
             QWidget {
-                background-color: #1c1d25;
                 color: #e0e5ff;
                 font-family: 'Inter', sans-serif;
             }
+            
+            /* Sidebar stânga */
             QFrame#sidebar {
-                background-color: rgba(25, 27, 38, 0.7);
-                border-right: 1px solid rgba(255, 255, 255, 0.05);
+                background-color: rgba(20, 22, 32, 0.4);
+                border-right: 1px solid rgba(255, 255, 255, 0.08);
+                border-top: none; 
+                border-bottom: none; 
+                border-left: none;
             }
+            
+            /* Eliminăm orice chenar de pe texte/etichete */
+            QLabel {
+                background: transparent;
+                border: none;
+            }
+            
+            /* Butoane navigație */
             QPushButton.sidebar_btn {
                 background: transparent;
                 border: none;
@@ -41,19 +62,24 @@ class ControlCenter(QWidget):
                 color: #7aa2f7;
                 font-weight: bold;
             }
+            
+            /* Carduri pentru secțiunile de setări */
             QFrame.card {
-                background-color: rgba(30, 32, 48, 0.6);
+                background-color: rgba(35, 38, 53, 0.5);
                 border-radius: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.05);
                 margin-bottom: 10px;
             }
+            
             QLabel.section_title {
                 font-size: 18px;
                 font-weight: bold;
                 padding-bottom: 5px;
             }
+            
+            /* Butoane acțiune din carduri */
             QPushButton.card_action_btn {
-                background-color: rgba(255, 255, 255, 0.05);
+                background-color: rgba(255, 255, 255, 0.03);
                 border-radius: 6px;
                 padding: 12px;
                 text-align: left;
@@ -77,10 +103,10 @@ class ControlCenter(QWidget):
         sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(260)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(15, 20, 15, 20)
+        sidebar_layout.setContentsMargins(20, 30, 20, 20)
         sidebar_layout.setSpacing(5)
 
-        # Preluare dinamică a userului din Sourceless OS
+        # Preluare dinamică a userului curent din OS
         username = os.environ.get('USER', 'sourceless')
         try:
             full_name = pwd.getpwnam(username).pw_gecos.split(',')[0]
@@ -96,11 +122,11 @@ class ControlCenter(QWidget):
         self.nav_buttons_group = []
         
         # -----------------------------------------------------
-        # ZONA PRINCIPALĂ (Dreapta) - QStackedWidget
+        # ZONA PRINCIPALĂ (Dreapta)
         # -----------------------------------------------------
         self.stacked_widget = QStackedWidget()
+        self.stacked_widget.setStyleSheet("background: transparent;")
         
-        # Definirea paginilor și a modulelor aferente
         self.pages_data = [
             ("Home", "home", self.create_home_page()),
             ("System", "computer", self.create_system_page()),
@@ -138,9 +164,13 @@ class ControlCenter(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
+        
+        # Eliminăm fundalul implicit opac din zona de scroll
+        scroll.setStyleSheet("QScrollArea { background: transparent; } QWidget#scroll_content { background: transparent; }")
+        scroll.viewport().setAutoFillBackground(False)
         
         content_widget = QWidget()
+        content_widget.setObjectName("scroll_content")
         layout = QVBoxLayout(content_widget)
         layout.setContentsMargins(40, 30, 40, 30)
         layout.setSpacing(15)
@@ -166,7 +196,6 @@ class ControlCenter(QWidget):
                 btn.setIcon(QIcon.fromTheme(icon_name))
                 btn.setIconSize(QSize(24, 24))
                 btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                # kcmshell6 deschide strict fereastra acelui modul
                 btn.clicked.connect(lambda checked, m=kcm_mod: self.open_kcm(m))
                 card_layout.addWidget(btn)
                 
@@ -225,8 +254,6 @@ class ControlCenter(QWidget):
         ])
 
     def open_kcm(self, kcm_module):
-        # Apelează strict kcmshell6 pentru a randa doar panoul specific, 
-        # fără să deschidă tot meniul de systemsettings.
         subprocess.Popen(["kcmshell6", kcm_module])
 
 if __name__ == '__main__':
