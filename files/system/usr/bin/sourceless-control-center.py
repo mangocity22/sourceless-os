@@ -5,7 +5,7 @@ import pwd
 import subprocess
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QFrame, QScrollArea, QStackedWidget)
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QPainter, QColor
 from PyQt6.QtCore import Qt, QSize
 
 class ControlCenter(QWidget):
@@ -14,38 +14,32 @@ class ControlCenter(QWidget):
         self.setWindowTitle("Sourceless Control Center")
         self.resize(1100, 750)
 
-        # 1. ACTIVARE TRANSPARENȚĂ FEREASTRĂ LA NIVEL DE SISTEM
+        # Activare transparență la nivel de sistem
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # 2. STYLING STRICT TARGETAT (Fără moșteniri dubioase de chenare)
         self.setStyleSheet("""
-            /* Fereastra principală - aici aplicăm opacitatea pentru Liquid Glass */
-            ControlCenter {
-                background-color: rgba(28, 29, 37, 0.65); 
-            }
+            /* Eliminăm fundalul implicit opac din fereastră.
+               Colorăm widgetul principal prin QPainter (vezi paintEvent mai jos) 
+               pentru a mima structura SVG-ului de background din Plasma */
             
-            /* Setări de bază pentru text, DAR fără fundal opac */
             QWidget {
                 color: #e0e5ff;
                 font-family: 'Inter', sans-serif;
             }
             
-            /* Sidebar stânga */
+            /* Sidebar stânga - dăm o nuanță subtilă peste fundalul principal */
             QFrame#sidebar {
-                background-color: rgba(20, 22, 32, 0.4);
+                background-color: rgba(20, 24, 32, 0.45);
                 border-right: 1px solid rgba(255, 255, 255, 0.08);
-                border-top: none; 
-                border-bottom: none; 
-                border-left: none;
+                border-top-left-radius: 12px;
+                border-bottom-left-radius: 12px;
             }
             
-            /* Eliminăm orice chenar de pe texte/etichete */
             QLabel {
                 background: transparent;
                 border: none;
             }
             
-            /* Butoane navigație */
             QPushButton.sidebar_btn {
                 background: transparent;
                 border: none;
@@ -58,16 +52,16 @@ class ControlCenter(QWidget):
                 background-color: rgba(255, 255, 255, 0.08);
             }
             QPushButton.sidebar_btn:checked {
-                background-color: rgba(122, 162, 247, 0.2);
+                background-color: rgba(122, 162, 247, 0.25);
                 color: #7aa2f7;
                 font-weight: bold;
             }
             
-            /* Carduri pentru secțiunile de setări */
             QFrame.card {
-                background-color: rgba(35, 38, 53, 0.5);
+                /* Fundal card mai solid pentru lizibilitate */
+                background-color: rgba(35, 38, 53, 0.75);
                 border-radius: 12px;
-                border: 1px solid rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.08);
                 margin-bottom: 10px;
             }
             
@@ -77,9 +71,8 @@ class ControlCenter(QWidget):
                 padding-bottom: 5px;
             }
             
-            /* Butoane acțiune din carduri */
             QPushButton.card_action_btn {
-                background-color: rgba(255, 255, 255, 0.03);
+                background-color: rgba(255, 255, 255, 0.05);
                 border-radius: 6px;
                 padding: 12px;
                 text-align: left;
@@ -88,7 +81,12 @@ class ControlCenter(QWidget):
                 margin: 5px;
             }
             QPushButton.card_action_btn:hover {
-                background-color: rgba(255, 255, 255, 0.1);
+                background-color: rgba(255, 255, 255, 0.12);
+            }
+            
+            QScrollArea, QWidget#scroll_content {
+                background: transparent;
+                border: none;
             }
         """)
 
@@ -97,7 +95,7 @@ class ControlCenter(QWidget):
         main_layout.setSpacing(0)
 
         # -----------------------------------------------------
-        # SIDEBAR (Stânga)
+        # SIDEBAR
         # -----------------------------------------------------
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
@@ -106,7 +104,6 @@ class ControlCenter(QWidget):
         sidebar_layout.setContentsMargins(20, 30, 20, 20)
         sidebar_layout.setSpacing(5)
 
-        # Preluare dinamică a userului curent din OS
         username = os.environ.get('USER', 'sourceless')
         try:
             full_name = pwd.getpwnam(username).pw_gecos.split(',')[0]
@@ -122,10 +119,9 @@ class ControlCenter(QWidget):
         self.nav_buttons_group = []
         
         # -----------------------------------------------------
-        # ZONA PRINCIPALĂ (Dreapta)
+        # ZONA PRINCIPALĂ
         # -----------------------------------------------------
         self.stacked_widget = QStackedWidget()
-        self.stacked_widget.setStyleSheet("background: transparent;")
         
         self.pages_data = [
             ("Home", "home", self.create_home_page()),
@@ -155,6 +151,28 @@ class ControlCenter(QWidget):
             self.nav_buttons_group[0].setChecked(True)
             self.stacked_widget.setCurrentIndex(0)
 
+    # -----------------------------------------------------
+    # Desenare customizată pentru fundalul ferestrei (Sticlă)
+    # -----------------------------------------------------
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Mimăm fill="#141820" cu opacity="0.45" din background.svg, dar
+        # ridicăm opacitatea la 0.85 (215 din 255) ca să nu mai pară gol
+        glass_color = QColor("#141820")
+        glass_color.setAlphaF(0.85) 
+        
+        # Margine subțire albă cu opacitate scăzută (#ffffff 0.38 în SVG)
+        border_color = QColor("#ffffff")
+        border_color.setAlphaF(0.20)
+        
+        painter.setBrush(glass_color)
+        painter.setPen(border_color)
+        
+        # Rază colțuri 24px conform SVG-ului
+        painter.drawRoundedRect(self.rect(), 24, 24)
+
     def switch_page(self, index):
         for i, btn in enumerate(self.nav_buttons_group):
             btn.setChecked(i == index)
@@ -164,9 +182,6 @@ class ControlCenter(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        # Eliminăm fundalul implicit opac din zona de scroll
-        scroll.setStyleSheet("QScrollArea { background: transparent; } QWidget#scroll_content { background: transparent; }")
         scroll.viewport().setAutoFillBackground(False)
         
         content_widget = QWidget()

@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Settings (Control Center)
+Name=Sourceless Control Center
 Comment=Configure Sourceless OS
 Exec=/usr/bin/sourceless-control-center.py
 Icon=preferences-system
