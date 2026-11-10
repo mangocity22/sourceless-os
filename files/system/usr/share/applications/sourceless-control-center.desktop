@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Settings (Control Center)
+Comment=Configure Sourceless OS
+Exec=/usr/bin/sourceless-control-center.py
+Icon=preferences-system
+Terminal=false
+Type=Application
+Categories=Settings;HardwareSettings;
+StartupNotify=true
