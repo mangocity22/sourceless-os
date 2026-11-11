@@ -10,24 +10,18 @@ set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
 find_package(KF6 REQUIRED COMPONENTS CoreAddons I18n Kirigami KCMUtils)
 
-include(KDEInstallDirs)      # defines KDE_INSTALL_TARGETS_DEFAULT_ARGS
+include(KDEInstallDirs)
 include(KDECMakeSettings)
-
-qt_standard_project_setup()
-
-qt_add_executable(sourceless-control-center src/main.cpp)
 
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
-qt_add_executable(sourceless-control-center src/main.cpp)
+# Register ControlCenter.qml at the module root (no subdirectory),
+# which avoids the QTP0004 warning. Must come before qt_add_qml_module.
+set_source_files_properties(src/ControlCenter.qml
+    PROPERTIES QT_RESOURCE_ALIAS ControlCenter.qml)
 
-qt_add_qml_module(sourceless-control-center
-    URI Sourceless.Settings
-    VERSION 1.0
-    RESOURCE_PREFIX /qt/qml
-    QML_FILES src/ControlCenter.qml
-)
+qt_add_executable(sourceless-control-center src/main.cpp)
 
 qt_add_qml_module(sourceless-control-center
     URI Sourceless.Settings
