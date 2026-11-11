@@ -59,6 +59,7 @@ modules:
         - kf6-ki18n-devel
         - kf6-kirigami-devel
         - kf6-kcmutils-devel
+        - build-control-center.sh
 
     remove:
       packages:
