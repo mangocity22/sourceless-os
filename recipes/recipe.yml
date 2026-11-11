@@ -50,6 +50,15 @@ modules:
         - kvantum
         - kvantum-qt5
         - python3-pyqt6
+        - gcc-c++
+        - cmake
+        - extra-cmake-modules
+        - qt6-qtbase-devel
+        - qt6-qtdeclarative-devel
+        - kf6-kcoreaddons-devel
+        - kf6-ki18n-devel
+        - kf6-kirigami-devel
+        - kf6-cmutils-devel
 
     remove:
       packages:
