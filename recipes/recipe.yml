@@ -59,6 +59,8 @@ modules:
         - kf6-ki18n-devel
         - kf6-kirigami-devel
         - kf6-kcmutils-devel
+        - qt6-declarative-devel
+        - qt6-qtwayland-devel
 
     remove:
       packages:
