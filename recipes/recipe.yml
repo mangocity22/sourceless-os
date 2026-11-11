@@ -75,6 +75,7 @@ modules:
         - plasma-discover-offline-updates
         - PackageKit
 
+
   - type: default-flatpaks
     configurations:
       - notify: true # Send notification after install/uninstall is finished (true/false)
