@@ -1,24 +1,15 @@
 #!/usr/bin/env bash
 set -eueo pipefail
 
-echo "=== Cautam directorul sursa... ==="
+echo "=== Compilare Sourceless Control Center ==="
 
-# Caută oriunde în structura montată fișierul CMakeLists.txt
-SOURCE_DIR=$(find / -type f -name "CMakeLists.txt" -path "*/sourceless-control-center/*" -exec dirname {} \; | head -n 1)
-
-if [ -z "$SOURCE_DIR" ]; then
-    echo "Error: CMakeLists.txt not found in the expected source directory."
-    exit 1
-fi
-
-echo "Found source in: $SOURCE_DIR"
-
-cd "$SOURCE_DIR"
+# Folderul tău este acum în files/, deci BlueBuild l-a adus în /tmp/files/
+cd /tmp/files/sourceless-control-center || { echo "Eroare: Nu gasesc folderul in /tmp/files/"; exit 1; }
 
 # Compilăm aplicația
 mkdir -p build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=/usr
 make -j$(nproc)
 
-# Instalăm binarul
+# Instalăm binarul pe rădăcina imaginii de build
 make install DESTDIR=/
