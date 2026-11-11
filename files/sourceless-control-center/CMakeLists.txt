@@ -17,6 +17,18 @@ qt_standard_project_setup()
 
 qt_add_executable(sourceless-control-center src/main.cpp)
 
+qt_standard_project_setup()
+qt_policy(SET QTP0001 NEW)
+
+qt_add_executable(sourceless-control-center src/main.cpp)
+
+qt_add_qml_module(sourceless-control-center
+    URI Sourceless.Settings
+    VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
+    QML_FILES src/ControlCenter.qml
+)
+
 qt_add_qml_module(sourceless-control-center
     URI Sourceless.Settings
     VERSION 1.0
