@@ -39,26 +39,6 @@ if [ -f "$KONSOLE_DESKTOP" ]; then
 fi
 flatpak mask org.kde.konsole 2>/dev/null || true
 
-# Redirect default KDE System Settings & kcmshell6 to Sourceless Control Center
-for kbin in /usr/bin/systemsettings /usr/bin/kcmshell6; do
-    if [ -f "$kbin" ] && [ ! -f "${kbin}.real" ]; then
-        echo "[Sourceless] Redirecting $kbin to sourceless-control-center..."
-        mv "$kbin" "${kbin}.real"
-        cat << 'EOF' > "$kbin"
-#!/usr/bin/bash
-exec /usr/bin/sourceless-control-center "$@"
-EOF
-        chmod +x "$kbin"
-    fi
-done
-
-for sys_desktop in /usr/share/applications/systemsettings.desktop /usr/share/applications/org.kde.systemsettings.desktop /usr/share/applications/kdesystemsettings.desktop; do
-    if [ -f "$sys_desktop" ]; then
-        sed -i '/^NoDisplay=/d' "$sys_desktop" 2>/dev/null || true
-        echo "NoDisplay=true" >> "$sys_desktop"
-    fi
-done
-
 # Force global Starship config for all users
 if ! grep -q "STARSHIP_CONFIG" /etc/bashrc; then
     echo 'export STARSHIP_CONFIG="/etc/starship.toml"' >> /etc/bashrc

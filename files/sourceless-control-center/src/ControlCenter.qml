@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
@@ -13,7 +14,11 @@ ApplicationWindow {
     minimumHeight: 640
     visible: true
     title: "Sourceless Control Center"
+    flags: Qt.Window | Qt.FramelessWindowHint
     color: "transparent"
+    background: Item {}
+
+    readonly property int windowRadius: (root.visibility === Window.Maximized || root.visibility === Window.FullScreen) ? 0 : 18
 
     KCoreAddons.KUser {
         id: kuser
@@ -22,12 +27,12 @@ ApplicationWindow {
     // Sourceless Glass Design Tokens (Windows 11 Mica/Acrylic Dark Inspired)
     readonly property color brandHighlight: "#6054F2"
     readonly property color brandHighlightHover: "#7368F7"
-    readonly property color bgWindow: Qt.rgba(0.07, 0.08, 0.12, 0.88)
-    readonly property color bgSidebar: Qt.rgba(0.05, 0.06, 0.09, 0.65)
-    readonly property color bgCard: Qt.rgba(0.13, 0.15, 0.21, 0.72)
-    readonly property color bgCardHover: Qt.rgba(0.16, 0.18, 0.26, 0.82)
-    readonly property color bgInput: Qt.rgba(0.09, 0.10, 0.15, 0.92)
-    readonly property color borderSubtle: Qt.rgba(1, 1, 1, 0.08)
+    readonly property color bgWindow: "#11131E"
+    readonly property color bgSidebar: "#0B0D15"
+    readonly property color bgCard: Qt.rgba(0.14, 0.16, 0.23, 0.78)
+    readonly property color bgCardHover: Qt.rgba(0.18, 0.20, 0.29, 0.88)
+    readonly property color bgInput: Qt.rgba(0.09, 0.10, 0.15, 0.95)
+    readonly property color borderSubtle: Qt.rgba(1, 1, 1, 0.10)
     readonly property color textMain: "#E8ECFF"
     readonly property color textMuted: "#949BC0"
     readonly property color statusGreen: "#2AC3A2"
@@ -297,7 +302,7 @@ ApplicationWindow {
     Rectangle {
         anchors.fill: parent
         color: root.bgWindow
-        radius: 18
+        radius: root.windowRadius
         clip: true
 
         RowLayout {
@@ -316,9 +321,9 @@ ApplicationWindow {
                 Rectangle {
                     x: 0
                     y: 0
-                    width: parent.width + 18
+                    width: parent.width + root.windowRadius
                     height: parent.height
-                    radius: 18
+                    radius: root.windowRadius
                     color: root.bgSidebar
                 }
 
@@ -331,8 +336,48 @@ ApplicationWindow {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 12
+                    anchors.leftMargin: 18
+                    anchors.rightMargin: 18
+                    anchors.topMargin: 12
+                    anchors.bottomMargin: 18
+                    spacing: 10
+
+                    // Integrated Window Title Row (Draggable)
+                    Item {
+                        Layout.fillWidth: true
+                        height: 24
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 6
+                            spacing: 8
+
+                            Kirigami.Icon {
+                                source: "preferences-system"
+                                width: 16
+                                height: 16
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: "Sourceless Control Center"
+                                color: root.textMuted
+                                font.pixelSize: 12
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton
+                            onPressed: root.startSystemMove()
+                            onDoubleClicked: {
+                                if (root.visibility === Window.Maximized) root.showNormal()
+                                else root.showMaximized()
+                            }
+                        }
+                    }
 
                     // 1. Dynamic User Profile Card with Real Profile Photo
                     Rectangle {
@@ -569,26 +614,131 @@ ApplicationWindow {
             }
 
             // =================================================================
-            // RIGHT CONTENT AREA (Scrollable Windows 11 Pages)
+            // RIGHT CONTENT AREA (Integrated Titlebar + Scrollable Pages)
             // =================================================================
-            StackLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                currentIndex: root.currentPage
+                spacing: 0
 
-                // -------------------------------------------------------------
-                // PAGE 0: HOME (Windows 11 Hero Overview + Quick Settings)
-                // -------------------------------------------------------------
-                ScrollView {
-                    clip: true
-                    contentWidth: availableWidth
+                // Seamless Integrated Top Bar (Drag Area + Window Controls)
+                Item {
+                    Layout.fillWidth: true
+                    height: 38
 
-                    ColumnLayout {
-                        width: parent.width - 64
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: 18
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        onPressed: root.startSystemMove()
+                        onDoubleClicked: {
+                            if (root.visibility === Window.Maximized) root.showNormal()
+                            else root.showMaximized()
+                        }
+                    }
 
-                        Item { height: 12 }
+                    RowLayout {
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.rightMargin: 10
+                        anchors.topMargin: 8
+                        spacing: 6
+
+                        // Minimize Button
+                        Rectangle {
+                            width: 34
+                            height: 26
+                            radius: 7
+                            color: minMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : "transparent"
+
+                            Label {
+                                anchors.centerIn: parent
+                                text: "─"
+                                color: root.textMain
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: minMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.showMinimized()
+                            }
+                        }
+
+                        // Maximize / Restore Button
+                        Rectangle {
+                            width: 34
+                            height: 26
+                            radius: 7
+                            color: maxMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : "transparent"
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 10
+                                height: 10
+                                radius: 2
+                                color: "transparent"
+                                border.color: root.textMain
+                                border.width: 1
+                            }
+
+                            MouseArea {
+                                id: maxMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (root.visibility === Window.Maximized) root.showNormal()
+                                    else root.showMaximized()
+                                }
+                            }
+                        }
+
+                        // Close Button (Red Hover like Windows 11)
+                        Rectangle {
+                            width: 34
+                            height: 26
+                            radius: 7
+                            color: closeMouse.containsMouse ? root.statusRed : "transparent"
+
+                            Label {
+                                anchors.centerIn: parent
+                                text: "✕"
+                                color: closeMouse.containsMouse ? "#FFFFFF" : root.textMain
+                                font.pixelSize: 13
+                            }
+
+                            MouseArea {
+                                id: closeMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.close()
+                            }
+                        }
+                    }
+                }
+
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    currentIndex: root.currentPage
+
+                    // -------------------------------------------------------------
+                    // PAGE 0: HOME (Windows 11 Hero Overview + Quick Settings)
+                    // -------------------------------------------------------------
+                    ScrollView {
+                        clip: true
+                        contentWidth: availableWidth
+
+                        ColumnLayout {
+                            width: parent.width - 64
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 18
+
+                            Item { height: 2 }
 
                         Label {
                             text: "Home"
@@ -1997,16 +2147,65 @@ ApplicationWindow {
                         Item { height: 24 }
                     }
                 }
+                }
             }
         }
 
         // Continuous 4-Corner Rounded Border Overlay
         Rectangle {
             anchors.fill: parent
-            radius: 18
+            radius: root.windowRadius
             color: "transparent"
             border.color: root.borderSubtle
-            border.width: 1
+            border.width: root.windowRadius > 0 ? 1 : 0
+        }
+
+        // Edge & Corner System Resize Handles (Active when Windowed)
+        MouseArea {
+            visible: root.visibility !== Window.Maximized
+            anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+            anchors.topMargin: 12; anchors.bottomMargin: 12
+            width: 5
+            cursorShape: Qt.SizeHorCursor
+            onPressed: root.startSystemResize(Qt.LeftEdge)
+        }
+        MouseArea {
+            visible: root.visibility !== Window.Maximized
+            anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+            anchors.topMargin: 12; anchors.bottomMargin: 12
+            width: 5
+            cursorShape: Qt.SizeHorCursor
+            onPressed: root.startSystemResize(Qt.RightEdge)
+        }
+        MouseArea {
+            visible: root.visibility !== Window.Maximized
+            anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 12; anchors.rightMargin: 130
+            height: 5
+            cursorShape: Qt.SizeVerCursor
+            onPressed: root.startSystemResize(Qt.TopEdge)
+        }
+        MouseArea {
+            visible: root.visibility !== Window.Maximized
+            anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 12; anchors.rightMargin: 12
+            height: 5
+            cursorShape: Qt.SizeVerCursor
+            onPressed: root.startSystemResize(Qt.BottomEdge)
+        }
+        MouseArea {
+            visible: root.visibility !== Window.Maximized
+            anchors.right: parent.right; anchors.bottom: parent.bottom
+            width: 14; height: 14
+            cursorShape: Qt.SizeFDiagCursor
+            onPressed: root.startSystemResize(Qt.RightEdge | Qt.BottomEdge)
+        }
+        MouseArea {
+            visible: root.visibility !== Window.Maximized
+            anchors.left: parent.left; anchors.bottom: parent.bottom
+            width: 14; height: 14
+            cursorShape: Qt.SizeBDiagCursor
+            onPressed: root.startSystemResize(Qt.LeftEdge | Qt.BottomEdge)
         }
     }
 }

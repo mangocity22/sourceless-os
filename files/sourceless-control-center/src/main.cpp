@@ -1,6 +1,7 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickWindow>
 #include <QIcon>
 #include <QUrl>
 #include <KLocalizedContext>
@@ -45,6 +46,7 @@ static QString resolveInitialPage(const QStringList &args)
 
 int main(int argc, char *argv[])
 {
+    QQuickWindow::setDefaultAlphaBuffer(true);
     QGuiApplication app(argc, argv);
 
     app.setOrganizationName(QStringLiteral("Sourceless NCH"));
