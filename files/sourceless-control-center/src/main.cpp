@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QIcon>
+#include <QUrl>
 #include <KLocalizedContext>
 
 #include "SystemBackend.h"
@@ -62,7 +63,12 @@ int main(int argc, char *argv[])
                      &app, []() { QCoreApplication::exit(-1); },
                      Qt::QueuedConnection);
 
-    engine.loadFromModule("Sourceless.Settings", "ControlCenter");
+    const QString qmlOverride = qEnvironmentVariable("SOURCELESS_QML");
+    if (!qmlOverride.isEmpty()) {
+        engine.load(QUrl::fromLocalFile(qmlOverride));
+    } else {
+        engine.loadFromModule("Sourceless.Settings", "ControlCenter");
+    }
 
     return app.exec();
 }

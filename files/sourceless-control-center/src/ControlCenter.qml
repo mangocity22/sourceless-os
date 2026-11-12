@@ -67,6 +67,7 @@ ApplicationWindow {
 
     // Reusable Action Button
     component ActionButton : Rectangle {
+        id: btnRoot
         property string labelText: ""
         property bool primary: false
         property bool danger: false
@@ -89,25 +90,26 @@ ApplicationWindow {
         Label {
             id: btnLbl
             anchors.centerIn: parent
-            text: parent.labelText
+            text: btnRoot.labelText
             color: "#FFFFFF"
             font.pixelSize: 13
-            font.bold: parent.primary || parent.danger
+            font.bold: btnRoot.primary || btnRoot.danger
         }
 
         MouseArea {
             id: btnMouse
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: parent.enabledBtn ? Qt.PointingHandCursor : Qt.ForbiddenCursor
+            cursorShape: btnRoot.enabledBtn ? Qt.PointingHandCursor : Qt.ForbiddenCursor
             onClicked: {
-                if (parent.enabledBtn) parent.triggered()
+                if (btnRoot.enabledBtn) btnRoot.triggered()
             }
         }
     }
 
     // Reusable Toggle Pill (Windows 11 Switch)
     component WinSwitch : Rectangle {
+        id: switchRoot
         property bool checkedState: false
         signal toggled(bool newValue)
 
@@ -123,7 +125,7 @@ ApplicationWindow {
             height: 16
             radius: 8
             anchors.verticalCenter: parent.verticalCenter
-            x: parent.checkedState ? parent.width - width - 4 : 4
+            x: switchRoot.checkedState ? switchRoot.width - width - 4 : 4
             color: "#FFFFFF"
             Behavior on x { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
         }
@@ -131,7 +133,7 @@ ApplicationWindow {
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: parent.toggled(!parent.checkedState)
+            onClicked: switchRoot.toggled(!switchRoot.checkedState)
         }
     }
 
@@ -292,6 +294,7 @@ ApplicationWindow {
                         ]
 
                         delegate: Rectangle {
+                            id: navItem
                             required property var modelData
                             readonly property bool isSelected: root.currentPage === modelData.pageIdx
 
@@ -302,7 +305,7 @@ ApplicationWindow {
 
                             // Windows 11 Left Accent Bar
                             Rectangle {
-                                visible: parent.isSelected
+                                visible: navItem.isSelected
                                 width: 4
                                 height: 18
                                 radius: 2
@@ -319,18 +322,18 @@ ApplicationWindow {
                                 spacing: 12
 
                                 Kirigami.Icon {
-                                    source: modelData.iconName
+                                    source: navItem.modelData.iconName
                                     width: 20
                                     height: 20
-                                    color: parent.parent.isSelected ? root.brandHighlight : root.textMuted
+                                    color: navItem.isSelected ? root.brandHighlight : root.textMuted
                                 }
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: modelData.title
-                                    color: parent.parent.isSelected ? "#FFFFFF" : root.textMain
-                                    font.pixelSize: 13.5
-                                    font.bold: parent.parent.isSelected
+                                    text: navItem.modelData.title
+                                    color: navItem.isSelected ? "#FFFFFF" : root.textMain
+                                    font.pixelSize: 14
+                                    font.bold: navItem.isSelected
                                 }
                             }
 
@@ -378,7 +381,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 text: backend && backend.statusMessage !== "" ? backend.statusMessage : "Sourceless Lockdown Active"
                                 color: root.textMain
-                                font.pixelSize: 11.5
+                                font.pixelSize: 12
                                 elide: Text.ElideRight
                             }
                         }
@@ -461,13 +464,13 @@ ApplicationWindow {
                                         Label {
                                             text: backend && backend.networkConnected ? ("● " + backend.connectionType + ": " + backend.activeNetworkName) : "○ Offline"
                                             color: backend && backend.networkConnected ? root.statusGreen : root.statusAmber
-                                            font.pixelSize: 12.5
+                                            font.pixelSize: 13
                                             font.bold: true
                                         }
                                         Label {
                                             text: "● Shield: Protected"
                                             color: root.statusGreen
-                                            font.pixelSize: 12.5
+                                            font.pixelSize: 13
                                             font.bold: true
                                         }
                                     }
@@ -532,7 +535,7 @@ ApplicationWindow {
 
                                 RowLayout {
                                     spacing: 10
-                                    Label { text: "Wi-Fi"; color: root.textMain; font.pixelSize: 13.5 }
+                                    Label { text: "Wi-Fi"; color: root.textMain; font.pixelSize: 14 }
                                     WinSwitch {
                                         checkedState: backend ? backend.wifiEnabled : true
                                         onToggled: function(val) { backend.setWifiEnabled(val) }
@@ -541,7 +544,7 @@ ApplicationWindow {
 
                                 RowLayout {
                                     spacing: 10
-                                    Label { text: "Bluetooth"; color: root.textMain; font.pixelSize: 13.5 }
+                                    Label { text: "Bluetooth"; color: root.textMain; font.pixelSize: 14 }
                                     WinSwitch {
                                         checkedState: backend ? backend.bluetoothEnabled : false
                                         onToggled: function(val) { backend.setBluetoothEnabled(val) }
@@ -550,7 +553,7 @@ ApplicationWindow {
 
                                 RowLayout {
                                     spacing: 10
-                                    Label { text: "Night Light"; color: root.textMain; font.pixelSize: 13.5 }
+                                    Label { text: "Night Light"; color: root.textMain; font.pixelSize: 14 }
                                     WinSwitch {
                                         checkedState: backend ? backend.nightLightEnabled : false
                                         onToggled: function(val) { backend.setNightLight(val, backend.nightLightTemp) }
@@ -559,7 +562,7 @@ ApplicationWindow {
 
                                 RowLayout {
                                     spacing: 10
-                                    Label { text: "Glass Blur"; color: root.textMain; font.pixelSize: 13.5 }
+                                    Label { text: "Glass Blur"; color: root.textMain; font.pixelSize: 14 }
                                     WinSwitch {
                                         checkedState: backend ? backend.blurEnabled : true
                                         onToggled: function(val) { backend.setBlurEnabled(val) }
@@ -631,7 +634,7 @@ ApplicationWindow {
                                     spacing: 6
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        Label { text: "System Storage"; color: root.textMain; font.pixelSize: 13.5; font.bold: true }
+                                        Label { text: "System Storage"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                         Item { Layout.fillWidth: true }
                                         Label { text: backend ? (backend.diskUsedText + " / " + backend.diskTotalText + " (" + backend.diskFreeText + " free)") : ""; color: root.textMuted; font.pixelSize: 12 }
                                     }
@@ -647,7 +650,7 @@ ApplicationWindow {
                                     spacing: 6
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        Label { text: "Memory (RAM)"; color: root.textMain; font.pixelSize: 13.5; font.bold: true }
+                                        Label { text: "Memory (RAM)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                         Item { Layout.fillWidth: true }
                                         Label { text: backend ? (backend.ramUsedText + " / " + backend.ramTotalText + " (" + backend.ramPercent + "%)") : ""; color: root.textMuted; font.pixelSize: 12 }
                                     }
@@ -951,7 +954,7 @@ ApplicationWindow {
                                     Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        Label { text: modelData.name; color: root.textMain; font.pixelSize: 13.5; font.bold: true }
+                                        Label { text: modelData.name; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                         Label { text: "(" + modelData.mac + ")"; color: root.textMuted; font.pixelSize: 12 }
                                         Item { Layout.fillWidth: true }
                                         Label {
@@ -1089,7 +1092,7 @@ ApplicationWindow {
                                     Label {
                                         text: backend ? ("IPv4 Address: " + backend.ipAddress + "   •   DNS: " + backend.dnsStatus) : ""
                                         color: root.textMuted
-                                        font.pixelSize: 12.5
+                                        font.pixelSize: 13
                                     }
                                 }
 
@@ -1149,13 +1152,13 @@ ApplicationWindow {
                                             Label {
                                                 text: modelData.ssid
                                                 color: root.textMain
-                                                font.pixelSize: 13.5
+                                                font.pixelSize: 14
                                                 font.bold: modelData.inUse
                                             }
                                             Label {
                                                 text: "Signal: " + modelData.signal + "%  •  Security: " + modelData.security
                                                 color: root.textMuted
-                                                font.pixelSize: 11.5
+                                                font.pixelSize: 12
                                             }
                                         }
 
@@ -1163,7 +1166,7 @@ ApplicationWindow {
                                             visible: modelData.inUse
                                             text: "Connected"
                                             color: root.statusGreen
-                                            font.pixelSize: 12.5
+                                            font.pixelSize: 13
                                             font.bold: true
                                         }
 
@@ -1258,7 +1261,7 @@ ApplicationWindow {
                             Label {
                                 text: "Choose an approved system background (custom third-party themes are disabled for security)"
                                 color: root.textMuted
-                                font.pixelSize: 12.5
+                                font.pixelSize: 13
                             }
 
                             Flow {
@@ -1300,7 +1303,7 @@ ApplicationWindow {
                                                     anchors.centerIn: parent
                                                     text: modelData.name
                                                     color: root.textMain
-                                                    font.pixelSize: 12.5
+                                                    font.pixelSize: 13
                                                     font.bold: true
                                                 }
                                             }
@@ -1449,7 +1452,7 @@ ApplicationWindow {
                                             Label {
                                                 text: modelData.appId + "  •  v" + modelData.version + " (" + modelData.scope + ")"
                                                 color: root.textMuted
-                                                font.pixelSize: 11.5
+                                                font.pixelSize: 12
                                             }
                                         }
 
@@ -1510,7 +1513,7 @@ ApplicationWindow {
                                     Label {
                                         text: backend ? ("Time zone: " + backend.timezone + "  •  NTP Synchronization: " + (backend.ntpEnabled ? "Active" : "Manual")) : ""
                                         color: root.textMuted
-                                        font.pixelSize: 12.5
+                                        font.pixelSize: 13
                                     }
                                 }
                             }
@@ -1629,7 +1632,7 @@ ApplicationWindow {
                                     Label {
                                         text: "Your system is protected by immutable read-only rootfs, real-time YARA malware scanning, and privilege lockdown."
                                         color: root.textMuted
-                                        font.pixelSize: 12.5
+                                        font.pixelSize: 13
                                         wrapMode: Text.WordWrap
                                         Layout.fillWidth: true
                                     }
