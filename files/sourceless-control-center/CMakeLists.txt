@@ -3,6 +3,7 @@ project(SourcelessControlCenter VERSION 1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
 
 find_package(ECM REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
@@ -21,7 +22,11 @@ qt_policy(SET QTP0001 NEW)
 set_source_files_properties(src/ControlCenter.qml
     PROPERTIES QT_RESOURCE_ALIAS ControlCenter.qml)
 
-qt_add_executable(sourceless-control-center src/main.cpp)
+qt_add_executable(sourceless-control-center
+    src/main.cpp
+    src/SystemBackend.h
+    src/SystemBackend.cpp
+)
 
 qt_add_qml_module(sourceless-control-center
     URI Sourceless.Settings
