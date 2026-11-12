@@ -250,7 +250,6 @@ public:
 
     // Security & Support controls
     Q_INVOKABLE void launchEmergencyTerminal();
-    Q_INVOKABLE void lockSupportSession();
     Q_INVOKABLE void runQuickSecurityScan();
     Q_INVOKABLE void resetDesktopLayout();
 

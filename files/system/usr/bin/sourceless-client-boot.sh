@@ -18,6 +18,7 @@ REGISTER_URL=$(echo "$R_B64" | base64 -d)
 SUBMIT_URL=$(echo "$S_B64" | base64 -d)
 
 mkdir -p "$CERT_DIR" /etc/sourceless
+chmod 755 /etc/sourceless
 chmod 700 "$CERT_DIR"
 
 # 1. Automatic wheel membership revocation for all standard users UID >= 1000
@@ -67,12 +68,13 @@ while true; do
 
     # --- INTEGRITY VERIFICATION ---
     ENROLLED_HWID=$(cat "$HWID_FILE" 2>/dev/null)
-    [ -n "$ENROLLED_HWID" ] && [ "$HWID" != "$ENROLLED_HWID" ] && touch "$TAMPER_FLAG"
-    [ "$(getenforce 2>/dev/null)" != "Enforcing" ] && touch "$TAMPER_FLAG"
+    [ -n "$ENROLLED_HWID" ] && [ "$HWID" != "$ENROLLED_HWID" ] && touch "$TAMPER_FLAG" && chmod 644 "$TAMPER_FLAG"
+    [ "$(getenforce 2>/dev/null)" != "Enforcing" ] && touch "$TAMPER_FLAG" && chmod 644 "$TAMPER_FLAG"
 
     # Check for local emergency terminal activation trigger
     if [ -f /tmp/.sourceless_tamper_trigger ]; then
         touch "$TAMPER_FLAG"
+        chmod 644 "$TAMPER_FLAG"
         rm -f /tmp/.sourceless_tamper_trigger
     fi
 

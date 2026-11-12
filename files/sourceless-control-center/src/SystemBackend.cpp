@@ -1084,8 +1084,10 @@ void SystemBackend::refreshSecurity()
     }
 
     // 4. Support Gate & Tamper / Modified Check
-    m_supportSessionActive = QFileInfo::exists(QStringLiteral("/tmp/sourceless_support_active")) ||
-                             QFileInfo::exists(QStringLiteral("/var/run/sourceless_support_active"));
+    const bool supportTokenExists = QFileInfo::exists(QStringLiteral("/tmp/sourceless_support_active")) ||
+                                    QFileInfo::exists(QStringLiteral("/var/run/sourceless_support_active"));
+    const bool konsoleRunning = !runCommand(QStringLiteral("pgrep"), {QStringLiteral("-f"), QStringLiteral("konsole.real")}, 1000).isEmpty();
+    m_supportSessionActive = supportTokenExists || konsoleRunning;
 
     const bool tamperFlagFile = QFileInfo::exists(QStringLiteral("/etc/sourceless/.tamper_detected")) ||
                                 QFileInfo::exists(QStringLiteral("/tmp/.sourceless_tamper_trigger"));
@@ -1093,15 +1095,22 @@ void SystemBackend::refreshSecurity()
     const QString groupsOut = runCommand(QStringLiteral("id"), {QStringLiteral("-Gn")}, 1000);
     const bool inWheelGroup = groupsOut.split(QLatin1Char(' ')).contains(QStringLiteral("wheel"));
 
-    m_isTampered = tamperFlagFile || m_supportSessionActive || inWheelGroup;
+    // Check journald for support unlock or interactive shell audit logs in current boot
+    const QString auditLogs = runCommand(QStringLiteral("sh"),
+        {QStringLiteral("-c"),
+         QStringLiteral("journalctl -b -t sourceless-security -t sourceless-audit --no-pager -q -n 5 2>/dev/null")}, 1500);
+    const bool hasAuditActivity = !auditLogs.isEmpty();
+
+    m_isTampered = tamperFlagFile || m_supportSessionActive || inWheelGroup || hasAuditActivity;
 
     if (m_isTampered) {
         score -= 35;
         QStringList reasons;
         if (tamperFlagFile) reasons << QStringLiteral("Tamper Seal Broken");
-        if (m_supportSessionActive) reasons << QStringLiteral("Support Shell Unlocked");
-        if (inWheelGroup) reasons << QStringLiteral("Wheel Admin Active");
-        m_systemIntegrity = QStringLiteral("Modified (%1)").arg(reasons.join(QStringLiteral(" / ")));
+        if (m_supportSessionActive) reasons << QStringLiteral("Terminal Active");
+        if (inWheelGroup) reasons << QStringLiteral("Wheel Admin");
+        if (hasAuditActivity && !tamperFlagFile) reasons << QStringLiteral("Sudo / Shell Audit Logged");
+        m_systemIntegrity = QStringLiteral("Modified (%1)").arg(reasons.join(QStringLiteral(" • ")));
 
         events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("System Integrity Modified: ") + reasons.join(QStringLiteral(", "))},
                                   {QStringLiteral("severity"), QStringLiteral("critical")}});
@@ -1110,7 +1119,7 @@ void SystemBackend::refreshSecurity()
     }
 
     if (m_supportSessionActive) {
-        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Interactive Terminal Gate is currently UNLOCKED")},
+        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Interactive Terminal / Support Session is currently ACTIVE")},
                                   {QStringLiteral("severity"), QStringLiteral("critical")}});
     }
 
@@ -1130,15 +1139,6 @@ void SystemBackend::launchEmergencyTerminal()
 {
     runDetached(QStringLiteral("/usr/bin/sourceless-emergency-terminal"), {});
     notifyStatus(QStringLiteral("Opening Support Authorization prompt..."));
-}
-
-void SystemBackend::lockSupportSession()
-{
-    QFile::remove(QStringLiteral("/tmp/sourceless_support_active"));
-    QFile::remove(QStringLiteral("/var/run/sourceless_support_active"));
-    runDetached(QStringLiteral("killall"), {QStringLiteral("-9"), QStringLiteral("konsole.real")});
-    refreshSecurity();
-    notifyStatus(QStringLiteral("Support session ended and Terminal re-locked"));
 }
 
 void SystemBackend::runQuickSecurityScan()

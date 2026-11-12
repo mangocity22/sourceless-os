@@ -39,7 +39,10 @@ echo "[+] Access Granted. Initiating Support Session..."
 logger -t "sourceless-security" -p user.warn "SUPPORT SESSION ACTIVATED VIA ROLLING KEY"
 
 # Creăm fișierul capcană pentru Dashboard
+mkdir -p /etc/sourceless
+chmod 755 /etc/sourceless
 touch /etc/sourceless/.tamper_detected
+chmod 644 /etc/sourceless/.tamper_detected
 
 # Lansăm shell-ul de root
 exec /usr/bin/bash

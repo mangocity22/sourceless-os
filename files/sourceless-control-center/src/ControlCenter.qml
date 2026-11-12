@@ -297,9 +297,7 @@ ApplicationWindow {
     Rectangle {
         anchors.fill: parent
         color: root.bgWindow
-        radius: 12
-        border.color: root.borderSubtle
-        border.width: 1
+        radius: 18
         clip: true
 
         RowLayout {
@@ -309,10 +307,20 @@ ApplicationWindow {
             // =================================================================
             // LEFT SIDEBAR (Windows 11 Navigation Pane)
             // =================================================================
-            Rectangle {
+            Item {
                 Layout.preferredWidth: 280
                 Layout.fillHeight: true
-                color: root.bgSidebar
+                clip: true
+
+                // Rounded left corners (top-left & bottom-left = 18px) while keeping the right separator straight
+                Rectangle {
+                    x: 0
+                    y: 0
+                    width: parent.width + 18
+                    height: parent.height
+                    radius: 18
+                    color: root.bgSidebar
+                }
 
                 Rectangle {
                     width: 1
@@ -1842,13 +1850,6 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                     }
                                 }
-
-                                ActionButton {
-                                    visible: backend ? backend.supportSessionActive : false
-                                    labelText: "Lock Support Session"
-                                    danger: true
-                                    onTriggered: backend.lockSupportSession()
-                                }
                             }
 
                             WinProgressBar {
@@ -1997,6 +1998,15 @@ ApplicationWindow {
                     }
                 }
             }
+        }
+
+        // Continuous 4-Corner Rounded Border Overlay
+        Rectangle {
+            anchors.fill: parent
+            radius: 18
+            color: "transparent"
+            border.color: root.borderSubtle
+            border.width: 1
         }
     }
 }
