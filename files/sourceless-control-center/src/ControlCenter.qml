@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.kde.coreaddons 1.0 as KCoreAddons
+import org.kde.kirigamiaddons.components 1.0 as KirigamiComponents
 
 ApplicationWindow {
     id: root
@@ -13,6 +15,10 @@ ApplicationWindow {
     title: "Sourceless Control Center"
     color: "transparent"
 
+    KCoreAddons.KUser {
+        id: kuser
+    }
+
     // Sourceless Glass Design Tokens (Windows 11 Mica/Acrylic Dark Inspired)
     readonly property color brandHighlight: "#6054F2"
     readonly property color brandHighlightHover: "#7368F7"
@@ -20,7 +26,7 @@ ApplicationWindow {
     readonly property color bgSidebar: Qt.rgba(0.05, 0.06, 0.09, 0.65)
     readonly property color bgCard: Qt.rgba(0.13, 0.15, 0.21, 0.72)
     readonly property color bgCardHover: Qt.rgba(0.16, 0.18, 0.26, 0.82)
-    readonly property color bgInput: Qt.rgba(0.09, 0.10, 0.15, 0.90)
+    readonly property color bgInput: Qt.rgba(0.09, 0.10, 0.15, 0.92)
     readonly property color borderSubtle: Qt.rgba(1, 1, 1, 0.08)
     readonly property color textMain: "#E8ECFF"
     readonly property color textMuted: "#949BC0"
@@ -47,7 +53,7 @@ ApplicationWindow {
         }
     }
 
-    // Reusable Windows 11 Setting Card Component
+    // 1. Reusable Windows 11 Setting Card Component
     component SettingCard : Rectangle {
         default property alias cardContent: innerCol.data
         Layout.fillWidth: true
@@ -65,7 +71,7 @@ ApplicationWindow {
         }
     }
 
-    // Reusable Action Button
+    // 2. Reusable Action Button
     component ActionButton : Rectangle {
         id: btnRoot
         property string labelText: ""
@@ -74,7 +80,7 @@ ApplicationWindow {
         property bool enabledBtn: true
         signal triggered()
 
-        implicitWidth: Math.max(105, btnLbl.implicitWidth + 28)
+        implicitWidth: Math.max(110, btnLbl.implicitWidth + 28)
         implicitHeight: 34
         radius: 6
         opacity: enabledBtn ? 1.0 : 0.45
@@ -84,7 +90,7 @@ ApplicationWindow {
             if (primary) return btnMouse.containsMouse ? root.brandHighlightHover : root.brandHighlight
             return btnMouse.containsMouse ? Qt.rgba(0.24, 0.27, 0.38, 0.9) : Qt.rgba(0.19, 0.21, 0.30, 0.85)
         }
-        border.color: primary ? "transparent" : root.borderSubtle
+        border.color: (primary || danger) ? "transparent" : root.borderSubtle
         border.width: 1
 
         Label {
@@ -107,7 +113,7 @@ ApplicationWindow {
         }
     }
 
-    // Reusable Toggle Pill (Windows 11 Switch)
+    // 3. Reusable Toggle Pill (Windows 11 Switch)
     component WinSwitch : Rectangle {
         id: switchRoot
         property bool checkedState: false
@@ -134,6 +140,156 @@ ApplicationWindow {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: switchRoot.toggled(!switchRoot.checkedState)
+        }
+    }
+
+    // 4. Reusable Windows 11 Slider (Styled with #6054F2 Brand Highlight)
+    component WinSlider : Slider {
+        id: sliderControl
+        implicitWidth: 200
+        implicitHeight: 26
+
+        background: Rectangle {
+            x: sliderControl.leftPadding
+            y: sliderControl.topPadding + sliderControl.availableHeight / 2 - height / 2
+            implicitWidth: 200
+            implicitHeight: 6
+            width: sliderControl.availableWidth
+            height: implicitHeight
+            radius: 3
+            color: Qt.rgba(0.22, 0.25, 0.35, 0.95)
+
+            Rectangle {
+                width: sliderControl.visualPosition * parent.width
+                height: parent.height
+                color: root.brandHighlight
+                radius: 3
+            }
+        }
+
+        handle: Rectangle {
+            x: sliderControl.leftPadding + sliderControl.visualPosition * (sliderControl.availableWidth - width)
+            y: sliderControl.topPadding + sliderControl.availableHeight / 2 - height / 2
+            implicitWidth: 18
+            implicitHeight: 18
+            radius: 9
+            color: sliderControl.pressed ? root.brandHighlightHover : root.brandHighlight
+            border.color: "#FFFFFF"
+            border.width: 3
+        }
+    }
+
+    // 5. Reusable Windows 11 ProgressBar (Styled with #6054F2 or Custom Color)
+    component WinProgressBar : Item {
+        id: progRoot
+        property real percentValue: 0
+        property color barColor: root.brandHighlight
+        Layout.fillWidth: true
+        implicitHeight: 8
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 4
+            color: Qt.rgba(0.22, 0.25, 0.35, 0.95)
+
+            Rectangle {
+                width: Math.max(6, Math.min(1.0, progRoot.percentValue / 100.0) * parent.width)
+                height: parent.height
+                radius: 4
+                color: progRoot.barColor
+                Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            }
+        }
+    }
+
+    // 6. Reusable Windows 11 Dropdown List (ComboBox)
+    component WinComboBox : ComboBox {
+        id: comboControl
+        implicitWidth: 210
+        implicitHeight: 36
+
+        delegate: ItemDelegate {
+            id: itemDlgt
+            required property var model
+            required property int index
+            width: comboControl.width
+            height: 34
+            highlighted: comboControl.highlightedIndex === index
+
+            contentItem: Label {
+                text: itemDlgt.model[comboControl.textRole] !== undefined ? itemDlgt.model[comboControl.textRole] : itemDlgt.modelData
+                color: "#FFFFFF"
+                font.pixelSize: 13
+                font.bold: comboControl.currentIndex === itemDlgt.index
+                verticalAlignment: Text.AlignVCenter
+                leftPadding: 10
+            }
+
+            background: Rectangle {
+                radius: 6
+                color: itemDlgt.highlighted ? root.brandHighlight : (comboControl.currentIndex === itemDlgt.index ? Qt.rgba(0.38, 0.33, 0.95, 0.30) : "transparent")
+            }
+        }
+
+        indicator: Canvas {
+            id: canvas
+            x: comboControl.width - width - 12
+            y: comboControl.topPadding + (comboControl.availableHeight - height) / 2
+            width: 10
+            height: 6
+            contextType: "2d"
+
+            onPaint: {
+                context.reset();
+                context.moveTo(0, 0);
+                context.lineTo(width, 0);
+                context.lineTo(width / 2, height);
+                context.closePath();
+                context.fillStyle = "#E8ECFF";
+                context.fill();
+            }
+        }
+
+        contentItem: Label {
+            leftPadding: 12
+            rightPadding: comboControl.indicator.width + 18
+            text: comboControl.displayText
+            font.pixelSize: 13
+            font.bold: true
+            color: root.textMain
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+
+        background: Rectangle {
+            implicitWidth: 210
+            implicitHeight: 36
+            color: comboControl.down || comboControl.popup.visible ? Qt.rgba(0.18, 0.20, 0.29, 0.98) : root.bgInput
+            border.color: comboControl.popup.visible || comboControl. hovered ? root.brandHighlight : root.borderSubtle
+            border.width: 1
+            radius: 6
+        }
+
+        popup: Popup {
+            y: comboControl.height + 4
+            width: comboControl.width
+            implicitHeight: Math.min(280, contentItem.implicitHeight + 12)
+            padding: 6
+
+            contentItem: ListView {
+                clip: true
+                implicitHeight: contentHeight
+                model: comboControl.popup.visible ? comboControl.delegateModel : null
+                currentIndex: comboControl.highlightedIndex
+                ScrollIndicator.vertical: ScrollIndicator { }
+            }
+
+            background: Rectangle {
+                color: Qt.rgba(0.09, 0.10, 0.15, 0.98)
+                border.color: root.brandHighlight
+                border.width: 1
+                radius: 8
+            }
         }
     }
 
@@ -170,7 +326,7 @@ ApplicationWindow {
                     anchors.margins: 18
                     spacing: 12
 
-                    // 1. Dynamic User Profile Card (No Hardcoded Values!)
+                    // 1. Dynamic User Profile Card with Real Profile Photo
                     Rectangle {
                         Layout.fillWidth: true
                         height: 68
@@ -183,22 +339,16 @@ ApplicationWindow {
                             anchors.rightMargin: 10
                             spacing: 12
 
-                            // Avatar Circle with Initials Fallback
-                            Rectangle {
-                                width: 46
-                                height: 46
-                                radius: 23
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#6054F2" }
-                                    GradientStop { position: 1.0; color: "#2AC3A2" }
-                                }
+                            // Real User Avatar (Matches Start Menu Dog Picture!)
+                            Item {
+                                width: 48
+                                height: 48
 
-                                Label {
-                                    anchors.centerIn: parent
-                                    text: backend ? backend.userInitials : "SL"
-                                    color: "#FFFFFF"
-                                    font.pixelSize: 16
-                                    font.bold: true
+                                KirigamiComponents.Avatar {
+                                    id: sidebarAvatar
+                                    anchors.fill: parent
+                                    source: (backend && backend.userAvatar !== "") ? backend.userAvatar : kuser.faceIconUrl
+                                    name: backend ? backend.userFullName : kuser.fullName
                                 }
                             }
 
@@ -208,7 +358,7 @@ ApplicationWindow {
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: backend ? backend.userFullName : "User"
+                                    text: (kuser.fullName && kuser.fullName !== "") ? kuser.fullName : (backend ? backend.userFullName : "User")
                                     color: root.textMain
                                     font.pixelSize: 15
                                     font.bold: true
@@ -272,7 +422,7 @@ ApplicationWindow {
                                     else if (q.includes("wall") || q.includes("theme") || q.includes("blur") || q.includes("dark")) root.currentPage = 4
                                     else if (q.includes("app") || q.includes("flatpak") || q.includes("install")) root.currentPage = 5
                                     else if (q.includes("time") || q.includes("clock") || q.includes("key") || q.includes("lang")) root.currentPage = 6
-                                    else if (q.includes("sec") || q.includes("shield") || q.includes("term") || q.includes("support")) root.currentPage = 7
+                                    else if (q.includes("sec") || q.includes("shield") || q.includes("term") || q.includes("support") || q.includes("mod")) root.currentPage = 7
                                     else if (q.includes("sound") || q.includes("vol") || q.includes("disp") || q.includes("res") || q.includes("pow") || q.includes("bat")) root.currentPage = 1
                                     else root.currentPage = 0
                                 }
@@ -335,6 +485,15 @@ ApplicationWindow {
                                     font.pixelSize: 14
                                     font.bold: navItem.isSelected
                                 }
+
+                                // Red Warning Badge on Privacy & Security if system is Modified
+                                Rectangle {
+                                    visible: navItem.modelData.pageIdx === 7 && backend && !backend.overallSecurityOk
+                                    width: 8
+                                    height: 8
+                                    radius: 4
+                                    color: root.statusRed
+                                }
                             }
 
                             MouseArea {
@@ -343,11 +502,11 @@ ApplicationWindow {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    root.currentPage = modelData.pageIdx
-                                    if (modelData.pageIdx === 3) backend.refreshNetwork()
-                                    else if (modelData.pageIdx === 2) backend.refreshBluetooth()
-                                    else if (modelData.pageIdx === 5) backend.refreshApps()
-                                    else if (modelData.pageIdx === 7) backend.refreshSecurity()
+                                    root.currentPage = navItem.modelData.pageIdx
+                                    if (navItem.modelData.pageIdx === 3) backend.refreshNetwork()
+                                    else if (navItem.modelData.pageIdx === 2) backend.refreshBluetooth()
+                                    else if (navItem.modelData.pageIdx === 5) backend.refreshApps()
+                                    else if (navItem.modelData.pageIdx === 7) backend.refreshSecurity()
                                 }
                             }
                         }
@@ -355,13 +514,14 @@ ApplicationWindow {
 
                     Item { Layout.fillHeight: true }
 
-                    // Footer Status Pill
+                    // Footer Status Pill (Turns RED if Modified/Negative, GREEN if Intact)
                     Rectangle {
+                        readonly property bool secOk: backend ? backend.overallSecurityOk : true
                         Layout.fillWidth: true
-                        height: 36
+                        height: 38
                         radius: 8
-                        color: Qt.rgba(0.16, 0.76, 0.63, 0.12)
-                        border.color: Qt.rgba(0.16, 0.76, 0.63, 0.30)
+                        color: secOk ? Qt.rgba(0.16, 0.76, 0.63, 0.12) : Qt.rgba(0.95, 0.33, 0.43, 0.16)
+                        border.color: secOk ? Qt.rgba(0.16, 0.76, 0.63, 0.35) : Qt.rgba(0.95, 0.33, 0.43, 0.45)
                         border.width: 1
 
                         RowLayout {
@@ -374,16 +534,27 @@ ApplicationWindow {
                                 width: 8
                                 height: 8
                                 radius: 4
-                                color: root.statusGreen
+                                color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.statusGreen
                             }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: backend && backend.statusMessage !== "" ? backend.statusMessage : "Sourceless Lockdown Active"
-                                color: root.textMain
+                                text: {
+                                    if (backend && backend.statusMessage !== "") return backend.statusMessage
+                                    if (backend && !backend.overallSecurityOk) return "Status: " + backend.systemIntegrity
+                                    return "Sourceless Lockdown Active"
+                                }
+                                color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.textMain
                                 font.pixelSize: 12
+                                font.bold: backend ? !backend.overallSecurityOk : false
                                 elide: Text.ElideRight
                             }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.currentPage = 7
                         }
                     }
                 }
@@ -460,21 +631,23 @@ ApplicationWindow {
                                     }
 
                                     RowLayout {
-                                        spacing: 16
+                                        spacing: 18
                                         Label {
-                                            text: backend && backend.networkConnected ? ("● " + backend.connectionType + ": " + backend.activeNetworkName) : "○ Offline"
-                                            color: backend && backend.networkConnected ? root.statusGreen : root.statusAmber
+                                            text: backend && backend.networkConnected ? ("● " + backend.connectionType + ": " + backend.activeNetworkName) : "● Network: Offline"
+                                            color: backend && backend.networkConnected ? root.statusGreen : root.statusRed
                                             font.pixelSize: 13
                                             font.bold: true
                                         }
                                         Label {
-                                            text: "● Shield: Protected"
-                                            color: root.statusGreen
+                                            text: (backend && !backend.overallSecurityOk) ? ("● System: " + backend.systemIntegrity) : "● Shield: Protected"
+                                            color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.statusGreen
                                             font.pixelSize: 13
                                             font.bold: true
                                         }
                                     }
                                 }
+
+                                Item { Layout.fillWidth: true }
 
                                 ActionButton {
                                     labelText: "Device specs"
@@ -507,7 +680,7 @@ ApplicationWindow {
                                     font.pixelSize: 14
                                     Layout.preferredWidth: 140
                                 }
-                                Slider {
+                                WinSlider {
                                     Layout.fillWidth: true
                                     from: 0; to: 100
                                     value: backend ? backend.volume : 70
@@ -573,7 +746,7 @@ ApplicationWindow {
                             }
                         }
 
-                        // Recommended Shortcuts (Windows 11 Cards)
+                        // Recommended Shortcuts (Buttons Aligned Flush Right!)
                         Label {
                             text: "Recommended settings"
                             color: root.textMain
@@ -584,13 +757,14 @@ ApplicationWindow {
                         SettingCard {
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 14
                                 Kirigami.Icon { source: "video-display"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Display resolution & scaling"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: backend ? (backend.displayName + " • " + backend.currentResolution + " (" + backend.displayScale + "%)") : ""; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton { labelText: "Configure"; onTriggered: root.currentPage = 1 }
                             }
 
@@ -598,13 +772,14 @@ ApplicationWindow {
 
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 14
                                 Kirigami.Icon { source: "network-wireless"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Wi-Fi & Network connections"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: backend ? ("IP: " + backend.ipAddress + " • " + backend.dnsStatus) : ""; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton { labelText: "Manage"; onTriggered: { root.currentPage = 3; backend.scanWifi() } }
                             }
 
@@ -612,13 +787,14 @@ ApplicationWindow {
 
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 14
                                 Kirigami.Icon { source: "preferences-desktop-wallpaper"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Personalize Sourceless Glass"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Switch curated dark wallpapers and window translucency"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton { labelText: "Personalize"; onTriggered: root.currentPage = 4 }
                             }
                         }
@@ -631,33 +807,29 @@ ApplicationWindow {
 
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 6
+                                    spacing: 8
                                     RowLayout {
                                         Layout.fillWidth: true
                                         Label { text: "System Storage"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                         Item { Layout.fillWidth: true }
                                         Label { text: backend ? (backend.diskUsedText + " / " + backend.diskTotalText + " (" + backend.diskFreeText + " free)") : ""; color: root.textMuted; font.pixelSize: 12 }
                                     }
-                                    ProgressBar {
-                                        Layout.fillWidth: true
-                                        from: 0; to: 100
-                                        value: backend ? backend.diskPercent : 20
+                                    WinProgressBar {
+                                        percentValue: backend ? backend.diskPercent : 20
                                     }
                                 }
 
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 6
+                                    spacing: 8
                                     RowLayout {
                                         Layout.fillWidth: true
                                         Label { text: "Memory (RAM)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                         Item { Layout.fillWidth: true }
                                         Label { text: backend ? (backend.ramUsedText + " / " + backend.ramTotalText + " (" + backend.ramPercent + "%)") : ""; color: root.textMuted; font.pixelSize: 12 }
                                     }
-                                    ProgressBar {
-                                        Layout.fillWidth: true
-                                        from: 0; to: 100
-                                        value: backend ? backend.ramPercent : 30
+                                    WinProgressBar {
+                                        percentValue: backend ? backend.ramPercent : 30
                                     }
                                 }
                             }
@@ -668,7 +840,7 @@ ApplicationWindow {
                 }
 
                 // -------------------------------------------------------------
-                // PAGE 1: SYSTEM (Display, Sound, Power, Storage, About)
+                // PAGE 1: SYSTEM (Display Dropdowns, Sound, Power, Storage, About)
                 // -------------------------------------------------------------
                 ScrollView {
                     clip: true
@@ -688,71 +860,84 @@ ApplicationWindow {
                             font.bold: true
                         }
 
-                        // DISPLAY SECTION
+                        // DISPLAY SECTION (Now with Windows 11 Dropdown Lists!)
                         Label { text: "Display & Graphics"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            // Row 1: Display Resolution Dropdown
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 14
                                 Kirigami.Icon { source: "video-display"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Display resolution"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: backend ? ("Active monitor: " + backend.displayName + " (" + backend.currentResolution + ")") : ""; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                            }
-
-                            Flow {
-                                Layout.fillWidth: true
-                                spacing: 8
-                                Repeater {
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: resCombo
                                     model: backend ? backend.availableResolutions : []
-                                    delegate: ActionButton {
-                                        required property string modelData
-                                        labelText: modelData
-                                        primary: backend && backend.currentResolution === modelData
-                                        onTriggered: backend.setResolution(modelData)
+                                    currentIndex: {
+                                        if (!backend || !backend.availableResolutions) return 0
+                                        const idx = backend.availableResolutions.indexOf(backend.currentResolution)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && backend.availableResolutions[index]) {
+                                            backend.setResolution(backend.availableResolutions[index])
+                                        }
                                     }
                                 }
                             }
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
 
+                            // Row 2: Scale & Layout Dropdown
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 14
+                                Kirigami.Icon { source: "preferences-desktop-display-randr"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Scale & Layout"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Change the size of text, apps, and other items"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Repeater {
-                                    model: [100, 125, 150, 175, 200]
-                                    delegate: ActionButton {
-                                        required property int modelData
-                                        labelText: modelData + "%"
-                                        primary: backend && backend.displayScale === modelData
-                                        onTriggered: backend.setDisplayScale(modelData)
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: scaleCombo
+                                    readonly property var scaleValues: [100, 125, 150, 175, 200]
+                                    model: ["100% (Recommended)", "125%", "150%", "175%", "200%"]
+                                    currentIndex: {
+                                        if (!backend) return 0
+                                        const idx = scaleValues.indexOf(backend.displayScale)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && scaleValues[index] !== undefined) {
+                                            backend.setDisplayScale(scaleValues[index])
+                                        }
                                     }
                                 }
                             }
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
 
+                            // Row 3: Night Light
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
+                                Kirigami.Icon { source: "redshift-status-on"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Night Light (Eye Comfort)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Use warmer colors to help block blue light"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { text: "Use warmer colors to help block blue light (" + (backend ? backend.nightLightTemp : 4500) + "K)"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Slider {
+                                Item { Layout.fillWidth: true }
+                                WinSlider {
                                     from: 2800; to: 6000; stepSize: 100
                                     value: backend ? backend.nightLightTemp : 4500
-                                    Layout.preferredWidth: 160
+                                    Layout.preferredWidth: 180
                                     onMoved: backend.setNightLight(backend.nightLightEnabled, Math.round(value))
                                 }
                                 WinSwitch {
@@ -771,18 +956,18 @@ ApplicationWindow {
                                 spacing: 14
                                 Kirigami.Icon { source: "audio-speakers"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.preferredWidth: 220
+                                    Layout.preferredWidth: 240
                                     spacing: 2
                                     Label { text: "Output Volume"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: backend ? backend.audioOutputName : "System Audio"; color: root.textMuted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                                 }
-                                Slider {
+                                WinSlider {
                                     Layout.fillWidth: true
                                     from: 0; to: 100
                                     value: backend ? backend.volume : 70
                                     onMoved: backend.setVolume(Math.round(value))
                                 }
-                                Label { text: (backend ? backend.volume : 70) + "%"; color: root.textMain; Layout.preferredWidth: 40 }
+                                Label { text: (backend ? backend.volume : 70) + "%"; color: root.textMain; Layout.preferredWidth: 42; horizontalAlignment: Text.AlignRight }
                                 ActionButton { labelText: backend && backend.muted ? "Unmute" : "Mute"; onTriggered: backend.toggleMute() }
                                 ActionButton { labelText: "Test"; primary: true; onTriggered: backend.testSound() }
                             }
@@ -794,18 +979,18 @@ ApplicationWindow {
                                 spacing: 14
                                 Kirigami.Icon { source: "audio-input-microphone"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.preferredWidth: 220
+                                    Layout.preferredWidth: 240
                                     spacing: 2
                                     Label { text: "Microphone Sensitivity"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: backend && backend.micMuted ? "Microphone Muted" : "Input Active"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { text: backend && backend.micMuted ? "Microphone Muted" : "Input Active"; color: backend && backend.micMuted ? root.statusRed : root.textMuted; font.pixelSize: 12 }
                                 }
-                                Slider {
+                                WinSlider {
                                     Layout.fillWidth: true
                                     from: 0; to: 100
                                     value: backend ? backend.micVolume : 80
                                     onMoved: backend.setMicVolume(Math.round(value))
                                 }
-                                Label { text: (backend ? backend.micVolume : 80) + "%"; color: root.textMain; Layout.preferredWidth: 40 }
+                                Label { text: (backend ? backend.micVolume : 80) + "%"; color: root.textMain; Layout.preferredWidth: 42; horizontalAlignment: Text.AlignRight }
                                 ActionButton { labelText: backend && backend.micMuted ? "Unmute Mic" : "Mute Mic"; onTriggered: backend.toggleMicMute() }
                             }
                         }
@@ -816,13 +1001,14 @@ ApplicationWindow {
                         SettingCard {
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 12
                                 Kirigami.Icon { source: "battery-full"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Power Mode & Energy"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: backend ? (backend.batteryState + " (" + backend.batteryPercent + "%)") : ""; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton {
                                     labelText: "Power Saver"
                                     primary: backend && backend.powerProfile === "power-saver"
@@ -844,13 +1030,14 @@ ApplicationWindow {
 
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 12
                                 Kirigami.Icon { source: "drive-harddisk"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Storage Sense (" + (backend ? backend.diskUsedText : "") + " used of " + (backend ? backend.diskTotalText : "") + ")"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Free space available: " + (backend ? backend.diskFreeText : ""); color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton {
                                     labelText: "Clean Temp Cache"
                                     onTriggered: backend.clearUserCache()
@@ -928,11 +1115,11 @@ ApplicationWindow {
                                 spacing: 14
                                 Kirigami.Icon { source: "preferences-system-bluetooth"; width: 24; height: 24 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Bluetooth"; color: root.textMain; font.pixelSize: 15; font.bold: true }
                                     Label { text: backend && backend.bluetoothEnabled ? "Discoverable as " + backend.hostname : "Bluetooth is turned off"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton {
                                     labelText: "Scan Devices"
                                     primary: true
@@ -986,13 +1173,13 @@ ApplicationWindow {
                                     Label { text: "Cursor Speed"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Adjust pointer sensitivity"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Slider {
+                                WinSlider {
                                     Layout.fillWidth: true
                                     from: 1; to: 10; stepSize: 1
                                     value: backend ? backend.mouseSpeed : 5
                                     onMoved: backend.setMouseSettings(Math.round(value), backend.naturalScroll, backend.tapToClick, backend.leftHandedMouse)
                                 }
-                                Label { text: (backend ? backend.mouseSpeed : 5) + " / 10"; color: root.textMain; Layout.preferredWidth: 50 }
+                                Label { text: (backend ? backend.mouseSpeed : 5) + " / 10"; color: root.textMain; Layout.preferredWidth: 50; horizontalAlignment: Text.AlignRight }
                             }
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
@@ -1000,11 +1187,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Natural Scrolling"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Content tracks finger movement on touchpad"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.naturalScroll : false
                                     onToggled: function(val) { backend.setMouseSettings(backend.mouseSpeed, val, backend.tapToClick, backend.leftHandedMouse) }
@@ -1016,11 +1203,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Tap to Click (Touchpad)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Single-finger tap registers as left click"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.tapToClick : true
                                     onToggled: function(val) { backend.setMouseSettings(backend.mouseSpeed, backend.naturalScroll, val, backend.leftHandedMouse) }
@@ -1032,11 +1219,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Left-Handed Mouse Mode"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Swap primary left and right mouse buttons"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.leftHandedMouse : false
                                     onToggled: function(val) { backend.setMouseSettings(backend.mouseSpeed, backend.naturalScroll, backend.tapToClick, val) }
@@ -1081,11 +1268,10 @@ ApplicationWindow {
                                 }
 
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 4
                                     Label {
                                         text: backend && backend.networkConnected ? ("Connected to " + backend.activeNetworkName + " (" + backend.connectionType + ")") : "Not Connected"
-                                        color: root.textMain
+                                        color: backend && backend.networkConnected ? root.statusGreen : root.statusRed
                                         font.pixelSize: 16
                                         font.bold: true
                                     }
@@ -1096,9 +1282,12 @@ ApplicationWindow {
                                     }
                                 }
 
+                                Item { Layout.fillWidth: true }
+
                                 ActionButton {
                                     visible: backend ? backend.networkConnected : false
                                     labelText: "Disconnect"
+                                    danger: true
                                     onTriggered: backend.disconnectNetwork()
                                 }
                             }
@@ -1111,11 +1300,11 @@ ApplicationWindow {
                                 spacing: 14
                                 Kirigami.Icon { source: "network-wireless"; width: 22; height: 22 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Wi-Fi"; color: root.textMain; font.pixelSize: 15; font.bold: true }
                                     Label { text: "Connect to available wireless networks"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton {
                                     labelText: "Scan Networks"
                                     primary: true
@@ -1147,7 +1336,6 @@ ApplicationWindow {
                                         }
 
                                         ColumnLayout {
-                                            Layout.fillWidth: true
                                             spacing: 1
                                             Label {
                                                 text: modelData.ssid
@@ -1161,6 +1349,8 @@ ApplicationWindow {
                                                 font.pixelSize: 12
                                             }
                                         }
+
+                                        Item { Layout.fillWidth: true }
 
                                         Label {
                                             visible: modelData.inUse
@@ -1327,11 +1517,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Translucent Window Blur (Acrylic / Glass)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Apply real-time KWin GPU frosted glass blur behind translucent surfaces"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.blurEnabled : true
                                     onToggled: function(val) { backend.setBlurEnabled(val) }
@@ -1343,11 +1533,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Smooth Desktop Animations"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Enable window transitions and workspace animations"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.animationsEnabled : true
                                     onToggled: function(val) { backend.setAnimationsEnabled(val) }
@@ -1359,11 +1549,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Reset Taskbar & Desktop Layout"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Restore the default Sourceless floating dock and start menu configuration"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton {
                                     labelText: "Restore Layout"
                                     onTriggered: backend.resetDesktopLayout()
@@ -1441,7 +1631,6 @@ ApplicationWindow {
                                         }
 
                                         ColumnLayout {
-                                            Layout.fillWidth: true
                                             spacing: 1
                                             Label {
                                                 text: modelData.name
@@ -1455,6 +1644,8 @@ ApplicationWindow {
                                                 font.pixelSize: 12
                                             }
                                         }
+
+                                        Item { Layout.fillWidth: true }
 
                                         ActionButton {
                                             labelText: "Open"
@@ -1502,7 +1693,6 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Kirigami.Icon { source: "preferences-system-time"; width: 28; height: 28 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label {
                                         text: backend ? backend.currentDateTime : ""
@@ -1516,6 +1706,7 @@ ApplicationWindow {
                                         font.pixelSize: 13
                                     }
                                 }
+                                Item { Layout.fillWidth: true }
                             }
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
@@ -1523,11 +1714,11 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "24-hour clock format"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Display time using 24-hour military notation"; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.use24Hour : true
                                     onToggled: function(val) { backend.setUse24Hour(val) }
@@ -1580,7 +1771,7 @@ ApplicationWindow {
                 }
 
                 // -------------------------------------------------------------
-                // PAGE 7: PRIVACY & SECURITY (Sourceless OS Lockdown Status)
+                // PAGE 7: PRIVACY & SECURITY (Color-Coded Posture + Live Tools)
                 // -------------------------------------------------------------
                 ScrollView {
                     clip: true
@@ -1593,54 +1784,81 @@ ApplicationWindow {
 
                         Item { height: 12 }
 
-                        Label {
-                            text: "Privacy & security"
-                            color: root.textMain
-                            font.pixelSize: 28
-                            font.bold: true
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: "Privacy & security"
+                                color: root.textMain
+                                font.pixelSize: 28
+                                font.bold: true
+                            }
+                            Item { Layout.fillWidth: true }
+                            ActionButton {
+                                labelText: "Refresh Status"
+                                onTriggered: backend.refreshSecurity()
+                            }
                         }
 
+                        // Top Security Posture Card (Turns RED when Modified / Negative!)
                         SettingCard {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 16
 
                                 Rectangle {
-                                    width: 52
-                                    height: 52
-                                    radius: 12
-                                    color: Qt.rgba(0.16, 0.76, 0.63, 0.18)
-                                    border.color: root.statusGreen
+                                    readonly property bool secOk: backend ? backend.overallSecurityOk : true
+                                    width: 56
+                                    height: 56
+                                    radius: 14
+                                    color: secOk ? Qt.rgba(0.16, 0.76, 0.63, 0.18) : Qt.rgba(0.95, 0.33, 0.43, 0.20)
+                                    border.color: secOk ? root.statusGreen : root.statusRed
                                     border.width: 1
 
                                     Kirigami.Icon {
                                         anchors.centerIn: parent
-                                        source: "security-high"
-                                        width: 28; height: 28
+                                        source: (backend && !backend.overallSecurityOk) ? "security-low" : "security-high"
+                                        width: 30; height: 30
                                     }
                                 }
 
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 3
+                                    spacing: 4
                                     Label {
-                                        text: "Sourceless Security Policy is Enforced"
-                                        color: root.statusGreen
+                                        text: (backend && !backend.overallSecurityOk)
+                                              ? ("Security Warning: System State Modified (" + backend.securityScore + "%)")
+                                              : ("Sourceless Security Policy is Enforced (" + (backend ? backend.securityScore : 100) + "%)")
+                                        color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.statusGreen
                                         font.pixelSize: 17
                                         font.bold: true
                                     }
                                     Label {
-                                        text: "Your system is protected by immutable read-only rootfs, real-time YARA malware scanning, and privilege lockdown."
+                                        text: (backend && !backend.overallSecurityOk)
+                                              ? "One or more security seals are unsealed (Sudo / Wheel privilege or Support Terminal active). Review red indicators below."
+                                              : "All mandatory lockdown controls, read-only OSTree verification, and YARA malware shields are intact."
                                         color: root.textMuted
                                         font.pixelSize: 13
                                         wrapMode: Text.WordWrap
                                         Layout.fillWidth: true
                                     }
                                 }
+
+                                ActionButton {
+                                    visible: backend ? backend.supportSessionActive : false
+                                    labelText: "Lock Support Session"
+                                    danger: true
+                                    onTriggered: backend.lockSupportSession()
+                                }
+                            }
+
+                            WinProgressBar {
+                                percentValue: backend ? backend.securityScore : 100
+                                barColor: (backend && !backend.overallSecurityOk) ? root.statusRed : root.statusGreen
                             }
                         }
 
-                        Label { text: "Active Protection Layers (Read-Only)"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+                        // Active Protection Layers (Every Negative State is RED!)
+                        Label { text: "Active Protection Layers (Real-Time Telemetry)"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
                             GridLayout {
@@ -1649,34 +1867,112 @@ ApplicationWindow {
                                 columnSpacing: 24
                                 rowSpacing: 12
 
-                                Label { text: "System Image Integrity"; color: root.textMuted; font.pixelSize: 13 }
-                                Label { text: backend ? backend.systemIntegrity : ""; color: root.statusGreen; font.pixelSize: 13; font.bold: true }
+                                Label { text: "System Image & Tamper Seal"; color: root.textMuted; font.pixelSize: 13 }
+                                Label {
+                                    text: backend ? backend.systemIntegrity : ""
+                                    color: (backend && backend.isTampered) ? root.statusRed : root.statusGreen
+                                    font.pixelSize: 13; font.bold: true
+                                }
+
+                                Label { text: "Interactive Terminal Gate"; color: root.textMuted; font.pixelSize: 13 }
+                                Label {
+                                    text: (backend && backend.supportSessionActive) ? "UNSEALED (Support Shell Permitted)" : "Locked (Kiosk Policy Enforced)"
+                                    color: (backend && backend.supportSessionActive) ? root.statusRed : root.statusGreen
+                                    font.pixelSize: 13; font.bold: true
+                                }
 
                                 Label { text: "SELinux Access Control"; color: root.textMuted; font.pixelSize: 13 }
-                                Label { text: backend ? backend.selinuxStatus : ""; color: root.statusGreen; font.pixelSize: 13; font.bold: true }
+                                Label {
+                                    text: backend ? backend.selinuxStatus : ""
+                                    color: (backend && !backend.selinuxOk) ? root.statusRed : root.statusGreen
+                                    font.pixelSize: 13; font.bold: true
+                                }
 
                                 Label { text: "Kernel Lockdown Mode"; color: root.textMuted; font.pixelSize: 13 }
-                                Label { text: backend ? backend.lockdownMode : ""; color: root.statusGreen; font.pixelSize: 13; font.bold: true }
+                                Label {
+                                    text: backend ? backend.lockdownMode : ""
+                                    color: (backend && !backend.lockdownOk) ? root.statusRed : root.statusGreen
+                                    font.pixelSize: 13; font.bold: true
+                                }
 
                                 Label { text: "Sourceless Real-Time YARA Shield"; color: root.textMuted; font.pixelSize: 13 }
                                 Label {
-                                    text: backend && backend.shieldActive ? "Active (Monitoring ~/Downloads & Autostart)" : "Inactive"
-                                    color: backend && backend.shieldActive ? root.statusGreen : root.statusAmber
+                                    text: backend && backend.shieldActive ? "Active (Monitoring ~/Downloads & Autostart)" : "STOPPED (Unprotected)"
+                                    color: backend && backend.shieldActive ? root.statusGreen : root.statusRed
                                     font.pixelSize: 13; font.bold: true
                                 }
 
                                 Label { text: "Telemetry & Remote Support Agent"; color: root.textMuted; font.pixelSize: 13 }
                                 Label {
-                                    text: backend && backend.clientActive ? "Connected (Enrolled HWID)" : "Standby"
-                                    color: backend && backend.clientActive ? root.statusGreen : root.textMuted
+                                    text: backend && backend.clientActive ? "Connected (Enrolled HWID)" : "Offline / Disconnected"
+                                    color: backend && backend.clientActive ? root.statusGreen : root.statusRed
                                     font.pixelSize: 13; font.bold: true
                                 }
 
                                 Label { text: "DNS-over-TLS & Malware Filtering"; color: root.textMuted; font.pixelSize: 13 }
-                                Label { text: backend ? backend.dnsStatus : ""; color: root.statusGreen; font.pixelSize: 13; font.bold: true }
+                                Label {
+                                    text: backend ? backend.dnsStatus : ""
+                                    color: root.statusGreen
+                                    font.pixelSize: 13; font.bold: true
+                                }
                             }
                         }
 
+                        // On-Demand YARA Threat Scanner Card
+                        Label { text: "Endpoint Malware & Infostealer Scanner (YARA)"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                Kirigami.Icon { source: "security-medium"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "On-Demand Downloads & Home Threat Scan"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label {
+                                        text: backend ? backend.lastScanResult : ""
+                                        color: (backend && backend.lastScanResult.startsWith("ALERT:")) ? root.statusRed : root.statusGreen
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                    }
+                                }
+                                Item { Layout.fillWidth: true }
+                                ActionButton {
+                                    labelText: "Scan Now"
+                                    primary: true
+                                    onTriggered: backend.runQuickSecurityScan()
+                                }
+                            }
+                        }
+
+                        // Active Security Events / Findings
+                        Label { text: "Security Audit Findings"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            Repeater {
+                                model: backend ? backend.securityEvents : []
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    Rectangle {
+                                        width: 8; height: 8; radius: 4
+                                        color: modelData.severity === "critical" ? root.statusRed : (modelData.severity === "warning" ? root.statusAmber : root.statusGreen)
+                                    }
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.title
+                                        color: modelData.severity === "critical" ? root.statusRed : root.textMain
+                                        font.pixelSize: 13
+                                        font.bold: modelData.severity === "critical"
+                                    }
+                                }
+                            }
+                        }
+
+                        // Authorized Technical Support
                         Label { text: "Authorized Technical Support"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
@@ -1685,11 +1981,11 @@ ApplicationWindow {
                                 spacing: 14
                                 Kirigami.Icon { source: "utilities-terminal"; width: 24; height: 24 }
                                 ColumnLayout {
-                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "Emergency Technician Terminal"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Requires today's cryptographic support authorization key. Unsealing triggers tamper telemetry."; color: root.textMuted; font.pixelSize: 12 }
                                 }
+                                Item { Layout.fillWidth: true }
                                 ActionButton {
                                     labelText: "Authorize Support Shell"
                                     onTriggered: backend.launchEmergencyTerminal()

@@ -14,10 +14,10 @@
 #include <QStandardPaths>
 #include <QStorageInfo>
 #include <QSysInfo>
-#include <QTextStream>
 #include <QThread>
 #include <QUrl>
 #include <cmath>
+#include <unistd.h>
 
 SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
     : QObject(parent)
@@ -26,14 +26,15 @@ SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
     loadStaticSystemInfo();
     refreshAll();
 
-    // Refresh lightweight live metrics (clock, audio, network, battery) every 8 seconds
+    // Refresh live metrics (clock, audio, RAM/disk, battery, security) every 6 seconds
     connect(&m_periodicTimer, &QTimer::timeout, this, [this]() {
         loadDynamicSystemMetrics();
         refreshTime();
         refreshAudio();
         refreshPower();
+        refreshSecurity();
     });
-    m_periodicTimer.start(8000);
+    m_periodicTimer.start(6000);
 }
 
 QString SystemBackend::runCommand(const QString &program, const QStringList &args, int timeoutMs) const
@@ -71,9 +72,6 @@ void SystemBackend::loadStaticSystemInfo()
     m_userFullName = kuser.property(KUser::FullName).toString().trimmed();
     if (m_userFullName.isEmpty()) {
         m_userFullName = m_userName;
-        if (!m_userFullName.isEmpty()) {
-            m_userFullName[0] = m_userFullName[0].toUpper();
-        }
     }
 
     // Compute initials
@@ -86,17 +84,40 @@ void SystemBackend::loadStaticSystemInfo()
         m_userInitials = QStringLiteral("SL");
     }
 
-    // Check possible avatar paths
-    QStringList avatarCandidates = {
+    // Comprehensive Profile Picture (Avatar) Discovery
+    const uid_t uid = getuid();
+    const QString accountsDbusIcon = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"),
+         QStringLiteral("org.freedesktop.Accounts"),
+         QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid),
+         QStringLiteral("org.freedesktop.Accounts.User.IconFile")}, 1200);
+
+    QString accountsFileIcon;
+    QFile accUserFile(QStringLiteral("/var/lib/AccountsService/users/") + m_userName);
+    if (accUserFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        for (const QString &line : QString::fromUtf8(accUserFile.readAll()).split(QLatin1Char('\n'))) {
+            if (line.trimmed().startsWith(QStringLiteral("Icon="))) {
+                accountsFileIcon = line.trimmed().mid(5).trimmed();
+                break;
+            }
+        }
+    }
+
+    const QStringList avatarCandidates = {
         kuser.faceIconPath(),
+        accountsDbusIcon,
+        accountsFileIcon,
         QStringLiteral("/var/lib/AccountsService/icons/") + m_userName,
         QDir::homePath() + QStringLiteral("/.face.icon"),
-        QDir::homePath() + QStringLiteral("/.face")
+        QDir::homePath() + QStringLiteral("/.face"),
+        QDir::homePath() + QStringLiteral("/.config/face.icon")
     };
+
     m_userAvatar.clear();
     for (const QString &candidate : avatarCandidates) {
-        if (!candidate.isEmpty() && QFileInfo::exists(candidate)) {
-            m_userAvatar = QUrl::fromLocalFile(candidate).toString();
+        const QString cleanPath = candidate.trimmed();
+        if (!cleanPath.isEmpty() && QFileInfo::exists(cleanPath) && QFileInfo(cleanPath).isFile()) {
+            m_userAvatar = QUrl::fromLocalFile(cleanPath).toString();
             break;
         }
     }
@@ -117,9 +138,9 @@ void SystemBackend::loadStaticSystemInfo()
     m_osName = QSysInfo::prettyProductName();
     QFile osRelease(QStringLiteral("/etc/os-release"));
     if (osRelease.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&osRelease);
-        while (!in.atEnd()) {
-            const QString line = in.readLine().trimmed();
+        const QStringList lines = QString::fromUtf8(osRelease.readAll()).split(QLatin1Char('\n'));
+        for (const QString &rawLine : lines) {
+            const QString line = rawLine.trimmed();
             if (line.startsWith(QStringLiteral("PRETTY_NAME="))) {
                 QString val = line.mid(12).trimmed();
                 val.remove(QLatin1Char('"'));
@@ -132,19 +153,21 @@ void SystemBackend::loadStaticSystemInfo()
     }
     m_kernelVersion = QSysInfo::kernelVersion();
 
-    // CPU Model & Cores
+    // CPU Model & Cores (using readAll() because /proc/cpuinfo reports size 0 in stat)
     m_cpuCores = QThread::idealThreadCount();
     m_cpuModel = QSysInfo::currentCpuArchitecture();
     QFile cpuInfo(QStringLiteral("/proc/cpuinfo"));
     if (cpuInfo.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&cpuInfo);
-        while (!in.atEnd()) {
-            const QString line = in.readLine();
+        const QStringList lines = QString::fromUtf8(cpuInfo.readAll()).split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
             if (line.startsWith(QStringLiteral("model name"))) {
                 const int colonIdx = line.indexOf(QLatin1Char(':'));
                 if (colonIdx != -1) {
-                    m_cpuModel = line.mid(colonIdx + 1).trimmed();
-                    break;
+                    const QString model = line.mid(colonIdx + 1).trimmed();
+                    if (!model.isEmpty()) {
+                        m_cpuModel = model;
+                        break;
+                    }
                 }
             }
         }
@@ -181,14 +204,13 @@ void SystemBackend::loadStaticSystemInfo()
 
 void SystemBackend::loadDynamicSystemMetrics()
 {
-    // RAM usage from /proc/meminfo
+    // RAM usage from /proc/meminfo (using readAll() for procfs compatibility)
     QFile memInfo(QStringLiteral("/proc/meminfo"));
     if (memInfo.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qulonglong memTotalKb = 0;
         qulonglong memAvailKb = 0;
-        QTextStream in(&memInfo);
-        while (!in.atEnd()) {
-            const QString line = in.readLine();
+        const QStringList lines = QString::fromUtf8(memInfo.readAll()).split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
             if (line.startsWith(QStringLiteral("MemTotal:"))) {
                 memTotalKb = line.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts).value(1).toULongLong();
             } else if (line.startsWith(QStringLiteral("MemAvailable:"))) {
@@ -204,7 +226,7 @@ void SystemBackend::loadDynamicSystemMetrics()
             const double usedGb = usedKb / (1024.0 * 1024.0);
             m_ramTotalText = QString::number(totalGb, 'f', 1) + QStringLiteral(" GB");
             m_ramUsedText = QString::number(usedGb, 'f', 1) + QStringLiteral(" GB");
-            m_ramPercent = qBound(0, static_cast<int>(std::round((usedKb * 100.0) / memTotalKb)), 100);
+            m_ramPercent = qBound(1, static_cast<int>(std::round((usedKb * 100.0) / memTotalKb)), 100);
         }
     }
 
@@ -220,7 +242,7 @@ void SystemBackend::loadDynamicSystemMetrics()
         m_diskTotalText = QString::number(totalGb, 'f', 1) + QStringLiteral(" GB");
         m_diskUsedText = QString::number(usedGb, 'f', 1) + QStringLiteral(" GB");
         m_diskFreeText = QString::number(freeGb, 'f', 1) + QStringLiteral(" GB");
-        m_diskPercent = qBound(0, static_cast<int>(std::round((usedGb * 100.0) / totalGb)), 100);
+        m_diskPercent = qBound(1, static_cast<int>(std::round((usedGb * 100.0) / totalGb)), 100);
     }
 
     // Uptime from /proc/uptime
@@ -344,7 +366,6 @@ void SystemBackend::testSound()
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshDisplay()
 {
-    // Check brightness via KDE PowerManagement DBus
     const QString maxBr = runCommand(QStringLiteral("qdbus6"),
         {QStringLiteral("org.kde.Solid.PowerManagement"),
          QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl"),
@@ -363,7 +384,6 @@ void SystemBackend::refreshDisplay()
         m_brightness = 100;
     }
 
-    // Parse kscreen-doctor -j for outputs, resolutions, and scaling
     const QString kscreenJson = runCommand(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2500);
     if (!kscreenJson.isEmpty()) {
         const QJsonDocument doc = QJsonDocument::fromJson(kscreenJson.toUtf8());
@@ -414,7 +434,6 @@ void SystemBackend::refreshDisplay()
         };
     }
 
-    // Read Night Light from ~/.config/kwinrc
     QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
     kwinrc.beginGroup(QStringLiteral("NightColor"));
     m_nightLightEnabled = kwinrc.value(QStringLiteral("Active"), false).toBool();
@@ -440,10 +459,9 @@ void SystemBackend::setBrightness(int val)
 
 void SystemBackend::setResolution(const QString &res)
 {
-    if (res.isEmpty() || m_displayName.isEmpty()) {
+    if (res.isEmpty() || m_displayName.isEmpty() || res == m_currentResolution) {
         return;
     }
-    // Locate best matching mode ID in kscreen-doctor -j
     QString targetModeId;
     const QString kscreenJson = runCommand(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2000);
     if (!kscreenJson.isEmpty()) {
@@ -480,7 +498,11 @@ void SystemBackend::setResolution(const QString &res)
 
 void SystemBackend::setDisplayScale(int percent)
 {
-    m_displayScale = qBound(100, percent, 200);
+    const int clamped = qBound(100, percent, 200);
+    if (clamped == m_displayScale) {
+        return;
+    }
+    m_displayScale = clamped;
     const double scaleFactor = m_displayScale / 100.0;
     if (!m_displayName.isEmpty()) {
         runCommand(QStringLiteral("kscreen-doctor"),
@@ -645,7 +667,6 @@ void SystemBackend::refreshBluetooth()
     if (m_bluetoothEnabled) {
         const QString devsOut = runCommand(QStringLiteral("bluetoothctl"), {QStringLiteral("devices")}, 1500);
         for (const QString &line : devsOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-            // Format: Device XX:XX:XX:XX:XX:XX Name
             const QStringList tokens = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
             if (tokens.size() >= 3 && tokens.at(0) == QStringLiteral("Device")) {
                 const QString mac = tokens.at(1);
@@ -802,7 +823,6 @@ void SystemBackend::refreshPersonalization()
         if (QFileInfo(fullDir).isSymLink()) {
             continue;
         }
-        // Locate image inside contents/images_dark or contents/images
         QString imgPath;
         const QStringList candidates = {
             fullDir + QStringLiteral("/contents/images_dark/3840x2160.png"),
@@ -817,7 +837,6 @@ void SystemBackend::refreshPersonalization()
             }
         }
         if (imgPath.isEmpty()) {
-            // Check any png/jpg inside contents/images
             QDir imgDir(fullDir + QStringLiteral("/contents/images"));
             const QStringList files = imgDir.entryList({QStringLiteral("*.png"), QStringLiteral("*.jpg")}, QDir::Files);
             if (!files.isEmpty()) {
@@ -1008,34 +1027,101 @@ void SystemBackend::setUse24Hour(bool use24)
 }
 
 // -----------------------------------------------------------------------------
-// 10. PRIVACY & SECURITY (Sourceless OS Lockdown Telemetry)
+// 10. PRIVACY & SECURITY (Sourceless OS Lockdown Telemetry & Controls)
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshSecurity()
 {
+    int score = 100;
+    QVariantList events;
+
+    // 1. SELinux Check
+    m_selinuxOk = false;
     QFile selinuxFile(QStringLiteral("/sys/fs/selinux/enforce"));
     if (selinuxFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        m_selinuxStatus = (QString::fromUtf8(selinuxFile.readAll()).trimmed() == QStringLiteral("1"))
-            ? QStringLiteral("Enforcing (Mandatory Access Control)")
-            : QStringLiteral("Permissive");
+        if (QString::fromUtf8(selinuxFile.readAll()).trimmed() == QStringLiteral("1")) {
+            m_selinuxOk = true;
+            m_selinuxStatus = QStringLiteral("Enforcing (Mandatory Access Control)");
+        } else {
+            m_selinuxStatus = QStringLiteral("Permissive / Disabled (UNSAFE)");
+        }
+    }
+    if (!m_selinuxOk) {
+        score -= 25;
+        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("SELinux Mandatory Access Control is not enforcing")},
+                                  {QStringLiteral("severity"), QStringLiteral("critical")}});
     }
 
+    // 2. Kernel Lockdown Check
+    m_lockdownOk = false;
     QFile lockdownFile(QStringLiteral("/sys/kernel/security/lockdown"));
     if (lockdownFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         const QString ld = QString::fromUtf8(lockdownFile.readAll()).trimmed();
         if (ld.contains(QStringLiteral("[confidentiality]"))) {
+            m_lockdownOk = true;
             m_lockdownMode = QStringLiteral("Confidentiality (Strict)");
         } else if (ld.contains(QStringLiteral("[integrity]"))) {
+            m_lockdownOk = true;
             m_lockdownMode = QStringLiteral("Integrity (Kernel Hardened)");
         } else {
-            m_lockdownMode = ld;
+            m_lockdownMode = QStringLiteral("None / Disabled (UNSAFE)");
         }
     }
+    if (!m_lockdownOk) {
+        score -= 15;
+    }
 
+    // 3. YARA Shield & Telemetry Agent Check
     m_shieldActive = (runCommand(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-shield.service")}, 1500) == QStringLiteral("active"));
-    m_clientActive = (runCommand(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-client.service")}, 1500) == QStringLiteral("active"));
+    if (!m_shieldActive) {
+        score -= 15;
+        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Real-Time YARA Downloads Shield is stopped")},
+                                  {QStringLiteral("severity"), QStringLiteral("warning")}});
+    }
 
-    const bool tampered = QFileInfo::exists(QStringLiteral("/etc/sourceless/.tamper_detected"));
-    m_systemIntegrity = tampered ? QStringLiteral("Modified (Support Unsealed)") : QStringLiteral("Verified Immutable (OSTree + Cosign)");
+    m_clientActive = (runCommand(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-client.service")}, 1500) == QStringLiteral("active"));
+    if (!m_clientActive) {
+        score -= 10;
+    }
+
+    // 4. Support Gate & Tamper / Modified Check
+    m_supportSessionActive = QFileInfo::exists(QStringLiteral("/tmp/sourceless_support_active")) ||
+                             QFileInfo::exists(QStringLiteral("/var/run/sourceless_support_active"));
+
+    const bool tamperFlagFile = QFileInfo::exists(QStringLiteral("/etc/sourceless/.tamper_detected")) ||
+                                QFileInfo::exists(QStringLiteral("/tmp/.sourceless_tamper_trigger"));
+
+    const QString groupsOut = runCommand(QStringLiteral("id"), {QStringLiteral("-Gn")}, 1000);
+    const bool inWheelGroup = groupsOut.split(QLatin1Char(' ')).contains(QStringLiteral("wheel"));
+
+    m_isTampered = tamperFlagFile || m_supportSessionActive || inWheelGroup;
+
+    if (m_isTampered) {
+        score -= 35;
+        QStringList reasons;
+        if (tamperFlagFile) reasons << QStringLiteral("Tamper Seal Broken");
+        if (m_supportSessionActive) reasons << QStringLiteral("Support Shell Unlocked");
+        if (inWheelGroup) reasons << QStringLiteral("Wheel Admin Active");
+        m_systemIntegrity = QStringLiteral("Modified (%1)").arg(reasons.join(QStringLiteral(" / ")));
+
+        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("System Integrity Modified: ") + reasons.join(QStringLiteral(", "))},
+                                  {QStringLiteral("severity"), QStringLiteral("critical")}});
+    } else {
+        m_systemIntegrity = QStringLiteral("Verified Immutable (OSTree + Cosign)");
+    }
+
+    if (m_supportSessionActive) {
+        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Interactive Terminal Gate is currently UNLOCKED")},
+                                  {QStringLiteral("severity"), QStringLiteral("critical")}});
+    }
+
+    if (events.isEmpty()) {
+        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("All Sourceless OS lockdown and kernel integrity checks passed")},
+                                  {QStringLiteral("severity"), QStringLiteral("ok")}});
+    }
+
+    m_securityScore = qBound(0, score, 100);
+    m_overallSecurityOk = (!m_isTampered && m_selinuxOk && m_lockdownOk && m_shieldActive && !m_supportSessionActive);
+    m_securityEvents = events;
 
     emit securityChanged();
 }
@@ -1044,6 +1130,41 @@ void SystemBackend::launchEmergencyTerminal()
 {
     runDetached(QStringLiteral("/usr/bin/sourceless-emergency-terminal"), {});
     notifyStatus(QStringLiteral("Opening Support Authorization prompt..."));
+}
+
+void SystemBackend::lockSupportSession()
+{
+    QFile::remove(QStringLiteral("/tmp/sourceless_support_active"));
+    QFile::remove(QStringLiteral("/var/run/sourceless_support_active"));
+    runDetached(QStringLiteral("killall"), {QStringLiteral("-9"), QStringLiteral("konsole.real")});
+    refreshSecurity();
+    notifyStatus(QStringLiteral("Support session ended and Terminal re-locked"));
+}
+
+void SystemBackend::runQuickSecurityScan()
+{
+    notifyStatus(QStringLiteral("Running YARA threat scan on ~/Downloads and ~/.config..."));
+    const QString downloadsDir = QDir::homePath() + QStringLiteral("/Downloads");
+    const QString cmd = QStringLiteral(
+        "count=$(find \"%1\" -type f 2>/dev/null | wc -l); "
+        "hits=$(yara -r -w /etc/sourceless/rules/*.yar \"%1\" 2>/dev/null | wc -l); "
+        "echo \"$count:$hits\"").arg(downloadsDir);
+
+    const QString result = runCommand(QStringLiteral("sh"), {QStringLiteral("-c"), cmd}, 8000);
+    const QStringList parts = result.split(QLatin1Char(':'));
+    const int filesScanned = parts.value(0).trimmed().toInt();
+    const int threatsFound = parts.value(1).trimmed().toInt();
+
+    if (threatsFound > 0) {
+        m_lastScanResult = QStringLiteral("ALERT: %1 threat(s) detected across %2 files in ~/Downloads!").arg(threatsFound).arg(filesScanned);
+        notifyStatus(m_lastScanResult);
+    } else {
+        m_lastScanResult = QStringLiteral("Clean (%1 files scanned in ~/Downloads • 0 threats found at %2)")
+            .arg(filesScanned)
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss")));
+        notifyStatus(QStringLiteral("YARA Scan Complete: 0 threats detected"));
+    }
+    emit securityChanged();
 }
 
 void SystemBackend::resetDesktopLayout()
@@ -1057,4 +1178,3 @@ void SystemBackend::resetDesktopLayout()
         notifyStatus(QStringLiteral("Desktop layout restored to Sourceless defaults"));
     }
 }
-

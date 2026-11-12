@@ -92,10 +92,18 @@ class SystemBackend : public QObject
 
     // 10. Privacy & Security
     Q_PROPERTY(QString selinuxStatus READ selinuxStatus NOTIFY securityChanged)
+    Q_PROPERTY(bool selinuxOk READ selinuxOk NOTIFY securityChanged)
     Q_PROPERTY(QString lockdownMode READ lockdownMode NOTIFY securityChanged)
+    Q_PROPERTY(bool lockdownOk READ lockdownOk NOTIFY securityChanged)
     Q_PROPERTY(bool shieldActive READ shieldActive NOTIFY securityChanged)
     Q_PROPERTY(bool clientActive READ clientActive NOTIFY securityChanged)
     Q_PROPERTY(QString systemIntegrity READ systemIntegrity NOTIFY securityChanged)
+    Q_PROPERTY(bool isTampered READ isTampered NOTIFY securityChanged)
+    Q_PROPERTY(bool supportSessionActive READ supportSessionActive NOTIFY securityChanged)
+    Q_PROPERTY(bool overallSecurityOk READ overallSecurityOk NOTIFY securityChanged)
+    Q_PROPERTY(int securityScore READ securityScore NOTIFY securityChanged)
+    Q_PROPERTY(QString lastScanResult READ lastScanResult NOTIFY securityChanged)
+    Q_PROPERTY(QVariantList securityEvents READ securityEvents NOTIFY securityChanged)
 
 public:
     explicit SystemBackend(const QString &startPage = QStringLiteral("home"), QObject *parent = nullptr);
@@ -172,10 +180,18 @@ public:
     QString keyboardLayout() const { return m_keyboardLayout; }
 
     QString selinuxStatus() const { return m_selinuxStatus; }
+    bool selinuxOk() const { return m_selinuxOk; }
     QString lockdownMode() const { return m_lockdownMode; }
+    bool lockdownOk() const { return m_lockdownOk; }
     bool shieldActive() const { return m_shieldActive; }
     bool clientActive() const { return m_clientActive; }
     QString systemIntegrity() const { return m_systemIntegrity; }
+    bool isTampered() const { return m_isTampered; }
+    bool supportSessionActive() const { return m_supportSessionActive; }
+    bool overallSecurityOk() const { return m_overallSecurityOk; }
+    int securityScore() const { return m_securityScore; }
+    QString lastScanResult() const { return m_lastScanResult; }
+    QVariantList securityEvents() const { return m_securityEvents; }
 
     // Invokable actions for QML
     Q_INVOKABLE void refreshAll();
@@ -234,6 +250,8 @@ public:
 
     // Security & Support controls
     Q_INVOKABLE void launchEmergencyTerminal();
+    Q_INVOKABLE void lockSupportSession();
+    Q_INVOKABLE void runQuickSecurityScan();
     Q_INVOKABLE void resetDesktopLayout();
 
 signals:
@@ -330,11 +348,18 @@ private:
     QString m_keyboardLayout = QStringLiteral("us");
 
     QString m_selinuxStatus = QStringLiteral("Enforcing");
+    bool m_selinuxOk = true;
     QString m_lockdownMode = QStringLiteral("Integrity");
+    bool m_lockdownOk = true;
     bool m_shieldActive = true;
     bool m_clientActive = true;
-    QString m_systemIntegrity = QStringLiteral("Integru (Verified)");
+    QString m_systemIntegrity = QStringLiteral("Verified Immutable (OSTree)");
+    bool m_isTampered = false;
+    bool m_supportSessionActive = false;
+    bool m_overallSecurityOk = true;
+    int m_securityScore = 100;
+    QString m_lastScanResult = QStringLiteral("Real-time watcher active on ~/Downloads and ~/.config/autostart");
+    QVariantList m_securityEvents;
 
     QTimer m_periodicTimer;
 };
-
