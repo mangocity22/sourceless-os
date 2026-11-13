@@ -261,9 +261,22 @@ EOF
     fi
 done
 
+mkdir -p /etc/plasmalogin.conf.d
+cat << 'EOF' > /etc/plasmalogin.conf.d/10-sourceless.conf
+[Greeter]
+WallpaperPlugin=org.kde.image
+WallpaperPluginId=org.kde.image
+
+[Greeter][Wallpaper][org.kde.image][General]
+Image=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
+PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
+EOF
+chmod 644 /etc/plasmalogin.conf.d/10-sourceless.conf 2>/dev/null || true
+cp -f /etc/plasmalogin.conf.d/10-sourceless.conf /etc/xdg/plasmaloginrc 2>/dev/null || true
+
 # Curatare tapete implicite upstream
 rm -rf /usr/share/backgrounds/* 2>/dev/null || true
-UPSTREAM_DEFAULTS=("Waterfall" "Next" "Breeze" "Altai" "Flow" "Shell" "Opal" "Kay")
+UPSTREAM_DEFAULTS=("Waterfall" "Next" "Breeze" "Altai" "Flow" "Shell" "Opal" "Kay" "Sub-Arctic" "Horos" "Fedora" "F44" "F45")
 MAIN_TARGET="/usr/share/wallpapers/SourceLess"
 
 for wp in "${UPSTREAM_DEFAULTS[@]}"; do

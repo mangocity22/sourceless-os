@@ -51,7 +51,7 @@ jobs:
           sudo podman pull "$IMAGE_NAME"
           FEDORA_VER=$(sudo podman run --rm "$IMAGE_NAME" sh -c 'grep -E "^VERSION_ID=" /etc/os-release | cut -d= -f2 | tr -d "\""')
           if [ -z "$FEDORA_VER" ]; then
-            FEDORA_VER="41"
+            FEDORA_VER="45"
           fi
           echo "Detected Fedora VERSION_ID=${FEDORA_VER}"
           echo "version=${FEDORA_VER}" >> "$GITHUB_OUTPUT"
