@@ -41,6 +41,189 @@ ApplicationWindow {
 
     property int currentPage: 0
     property string selectedWifiSsid: ""
+    property string searchQuery: ""
+    property var searchResults: []
+    property int searchSelectedIndex: 0
+    property string highlightedSection: ""
+    property bool searchPopupOpen: false
+    property bool searchPopupHovered: false
+
+    readonly property var searchCatalog: [
+        // Personalization (Page 4)
+        { title: "Background & Wallpapers", subtitle: "Personalization • Wallpaper", pageIdx: 4, sectionKey: "wallpaper", iconName: "personalization",
+          keywords: "background wallpaper desktop picture image photo backdrop personalize theme dark sourceless glass fundal imagine poza tapet tema" },
+        { title: "Translucent Window Blur (Acrylic / Glass)", subtitle: "Personalization • Visual Effects", pageIdx: 4, sectionKey: "effects", iconName: "personalization",
+          keywords: "blur glass acrylic mica translucency transparency frosted window effect kwin transparenta efecte sticla" },
+        { title: "Smooth Desktop Animations", subtitle: "Personalization • Visual Effects", pageIdx: 4, sectionKey: "effects", iconName: "personalization",
+          keywords: "animations transitions motion smooth workspace effects animatii tranzitii" },
+        { title: "Reset Taskbar & Desktop Layout", subtitle: "Personalization • Visual Effects", pageIdx: 4, sectionKey: "effects", iconName: "personalization",
+          keywords: "taskbar dock start menu panel layout reset restore default bara meniu" },
+
+        // System (Page 1)
+        { title: "Display Resolution", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
+          keywords: "display resolution monitor screen graphics video pixels hz refresh ecran rezolutie monitor" },
+        { title: "Scale & Layout (DPI)", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "scale",
+          keywords: "scale scaling layout dpi zoom size text ui interface font marime scalare" },
+        { title: "Night Light (Eye Comfort)", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "night-light",
+          keywords: "night light eye comfort blue light warm color temperature kelvin sleep lumina nocturna ochi" },
+        { title: "Sound & Output Volume", subtitle: "System • Sound", pageIdx: 1, sectionKey: "sound", iconName: "audio-speakers",
+          keywords: "sound audio volume speaker headphones output mute unmute test sunet volum difuzor casti" },
+        { title: "Microphone & Input Sensitivity", subtitle: "System • Sound", pageIdx: 1, sectionKey: "sound", iconName: "mic",
+          keywords: "microphone mic input voice recording sensitivity mute microfon voce" },
+        { title: "Power Mode & Battery", subtitle: "System • Power & Storage", pageIdx: 1, sectionKey: "power", iconName: "power",
+          keywords: "power battery energy saver balanced performance charge ac adapter consum baterie energie performanta" },
+        { title: "Storage Sense & Disk Cache", subtitle: "System • Power & Storage", pageIdx: 1, sectionKey: "power", iconName: "storage",
+          keywords: "storage disk drive space free used ssd clean temp cache clear stocare spatiu disc memorie cache" },
+        { title: "About this PC (Device Specs)", subtitle: "System • About", pageIdx: 1, sectionKey: "about", iconName: "system",
+          keywords: "about pc device specs specifications hardware cpu processor gpu graphics ram memory os kernel uptime hostname hwid user account specificatii sistem procesor" },
+
+        // Bluetooth & devices (Page 2)
+        { title: "Bluetooth & Wireless Devices", subtitle: "Bluetooth & devices", pageIdx: 2, sectionKey: "bluetooth", iconName: "bluetooth",
+          keywords: "bluetooth wireless pair connect disconnect devices headphones speaker mouse keyboard dispozitive" },
+        { title: "Mouse & Cursor Speed", subtitle: "Bluetooth & devices • Mouse & Touchpad", pageIdx: 2, sectionKey: "mouse", iconName: "mouse",
+          keywords: "mouse cursor pointer speed sensitivity left handed buttons swap viteza cursor" },
+        { title: "Touchpad, Tap to Click & Natural Scrolling", subtitle: "Bluetooth & devices • Mouse & Touchpad", pageIdx: 2, sectionKey: "mouse", iconName: "mouse",
+          keywords: "touchpad trackpad natural scrolling scroll tap click gesture" },
+
+        // Network & internet (Page 3)
+        { title: "Wi-Fi & Wireless Networks", subtitle: "Network & internet • Wi-Fi", pageIdx: 3, sectionKey: "wifi", iconName: "network",
+          keywords: "wifi wi-fi wireless wlan network ssid password connect scan internet retea parola" },
+        { title: "Network Status, Ethernet, IP & DNS", subtitle: "Network & internet • Connection", pageIdx: 3, sectionKey: "net-status", iconName: "network-connected",
+          keywords: "network internet ethernet lan cable ipv4 ip address dns quad9 cloudflare dot connection status offline online" },
+
+        // Apps (Page 5)
+        { title: "Installed Apps & Updates (Flatpak)", subtitle: "Apps", pageIdx: 5, sectionKey: "apps", iconName: "apps",
+          keywords: "apps applications programs software flatpak sandbox install uninstall remove update launch open aplicatii programe dezinstalare actualizari" },
+
+        // Time & language (Page 6)
+        { title: "Date, Time, Timezone & 24-Hour Clock", subtitle: "Time & language", pageIdx: 6, sectionKey: "datetime", iconName: "time",
+          keywords: "time date clock 24 hour military timezone ntp sync calendar ceas ora data fus orar" },
+        { title: "Keyboard Layout & Input Language", subtitle: "Time & language • Keyboard", pageIdx: 6, sectionKey: "keyboard", iconName: "time",
+          keywords: "keyboard layout language input typing english romana romanian us uk de fr es it alt shift tastatura limba" },
+
+        // Privacy & security (Page 7)
+        { title: "Security Posture & Lockdown Status", subtitle: "Privacy & security", pageIdx: 7, sectionKey: "posture", iconName: "security-high",
+          keywords: "security privacy policy posture score lockdown status seal intact modified warning securitate" },
+        { title: "Active Protection Layers (OSTree, SELinux, Kernel)", subtitle: "Privacy & security • Telemetry", pageIdx: 7, sectionKey: "telemetry", iconName: "security-high",
+          keywords: "protection layers telemetry ostree cosign immutable selinux enforcing kernel lockdown tamper seal" },
+        { title: "YARA Malware & Infostealer Scanner", subtitle: "Privacy & security • Scanner", pageIdx: 7, sectionKey: "scanner", iconName: "security-scan",
+          keywords: "yara malware virus threat scanner scan downloads autostart infostealer antivirus protectie scanare" },
+        { title: "Security Audit Findings", subtitle: "Privacy & security • Audit", pageIdx: 7, sectionKey: "audit", iconName: "security-high",
+          keywords: "audit findings events alerts logs warnings security" },
+        { title: "Emergency Technician Support Terminal", subtitle: "Privacy & security • Support", pageIdx: 7, sectionKey: "support", iconName: "terminal",
+          keywords: "support session technician emergency terminal shell console unlock key konsole suport tehnic" }
+    ]
+
+    Timer {
+        id: highlightResetTimer
+        interval: 2200
+        onTriggered: root.highlightedSection = ""
+    }
+
+    function refreshPageData(pageIdx) {
+        if (!backend) return
+        if (pageIdx === 2) backend.refreshBluetooth()
+        else if (pageIdx === 3) backend.refreshNetwork()
+        else if (pageIdx === 5) backend.refreshApps()
+        else if (pageIdx === 7) backend.refreshSecurity()
+    }
+
+    function scrollToSection(pageIdx, sectionKey) {
+        if (!sectionKey) return
+        const scrollViews = [homeScroll, systemScroll, btScroll, netScroll, personalizationScroll, appsScroll, timeScroll, securityScroll]
+        const cardMap = {
+            "display": cardDisplay,
+            "sound": cardSound,
+            "power": cardPower,
+            "about": cardAbout,
+            "bluetooth": cardBluetooth,
+            "mouse": cardMouse,
+            "net-status": cardNetStatus,
+            "wifi": cardWifi,
+            "wallpaper": cardWallpaper,
+            "effects": cardEffects,
+            "apps": cardApps,
+            "datetime": cardDateTime,
+            "keyboard": cardKeyboard,
+            "posture": cardPosture,
+            "telemetry": cardTelemetry,
+            "scanner": cardScanner,
+            "audit": cardAudit,
+            "support": cardSupport
+        }
+        const sv = scrollViews[pageIdx]
+        const card = cardMap[sectionKey]
+        if (!sv || !card) return
+        Qt.callLater(function() {
+            if (!sv.contentItem) return
+            const maxScroll = Math.max(0, sv.contentItem.contentHeight - sv.height)
+            sv.contentItem.contentY = Math.max(0, Math.min(card.y - 24, maxScroll))
+        })
+    }
+
+    function navigateToSearchResult(item, closeDropdown) {
+        if (!item) return
+        if (root.currentPage !== item.pageIdx) {
+            root.currentPage = item.pageIdx
+            root.refreshPageData(item.pageIdx)
+        }
+        root.highlightedSection = item.sectionKey || ""
+        highlightResetTimer.restart()
+        root.scrollToSection(item.pageIdx, item.sectionKey)
+        if (closeDropdown) {
+            root.searchPopupOpen = false
+            searchField.focus = false
+        }
+    }
+
+    function updateSearch(queryText) {
+        const q = queryText.toLowerCase().trim()
+        root.searchQuery = q
+        if (q === "") {
+            root.searchResults = []
+            root.searchSelectedIndex = 0
+            root.searchPopupOpen = false
+            return
+        }
+
+        const tokens = q.split(/\s+/).filter(function(t) { return t.length > 0 })
+        const matches = []
+
+        for (let i = 0; i < root.searchCatalog.length; i++) {
+            const item = root.searchCatalog[i]
+            const titleLower = item.title.toLowerCase()
+            const subLower = item.subtitle.toLowerCase()
+            const haystack = titleLower + " " + subLower + " " + item.keywords
+
+            let allMatch = true
+            for (let t = 0; t < tokens.length; t++) {
+                if (!haystack.includes(tokens[t])) {
+                    allMatch = false
+                    break
+                }
+            }
+            if (!allMatch) continue
+
+            let score = 1
+            if (titleLower.startsWith(q)) score = 4
+            else if (titleLower.includes(q)) score = 3
+            else if (subLower.includes(q)) score = 2
+            matches.push({ item: item, score: score, idx: i })
+        }
+
+        matches.sort(function(a, b) {
+            if (b.score !== a.score) return b.score - a.score
+            return a.idx - b.idx
+        })
+
+        root.searchResults = matches.slice(0, 6).map(function(m) { return m.item })
+        root.searchSelectedIndex = 0
+        root.searchPopupOpen = true
+
+        if (root.searchResults.length > 0) {
+            root.navigateToSearchResult(root.searchResults[0], false)
+        }
+    }
 
     Component.onCompleted: {
         const pageMap = {
@@ -79,12 +262,15 @@ ApplicationWindow {
     // 1. Reusable Windows 11 Setting Card Component
     component SettingCard : Rectangle {
         default property alias cardContent: innerCol.data
+        property string sectionKey: ""
+        readonly property bool isHighlighted: sectionKey !== "" && root.highlightedSection === sectionKey
         Layout.fillWidth: true
         implicitHeight: innerCol.implicitHeight + 32
-        color: root.bgCard
+        color: isHighlighted ? root.bgCardHover : root.bgCard
         radius: 10
-        border.color: root.borderSubtle
-        border.width: 1
+        border.color: isHighlighted ? root.brandHighlight : root.borderSubtle
+        border.width: isHighlighted ? 2 : 1
+        Behavior on border.color { ColorAnimation { duration: 180 } }
 
         ColumnLayout {
             id: innerCol
@@ -331,6 +517,7 @@ ApplicationWindow {
             // LEFT SIDEBAR (Windows 11 Navigation Pane)
             // =================================================================
             Item {
+                id: sidebarItem
                 Layout.preferredWidth: 280
                 Layout.fillHeight: true
                 clip: true
@@ -353,6 +540,7 @@ ApplicationWindow {
                 }
 
                 ColumnLayout {
+                    id: sidebarCol
                     anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 18
@@ -457,6 +645,7 @@ ApplicationWindow {
 
                     // 2. Windows 11 Search Box
                     Rectangle {
+                        id: searchBox
                         Layout.fillWidth: true
                         height: 36
                         radius: 8
@@ -467,7 +656,7 @@ ApplicationWindow {
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 12
-                            anchors.rightMargin: 10
+                            anchors.rightMargin: 8
                             spacing: 8
 
                             CyberIcon {
@@ -484,17 +673,64 @@ ApplicationWindow {
                                 color: root.textMain
                                 font.pixelSize: 13
                                 background: Item {}
+                                onTextChanged: root.updateSearch(text)
+                                onActiveFocusChanged: {
+                                    if (activeFocus && text.trim().length > 0) {
+                                        root.searchPopupOpen = true
+                                    } else if (!activeFocus && !root.searchPopupHovered) {
+                                        root.searchPopupOpen = false
+                                    }
+                                }
+                                Keys.onDownPressed: {
+                                    if (root.searchResults.length > 0) {
+                                        root.searchPopupOpen = true
+                                        root.searchSelectedIndex = (root.searchSelectedIndex + 1) % root.searchResults.length
+                                        root.navigateToSearchResult(root.searchResults[root.searchSelectedIndex], false)
+                                    }
+                                }
+                                Keys.onUpPressed: {
+                                    if (root.searchResults.length > 0) {
+                                        root.searchPopupOpen = true
+                                        root.searchSelectedIndex = (root.searchSelectedIndex - 1 + root.searchResults.length) % root.searchResults.length
+                                        root.navigateToSearchResult(root.searchResults[root.searchSelectedIndex], false)
+                                    }
+                                }
+                                Keys.onEscapePressed: {
+                                    root.searchPopupOpen = false
+                                    focus = false
+                                }
                                 onAccepted: {
-                                    const q = text.toLowerCase().trim()
-                                    if (!q) return
-                                    if (q.includes("wifi") || q.includes("net") || q.includes("ip") || q.includes("dns")) root.currentPage = 3
-                                    else if (q.includes("blue") || q.includes("mouse") || q.includes("touch")) root.currentPage = 2
-                                    else if (q.includes("wall") || q.includes("theme") || q.includes("blur") || q.includes("dark")) root.currentPage = 4
-                                    else if (q.includes("app") || q.includes("flatpak") || q.includes("install")) root.currentPage = 5
-                                    else if (q.includes("time") || q.includes("clock") || q.includes("key") || q.includes("lang")) root.currentPage = 6
-                                    else if (q.includes("sec") || q.includes("shield") || q.includes("term") || q.includes("support") || q.includes("mod")) root.currentPage = 7
-                                    else if (q.includes("sound") || q.includes("vol") || q.includes("disp") || q.includes("res") || q.includes("pow") || q.includes("bat")) root.currentPage = 1
-                                    else root.currentPage = 0
+                                    if (root.searchResults.length > 0) {
+                                        const idx = Math.min(root.searchSelectedIndex, root.searchResults.length - 1)
+                                        root.navigateToSearchResult(root.searchResults[idx], true)
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                visible: searchField.text.length > 0
+                                width: 22
+                                height: 22
+                                radius: 11
+                                color: clearSearchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: "✕"
+                                    color: root.textMuted
+                                    font.pixelSize: 11
+                                }
+
+                                MouseArea {
+                                    id: clearSearchMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        searchField.text = ""
+                                        root.searchPopupOpen = false
+                                        root.highlightedSection = ""
+                                    }
                                 }
                             }
                         }
@@ -572,10 +808,7 @@ ApplicationWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     root.currentPage = navItem.modelData.pageIdx
-                                    if (navItem.modelData.pageIdx === 3) backend.refreshNetwork()
-                                    else if (navItem.modelData.pageIdx === 2) backend.refreshBluetooth()
-                                    else if (navItem.modelData.pageIdx === 5) backend.refreshApps()
-                                    else if (navItem.modelData.pageIdx === 7) backend.refreshSecurity()
+                                    root.refreshPageData(navItem.modelData.pageIdx)
                                 }
                             }
                         }
@@ -624,6 +857,108 @@ ApplicationWindow {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.currentPage = 7
+                        }
+                    }
+                }
+
+                // Floating Search Results Dropdown Overlay
+                Rectangle {
+                    id: searchDropdown
+                    visible: root.searchPopupOpen && root.searchQuery.length > 0
+                    z: 100
+                    x: sidebarCol.anchors.leftMargin
+                    y: sidebarCol.y + searchBox.y + searchBox.height + 6
+                    width: searchBox.width
+                    height: dropdownCol.implicitHeight + 12
+                    radius: 10
+                    color: Qt.rgba(0.08, 0.09, 0.14, 0.98)
+                    border.color: root.brandHighlight
+                    border.width: 1
+
+                    HoverHandler {
+                        id: dropdownHover
+                        onHoveredChanged: root.searchPopupHovered = hovered
+                    }
+
+                    ColumnLayout {
+                        id: dropdownCol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 6
+                        spacing: 3
+
+                        Label {
+                            visible: root.searchResults.length === 0
+                            Layout.fillWidth: true
+                            padding: 8
+                            text: "No matching settings found"
+                            color: root.textMuted
+                            font.pixelSize: 12
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+
+                        Repeater {
+                            model: root.searchResults
+                            delegate: Rectangle {
+                                id: resRow
+                                required property var modelData
+                                required property int index
+                                readonly property bool isRowActive: root.searchSelectedIndex === index || resMouse.containsMouse
+
+                                Layout.fillWidth: true
+                                height: 46
+                                radius: 7
+                                color: isRowActive ? Qt.rgba(0.38, 0.33, 0.95, 0.28) : "transparent"
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    spacing: 10
+
+                                    CyberIcon {
+                                        iconName: resRow.modelData.iconName
+                                        width: 18
+                                        height: 18
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 1
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            text: resRow.modelData.title
+                                            color: "#FFFFFF"
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            text: resRow.modelData.subtitle
+                                            color: root.textMuted
+                                            font.pixelSize: 11
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: resMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onEntered: root.searchSelectedIndex = resRow.index
+                                    onClicked: {
+                                        root.searchSelectedIndex = resRow.index
+                                        root.searchPopupHovered = false
+                                        root.navigateToSearchResult(resRow.modelData, true)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -746,6 +1081,7 @@ ApplicationWindow {
                     // PAGE 0: HOME (Windows 11 Hero Overview + Quick Settings)
                     // -------------------------------------------------------------
                     ScrollView {
+                        id: homeScroll
                         clip: true
                         contentWidth: availableWidth
 
@@ -1018,6 +1354,7 @@ ApplicationWindow {
                 // PAGE 1: SYSTEM (Display Dropdowns, Sound, Power, Storage, About)
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: systemScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1039,6 +1376,8 @@ ApplicationWindow {
                         Label { text: "Display & Graphics"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardDisplay
+                            sectionKey: "display"
                             // Row 1: Display Resolution Dropdown
                             RowLayout {
                                 Layout.fillWidth: true
@@ -1126,6 +1465,8 @@ ApplicationWindow {
                         Label { text: "Sound"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardSound
+                            sectionKey: "sound"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1174,6 +1515,8 @@ ApplicationWindow {
                         Label { text: "Power & Storage"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardPower
+                            sectionKey: "power"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 12
@@ -1224,6 +1567,8 @@ ApplicationWindow {
                         Label { text: "About this PC"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardAbout
+                            sectionKey: "about"
                             GridLayout {
                                 Layout.fillWidth: true
                                 columns: 2
@@ -1267,6 +1612,7 @@ ApplicationWindow {
                 // PAGE 2: BLUETOOTH & DEVICES (Bluetooth + Mouse & Touchpad)
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: btScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1285,6 +1631,8 @@ ApplicationWindow {
                         }
 
                         SettingCard {
+                            id: cardBluetooth
+                            sectionKey: "bluetooth"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1338,6 +1686,8 @@ ApplicationWindow {
                         Label { text: "Mouse & Touchpad"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardMouse
+                            sectionKey: "mouse"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1414,6 +1764,7 @@ ApplicationWindow {
                 // PAGE 3: NETWORK & INTERNET
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: netScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1433,6 +1784,8 @@ ApplicationWindow {
 
                         // Network Status Banner (Windows 11 Top Card)
                         SettingCard {
+                            id: cardNetStatus
+                            sectionKey: "net-status"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 20
@@ -1470,6 +1823,8 @@ ApplicationWindow {
 
                         // Wi-Fi Management Card
                         SettingCard {
+                            id: cardWifi
+                            sectionKey: "wifi"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1598,6 +1953,7 @@ ApplicationWindow {
                 // PAGE 4: PERSONALIZATION (Wallpapers & Glass Effects)
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: personalizationScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1623,6 +1979,8 @@ ApplicationWindow {
                         }
 
                         SettingCard {
+                            id: cardWallpaper
+                            sectionKey: "wallpaper"
                             Label {
                                 text: "Choose an approved system background (custom third-party themes are disabled for security)"
                                 color: root.textMuted
@@ -1689,6 +2047,8 @@ ApplicationWindow {
                         Label { text: "Sourceless Glass Visual Effects"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardEffects
+                            sectionKey: "effects"
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
@@ -1744,6 +2104,7 @@ ApplicationWindow {
                 // PAGE 5: APPS (Sandboxed Flatpak Applications)
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: appsScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1775,6 +2136,8 @@ ApplicationWindow {
                         }
 
                         SettingCard {
+                            id: cardApps
+                            sectionKey: "apps"
                             Label {
                                 text: "Installed Sandboxed Applications (" + (backend ? backend.installedApps.length : 0) + ")"
                                 color: root.textMain
@@ -1846,6 +2209,7 @@ ApplicationWindow {
                 // PAGE 6: TIME & LANGUAGE
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: timeScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1864,6 +2228,8 @@ ApplicationWindow {
                         }
 
                         SettingCard {
+                            id: cardDateTime
+                            sectionKey: "datetime"
                             RowLayout {
                                 Layout.fillWidth: true
                                 CyberIcon { iconName: "time"; width: 28; height: 28 }
@@ -1904,6 +2270,8 @@ ApplicationWindow {
                         Label { text: "Keyboard Layout"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardKeyboard
+                            sectionKey: "keyboard"
                             Label {
                                 text: "Active keyboard layout: " + (backend ? backend.keyboardLayout.toUpperCase() : "US")
                                 color: root.textMain
@@ -1949,6 +2317,7 @@ ApplicationWindow {
                 // PAGE 7: PRIVACY & SECURITY (Color-Coded Posture + Live Tools)
                 // -------------------------------------------------------------
                 ScrollView {
+                    id: securityScroll
                     clip: true
                     contentWidth: availableWidth
 
@@ -1976,6 +2345,8 @@ ApplicationWindow {
 
                         // Top Security Posture Card (Turns RED when Modified / Negative!)
                         SettingCard {
+                            id: cardPosture
+                            sectionKey: "posture"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 16
@@ -2029,6 +2400,8 @@ ApplicationWindow {
                         Label { text: "Active Protection Layers (Real-Time Telemetry)"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardTelemetry
+                            sectionKey: "telemetry"
                             GridLayout {
                                 Layout.fillWidth: true
                                 columns: 2
@@ -2090,6 +2463,8 @@ ApplicationWindow {
                         Label { text: "Endpoint Malware & Infostealer Scanner (YARA)"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardScanner
+                            sectionKey: "scanner"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -2117,6 +2492,8 @@ ApplicationWindow {
                         Label { text: "Security Audit Findings"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardAudit
+                            sectionKey: "audit"
                             Repeater {
                                 model: backend ? backend.securityEvents : []
                                 delegate: RowLayout {
@@ -2144,6 +2521,8 @@ ApplicationWindow {
                         Label { text: "Authorized Technical Support"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
+                            id: cardSupport
+                            sectionKey: "support"
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
