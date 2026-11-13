@@ -19,7 +19,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Eliberare agresiva a spatiului pe runner (Android SDK + Docker + Compilatoare)
+      # 1. Eliberare agresiva a spatiului pe runner
       - name: Free Disk Space
         run: |
           echo "Free disk space before cleanup:"
@@ -38,76 +38,78 @@ jobs:
           echo "Free disk space after cleanup:"
           df -h /
 
-      # 2. Normalizare nume imagine container
-      - name: Set Image Name
+      # 2. Normalizare nume imagine si detectare automata VERSION_ID (Fedora)
+      - name: Detect Image Metadata
+        id: meta
         run: |
           IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_NAME=ghcr.io/${IMAGE_OWNER}/sourceless-os:latest" >> $GITHUB_ENV
+          IMAGE_NAME="ghcr.io/${IMAGE_OWNER}/sourceless-os:latest"
+          echo "owner=${IMAGE_OWNER}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
 
-      # 3. Autentificare in GHCR
-      - name: Log in to GHCR
-        run: |
-          sudo mkdir -p /root/.config/containers
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u ${{ github.actor }} --password-stdin --authfile /root/.config/containers/auth.json
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          sudo podman pull "$IMAGE_NAME"
+          FEDORA_VER=$(sudo podman run --rm "$IMAGE_NAME" sh -c 'grep -E "^VERSION_ID=" /etc/os-release | cut -d= -f2 | tr -d "\""')
+          if [ -z "$FEDORA_VER" ]; then
+            FEDORA_VER="41"
+          fi
+          echo "Detected Fedora VERSION_ID=${FEDORA_VER}"
+          echo "version=${FEDORA_VER}" >> "$GITHUB_OUTPUT"
 
-      # 4. Descarcare imagine OS (pre-pull pentru verificarea existentei)
-      - name: Pull Target OS Image
-        run: |
-          sudo podman pull --authfile /root/.config/containers/auth.json "$IMAGE_NAME"
+          # Eliberam imaginea trasa doar pentru inspectie ca sa pastram spatiul maxim
+          sudo podman rmi --all --force 2>/dev/null || true
 
-      # 5. Compilare ISO cu Bootc Image Builder
-      - name: Build ISO with Bootc Image Builder
-        run: |
-          mkdir -p output
-          sudo podman run --rm --privileged \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            -v "$(pwd)/output":/output \
-            -v "$(pwd)/installer-config.toml":/config.toml:ro \
-            -v /root/.config/containers/auth.json:/root/.config/containers/auth.json:ro \
-            quay.io/centos-bootc/bootc-image-builder:latest \
-            --type iso \
-            --rootfs ext4 \
-            --config /config.toml \
-            "$IMAGE_NAME"
+      # 3. Generare Installer ISO cu build-container-installer (compatibil BlueBuild & custom os-release)
+      - name: Build Container Installer ISO
+        id: build
+        uses: jasonn3/build-container-installer@main
+        with:
+          arch: x86_64
+          image_name: sourceless-os
+          image_repo: ghcr.io/${{ steps.meta.outputs.owner }}
+          image_tag: latest
+          variant: Kinoite
+          version: ${{ steps.meta.outputs.version }}
+          iso_name: sourceless-os.iso
 
-      # 6. Eliberare imagini container din /var/lib/containers inainte de arhivare
+      # 4. Eliberare imagini container inainte de arhivare
       - name: Reclaim Container Storage Before Compression
         run: |
           sudo podman rmi --all --force 2>/dev/null || true
           sudo podman system prune --all --force 2>/dev/null || true
+          sudo docker system prune --all --force 2>/dev/null || true
           df -h /
 
-      # 7. Comprimare, split in volume de 1.8GB si curatare ISO original pentru spatiu
+      # 5. Comprimare, split in volume de 1.8GB si curatare ISO original pentru spatiu
       - name: Split and Compress ISO
         run: |
           if ! command -v 7z >/dev/null 2>&1; then
             sudo apt-get update && sudo apt-get install -y p7zip-full
           fi
-          sudo chown -R $USER:$USER output/
-          cd output/bootiso
-          
-          # Comprimare rapida in bucati de 1.8GB
-          7z a -v1800m -mx=0 sourceless-os.7z install.iso
-          
-          # Stergem ISO-ul brut dupa arhivare pentru a nu bloca runnerul
-          rm -f install.iso
+          ISO_DIR="${{ steps.build.outputs.iso_path }}"
+          ISO_FILE="${{ steps.build.outputs.iso_name }}"
+          sudo chown -R "$USER:$USER" "$ISO_DIR"
+          cd "$ISO_DIR"
+
+          7z a -v1800m -mx=0 sourceless-os.7z "$ISO_FILE"
+          rm -f "$ISO_FILE"
           ls -lh sourceless-os.7z.*
 
-      # 8. Curatare release anterior pentru a nu ramane volume vechi (.004/.005 etc.)
+      # 6. Curatare release anterior pentru a nu ramane volume vechi
       - name: Clean Previous Release Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest-iso -y --cleanup-tag 2>/dev/null || true
 
-      # 9. Upload volume pe GitHub Releases (curat, fara fisiere vechi)
+      # 7. Upload volume pe GitHub Releases
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-iso
           name: "Sourceless OS Live ISO"
           body: "Automated multi-part build. Download all parts (.001, .002...) and extract using 7-Zip or PeaZip."
-          files: output/bootiso/sourceless-os.7z.*
+          files: ${{ steps.build.outputs.iso_path }}/sourceless-os.7z.*
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
