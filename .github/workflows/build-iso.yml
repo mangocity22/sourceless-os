@@ -3,6 +3,10 @@ name: Build ISO
 on:
   workflow_dispatch:
 
+concurrency:
+  group: build-iso-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build-iso:
     runs-on: ubuntu-latest
@@ -25,8 +29,12 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/share/miniconda
+          sudo rm -rf /usr/local/aws*
+          sudo rm -rf /usr/local/lib/node_modules
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo docker image prune --all --force 2>/dev/null || true
+          sudo docker system prune --all --force --volumes 2>/dev/null || true
+          sudo apt-get clean
           echo "Free disk space after cleanup:"
           df -h /
 
@@ -62,10 +70,19 @@ jobs:
             --config /config.toml \
             "$IMAGE_NAME"
 
-      # 6. Comprimare, split in volume de 1.8GB si curatare ISO original pentru spatiu
+      # 6. Eliberare imagini container din /var/lib/containers inainte de arhivare
+      - name: Reclaim Container Storage Before Compression
+        run: |
+          sudo podman rmi --all --force 2>/dev/null || true
+          sudo podman system prune --all --force 2>/dev/null || true
+          df -h /
+
+      # 7. Comprimare, split in volume de 1.8GB si curatare ISO original pentru spatiu
       - name: Split and Compress ISO
         run: |
-          sudo apt-get update && sudo apt-get install -y p7zip-full
+          if ! command -v 7z >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y p7zip-full
+          fi
           sudo chown -R $USER:$USER output/
           cd output/bootiso
           
@@ -74,8 +91,16 @@ jobs:
           
           # Stergem ISO-ul brut dupa arhivare pentru a nu bloca runnerul
           rm -f install.iso
+          ls -lh sourceless-os.7z.*
 
-      # 7. Upload volume pe GitHub Releases (cu suprascriere garantata)
+      # 8. Curatare release anterior pentru a nu ramane volume vechi (.004/.005 etc.)
+      - name: Clean Previous Release Assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest-iso -y --cleanup-tag 2>/dev/null || true
+
+      # 9. Upload volume pe GitHub Releases (curat, fara fisiere vechi)
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
