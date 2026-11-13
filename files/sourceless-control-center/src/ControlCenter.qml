@@ -50,10 +50,10 @@ ApplicationWindow {
 
     readonly property var searchCatalog: [
         // Personalization (Page 4)
+        { title: "System Themes", subtitle: "Personalization • Themes", pageIdx: 4, sectionKey: "themes", iconName: "personalization",
+          keywords: "theme themes appearance style look feel glass dark sourceless personalize tema teme aspect" },
         { title: "Background & Wallpapers", subtitle: "Personalization • Wallpaper", pageIdx: 4, sectionKey: "wallpaper", iconName: "personalization",
-          keywords: "background wallpaper desktop picture image photo backdrop personalize theme dark sourceless glass fundal imagine poza tapet tema" },
-        { title: "Translucent Window Blur (Acrylic / Glass)", subtitle: "Personalization • Visual Effects", pageIdx: 4, sectionKey: "effects", iconName: "personalization",
-          keywords: "blur glass acrylic mica translucency transparency frosted window effect kwin transparenta efecte sticla" },
+          keywords: "background wallpaper desktop picture image photo backdrop personalize dark sourceless glass fundal imagine poza tapet" },
         { title: "Smooth Desktop Animations", subtitle: "Personalization • Visual Effects", pageIdx: 4, sectionKey: "effects", iconName: "personalization",
           keywords: "animations transitions motion smooth workspace effects animatii tranzitii" },
         { title: "Reset Taskbar & Desktop Layout", subtitle: "Personalization • Visual Effects", pageIdx: 4, sectionKey: "effects", iconName: "personalization",
@@ -140,6 +140,7 @@ ApplicationWindow {
             "mouse": cardMouse,
             "net-status": cardNetStatus,
             "wifi": cardWifi,
+            "themes": cardThemes,
             "wallpaper": cardWallpaper,
             "effects": cardEffects,
             "apps": cardApps,
@@ -1244,15 +1245,6 @@ ApplicationWindow {
                                     }
                                 }
 
-                                RowLayout {
-                                    spacing: 10
-                                    Label { text: "Glass Blur"; color: root.textMain; font.pixelSize: 14 }
-                                    WinSwitch {
-                                        checkedState: backend ? backend.blurEnabled : true
-                                        onToggled: function(val) { backend.setBlurEnabled(val) }
-                                    }
-                                }
-
                                 Item { Layout.fillWidth: true }
                             }
                         }
@@ -1302,8 +1294,8 @@ ApplicationWindow {
                                 CyberIcon { iconName: "personalization"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
-                                    Label { text: "Personalize Sourceless Glass"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Switch curated dark wallpapers and window translucency"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { text: "Personalize Sourceless"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Switch curated system themes and dark wallpapers"; color: root.textMuted; font.pixelSize: 12 }
                                 }
                                 Item { Layout.fillWidth: true }
                                 ActionButton { labelText: "Personalize"; onTriggered: root.currentPage = 4 }
@@ -1972,6 +1964,158 @@ ApplicationWindow {
                         }
 
                         Label {
+                            text: "Official Sourceless Themes"
+                            color: root.textMain
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+
+                        SettingCard {
+                            id: cardThemes
+                            sectionKey: "themes"
+                            Label {
+                                text: "Choose an official Sourceless system theme. Visual effects and window styling automatically adapt to the selected theme."
+                                color: root.textMuted
+                                font.pixelSize: 13
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 14
+
+                                Repeater {
+                                    model: backend ? backend.themes : []
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        width: 240
+                                        height: 155
+                                        radius: 10
+                                        color: root.bgInput
+                                        border.color: (modelData.active || themeMouse.containsMouse) ? root.brandHighlight : root.borderSubtle
+                                        border.width: (modelData.active || themeMouse.containsMouse) ? 2 : 1
+                                        clip: true
+
+                                        ColumnLayout {
+                                            anchors.fill: parent
+                                            spacing: 0
+
+                                            Item {
+                                                Layout.fillWidth: true
+                                                Layout.fillHeight: true
+
+                                                Image {
+                                                    anchors.fill: parent
+                                                    visible: modelData.previewUrl !== ""
+                                                    source: modelData.previewUrl
+                                                    fillMode: Image.PreserveAspectCrop
+                                                    asynchronous: true
+                                                    sourceSize.width: 360
+                                                    sourceSize.height: 200
+                                                }
+
+                                                // Stylized fallback preview when theme does not ship a thumbnail image
+                                                Rectangle {
+                                                    anchors.fill: parent
+                                                    visible: modelData.previewUrl === ""
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0.0; color: modelData.hasBlur ? "#1B1838" : "#151822" }
+                                                        GradientStop { position: 1.0; color: "#0B0D15" }
+                                                    }
+
+                                                    Rectangle {
+                                                        anchors.centerIn: parent
+                                                        width: 148
+                                                        height: 62
+                                                        radius: 8
+                                                        color: modelData.hasBlur ? Qt.rgba(0.38, 0.33, 0.95, 0.24) : Qt.rgba(0.18, 0.20, 0.28, 0.95)
+                                                        border.color: modelData.hasBlur ? root.brandHighlight : root.borderSubtle
+                                                        border.width: 1
+
+                                                        RowLayout {
+                                                            anchors.fill: parent
+                                                            anchors.margins: 10
+                                                            spacing: 8
+                                                            CyberIcon { iconName: "personalization"; width: 22; height: 22 }
+                                                            ColumnLayout {
+                                                                Layout.fillWidth: true
+                                                                spacing: 4
+                                                                Rectangle { Layout.fillWidth: true; height: 7; radius: 3; color: Qt.rgba(1, 1, 1, 0.35) }
+                                                                Rectangle { width: 56; height: 6; radius: 3; color: Qt.rgba(1, 1, 1, 0.18) }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // Active Badge
+                                                Rectangle {
+                                                    visible: modelData.active
+                                                    anchors.top: parent.top
+                                                    anchors.right: parent.right
+                                                    anchors.margins: 8
+                                                    width: activeLbl.implicitWidth + 14
+                                                    height: 22
+                                                    radius: 11
+                                                    color: root.statusGreen
+
+                                                    Label {
+                                                        id: activeLbl
+                                                        anchors.centerIn: parent
+                                                        text: "Active"
+                                                        color: "#091014"
+                                                        font.pixelSize: 11
+                                                        font.bold: true
+                                                    }
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                Layout.fillWidth: true
+                                                height: 46
+                                                color: Qt.rgba(0.06, 0.07, 0.11, 0.94)
+
+                                                ColumnLayout {
+                                                    anchors.fill: parent
+                                                    anchors.leftMargin: 12
+                                                    anchors.rightMargin: 12
+                                                    anchors.topMargin: 6
+                                                    anchors.bottomMargin: 6
+                                                    spacing: 1
+
+                                                    Label {
+                                                        Layout.fillWidth: true
+                                                        text: modelData.name
+                                                        color: root.textMain
+                                                        font.pixelSize: 13
+                                                        font.bold: true
+                                                        elide: Text.ElideRight
+                                                    }
+
+                                                    Label {
+                                                        Layout.fillWidth: true
+                                                        text: modelData.description
+                                                        color: root.textMuted
+                                                        font.pixelSize: 11
+                                                        elide: Text.ElideRight
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: themeMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: backend.applyTheme(modelData.id)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Label {
                             text: "Official Sourceless Wallpapers"
                             color: root.textMain
                             font.pixelSize: 16
@@ -2044,27 +2188,11 @@ ApplicationWindow {
                             }
                         }
 
-                        Label { text: "Sourceless Glass Visual Effects"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+                        Label { text: "Visual Effects & Desktop Layout"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
                             id: cardEffects
                             sectionKey: "effects"
-                            RowLayout {
-                                Layout.fillWidth: true
-                                ColumnLayout {
-                                    spacing: 2
-                                    Label { text: "Translucent Window Blur (Acrylic / Glass)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Apply real-time KWin GPU frosted glass blur behind translucent surfaces"; color: root.textMuted; font.pixelSize: 12 }
-                                }
-                                Item { Layout.fillWidth: true }
-                                WinSwitch {
-                                    checkedState: backend ? backend.blurEnabled : true
-                                    onToggled: function(val) { backend.setBlurEnabled(val) }
-                                }
-                            }
-
-                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
-
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {

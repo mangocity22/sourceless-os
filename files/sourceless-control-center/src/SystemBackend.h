@@ -75,6 +75,8 @@ class SystemBackend : public QObject
     Q_PROPERTY(QString powerProfile READ powerProfile NOTIFY powerChanged)
 
     // 7. Personalization
+    Q_PROPERTY(QVariantList themes READ themes NOTIFY personalizationChanged)
+    Q_PROPERTY(QString currentTheme READ currentTheme NOTIFY personalizationChanged)
     Q_PROPERTY(QVariantList wallpapers READ wallpapers NOTIFY personalizationChanged)
     Q_PROPERTY(QString currentWallpaper READ currentWallpaper NOTIFY personalizationChanged)
     Q_PROPERTY(bool blurEnabled READ blurEnabled NOTIFY personalizationChanged)
@@ -166,6 +168,8 @@ public:
     QString batteryState() const { return m_batteryState; }
     QString powerProfile() const { return m_powerProfile; }
 
+    QVariantList themes() const { return m_themes; }
+    QString currentTheme() const { return m_currentTheme; }
     QVariantList wallpapers() const { return m_wallpapers; }
     QString currentWallpaper() const { return m_currentWallpaper; }
     bool blurEnabled() const { return m_blurEnabled; }
@@ -234,6 +238,7 @@ public:
     Q_INVOKABLE void setPowerProfile(const QString &profile);
 
     // Personalization controls
+    Q_INVOKABLE void applyTheme(const QString &themeId);
     Q_INVOKABLE void applyWallpaper(const QString &path);
     Q_INVOKABLE void setBlurEnabled(bool enabled);
     Q_INVOKABLE void setAnimationsEnabled(bool enabled);
@@ -333,6 +338,8 @@ private:
     QString m_batteryState = QStringLiteral("AC Power");
     QString m_powerProfile = QStringLiteral("balanced");
 
+    QVariantList m_themes;
+    QString m_currentTheme = QStringLiteral("SourcelessGlass");
     QVariantList m_wallpapers;
     QString m_currentWallpaper;
     bool m_blurEnabled = true;

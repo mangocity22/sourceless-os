@@ -811,10 +811,159 @@ void SystemBackend::setPowerProfile(const QString &profile)
 }
 
 // -----------------------------------------------------------------------------
-// 7. PERSONALIZATION (Curated Sourceless Wallpapers & Glass Effects)
+// 7. PERSONALIZATION (Curated Sourceless Themes, Wallpapers & Visual Effects)
 // -----------------------------------------------------------------------------
+namespace {
+QJsonObject readJsonMetadata(const QString &jsonPath)
+{
+    QFile file(jsonPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    return doc.isObject() ? doc.object() : QJsonObject{};
+}
+}
+
 void SystemBackend::refreshPersonalization()
 {
+    // Active Plasma desktop theme
+    QSettings plasmarc(QDir::homePath() + QStringLiteral("/.config/plasmarc"), QSettings::IniFormat);
+    plasmarc.beginGroup(QStringLiteral("Theme"));
+    QString activeTheme = plasmarc.value(QStringLiteral("name")).toString().trimmed();
+    plasmarc.endGroup();
+    if (activeTheme.isEmpty()) {
+        QSettings globalPlasmarc(QStringLiteral("/etc/xdg/plasmarc"), QSettings::IniFormat);
+        globalPlasmarc.beginGroup(QStringLiteral("Theme"));
+        activeTheme = globalPlasmarc.value(QStringLiteral("name"), QStringLiteral("SourcelessGlass")).toString().trimmed();
+        globalPlasmarc.endGroup();
+    }
+    if (activeTheme.isEmpty()) {
+        activeTheme = QStringLiteral("SourcelessGlass");
+    }
+    m_currentTheme = activeTheme;
+
+    // Index Look-and-Feel thumbnails & mapped desktop theme IDs
+    QVariantMap lnfThumbByDesktopTheme;
+    QVariantList customLnfFallback;
+    const QDir lnfRoot(QStringLiteral("/usr/share/plasma/look-and-feel"));
+    for (const QString &lnfDir : lnfRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+        if (lnfDir.startsWith(QStringLiteral("org.kde.")) || lnfDir.startsWith(QStringLiteral("org.fedoraproject."))) {
+            continue;
+        }
+        const QString lnfPath = lnfRoot.filePath(lnfDir);
+        const QString thumbPath = lnfPath + QStringLiteral("/contents/previews/thumbnail.png");
+        const QString thumbUrl = QFileInfo::exists(thumbPath) ? QUrl::fromLocalFile(thumbPath).toString() : QString();
+
+        QSettings defaultsIni(lnfPath + QStringLiteral("/contents/defaults"), QSettings::IniFormat);
+        defaultsIni.beginGroup(QStringLiteral("PlasmaTheme"));
+        QString mappedDesktop = defaultsIni.value(QStringLiteral("name")).toString().trimmed();
+        defaultsIni.endGroup();
+        if (mappedDesktop.isEmpty()) {
+            defaultsIni.beginGroup(QStringLiteral("Theme"));
+            mappedDesktop = defaultsIni.value(QStringLiteral("name")).toString().trimmed();
+            defaultsIni.endGroup();
+        }
+        if (!mappedDesktop.isEmpty() && !thumbUrl.isEmpty()) {
+            lnfThumbByDesktopTheme[mappedDesktop] = thumbUrl;
+        }
+
+        const QJsonObject meta = readJsonMetadata(lnfPath + QStringLiteral("/metadata.json"));
+        const QJsonObject plugin = meta.value(QStringLiteral("KPlugin")).toObject();
+        const QString lnfId = plugin.value(QStringLiteral("Id")).toString(lnfDir);
+        const QString lnfName = plugin.value(QStringLiteral("Name")).toString(lnfDir);
+        const QString lnfDesc = plugin.value(QStringLiteral("Description")).toString();
+
+        QVariantMap lnfItem;
+        lnfItem[QStringLiteral("id")] = lnfId;
+        lnfItem[QStringLiteral("mappedDesktop")] = mappedDesktop;
+        lnfItem[QStringLiteral("name")] = lnfName;
+        lnfItem[QStringLiteral("description")] = lnfDesc;
+        lnfItem[QStringLiteral("hasBlur")] = mappedDesktop.contains(QStringLiteral("Glass"), Qt::CaseInsensitive)
+                                             || lnfDesc.contains(QStringLiteral("Glass"), Qt::CaseInsensitive);
+        lnfItem[QStringLiteral("previewUrl")] = thumbUrl;
+        customLnfFallback.append(lnfItem);
+    }
+
+    // Scan installed Plasma desktop themes (skip generic upstream system directories)
+    QVariantList themeList;
+    QStringList seenThemeIds;
+    const QStringList skipDesktopDirs = {
+        QStringLiteral("default"),
+        QStringLiteral("widgets"),
+        QStringLiteral("breeze"),
+        QStringLiteral("breeze-dark"),
+        QStringLiteral("breeze-light"),
+        QStringLiteral("oxygen")
+    };
+    const QDir dtRoot(QStringLiteral("/usr/share/plasma/desktoptheme"));
+    for (const QString &dirName : dtRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+        if (skipDesktopDirs.contains(dirName, Qt::CaseInsensitive)) {
+            continue;
+        }
+        const QString dtPath = dtRoot.filePath(dirName);
+        if (!QFileInfo::exists(dtPath + QStringLiteral("/metadata.json"))) {
+            continue;
+        }
+        const QJsonObject meta = readJsonMetadata(dtPath + QStringLiteral("/metadata.json"));
+        const QJsonObject plugin = meta.value(QStringLiteral("KPlugin")).toObject();
+        const QString themeId = plugin.value(QStringLiteral("Id")).toString(dirName);
+        const QString themeName = plugin.value(QStringLiteral("Name")).toString(dirName);
+        const bool hasBlur = meta.value(QStringLiteral("BlurEffect")).toObject().value(QStringLiteral("enabled")).toBool(false);
+        QString desc = plugin.value(QStringLiteral("Description")).toString().trimmed();
+        if (desc.isEmpty()) {
+            desc = hasBlur ? QStringLiteral("Liquid Glass • Blur Enabled") : QStringLiteral("Solid Theme • No Blur");
+        }
+
+        QString previewUrl;
+        const QStringList previewCandidates = {
+            dtPath + QStringLiteral("/preview.png"),
+            dtPath + QStringLiteral("/contents/previews/preview.png"),
+            dtPath + QStringLiteral("/contents/previews/thumbnail.png")
+        };
+        for (const QString &cand : previewCandidates) {
+            if (QFileInfo::exists(cand)) {
+                previewUrl = QUrl::fromLocalFile(cand).toString();
+                break;
+            }
+        }
+        if (previewUrl.isEmpty() && lnfThumbByDesktopTheme.contains(themeId)) {
+            previewUrl = lnfThumbByDesktopTheme.value(themeId).toString();
+        }
+
+        QVariantMap theme;
+        theme[QStringLiteral("id")] = themeId;
+        theme[QStringLiteral("name")] = themeName;
+        theme[QStringLiteral("description")] = desc;
+        theme[QStringLiteral("hasBlur")] = hasBlur;
+        theme[QStringLiteral("previewUrl")] = previewUrl;
+        theme[QStringLiteral("active")] = (themeId == m_currentTheme);
+        themeList.append(theme);
+        seenThemeIds.append(themeId);
+    }
+
+    // Include any standalone custom Look-and-Feel themes not already backed by a listed desktop theme
+    for (const QVariant &v : customLnfFallback) {
+        QVariantMap lnf = v.toMap();
+        const QString lnfId = lnf.value(QStringLiteral("id")).toString();
+        const QString mapped = lnf.value(QStringLiteral("mappedDesktop")).toString();
+        if (seenThemeIds.contains(lnfId) || (!mapped.isEmpty() && seenThemeIds.contains(mapped))) {
+            continue;
+        }
+        QString desc = lnf.value(QStringLiteral("description")).toString().trimmed();
+        if (desc.isEmpty()) {
+            desc = lnf.value(QStringLiteral("hasBlur")).toBool()
+                       ? QStringLiteral("Liquid Glass • Blur Enabled")
+                       : QStringLiteral("Solid Theme • No Blur");
+        }
+        lnf[QStringLiteral("description")] = desc;
+        lnf[QStringLiteral("active")] = (lnfId == m_currentTheme);
+        lnf.remove(QStringLiteral("mappedDesktop"));
+        themeList.append(lnf);
+    }
+    m_themes = themeList;
+
+    // Scan curated wallpapers
     QVariantList wpList;
     QDir wpRoot(QStringLiteral("/usr/share/wallpapers"));
     const QStringList entries = wpRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
@@ -825,6 +974,8 @@ void SystemBackend::refreshPersonalization()
         }
         QString imgPath;
         const QStringList candidates = {
+            fullDir + QStringLiteral("/contents/images_dark/3840x2160.jpg"),
+            fullDir + QStringLiteral("/contents/images/3840x2160.jpg"),
             fullDir + QStringLiteral("/contents/images_dark/3840x2160.png"),
             fullDir + QStringLiteral("/contents/images/3840x2160.png"),
             fullDir + QStringLiteral("/contents/images_dark/1920x1080.png"),
@@ -838,7 +989,7 @@ void SystemBackend::refreshPersonalization()
         }
         if (imgPath.isEmpty()) {
             QDir imgDir(fullDir + QStringLiteral("/contents/images"));
-            const QStringList files = imgDir.entryList({QStringLiteral("*.png"), QStringLiteral("*.jpg")}, QDir::Files);
+            const QStringList files = imgDir.entryList({QStringLiteral("*.jpg"), QStringLiteral("*.png")}, QDir::Files);
             if (!files.isEmpty()) {
                 imgPath = imgDir.filePath(files.first());
             }
@@ -866,6 +1017,73 @@ void SystemBackend::refreshPersonalization()
     m_animationsEnabled = kdeglobals.value(QStringLiteral("AnimationDurationFactor"), 1.0).toDouble() > 0.05;
     kdeglobals.endGroup();
 
+    emit personalizationChanged();
+}
+
+void SystemBackend::applyTheme(const QString &themeId)
+{
+    if (themeId.isEmpty()) {
+        return;
+    }
+
+    const QString desktopMeta = QStringLiteral("/usr/share/plasma/desktoptheme/") + themeId + QStringLiteral("/metadata.json");
+    const QString lnfMeta = QStringLiteral("/usr/share/plasma/look-and-feel/") + themeId + QStringLiteral("/metadata.json");
+    bool hasBlur = false;
+
+    if (QFileInfo::exists(desktopMeta)) {
+        runCommand(QStringLiteral("plasma-apply-desktoptheme"), {themeId}, 3000);
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("plasmarc"),
+             QStringLiteral("--group"), QStringLiteral("Theme"),
+             QStringLiteral("--key"), QStringLiteral("name"),
+             themeId}, 1500);
+
+        const QJsonObject meta = readJsonMetadata(desktopMeta);
+        hasBlur = meta.value(QStringLiteral("BlurEffect")).toObject().value(QStringLiteral("enabled")).toBool(false);
+    } else if (QFileInfo::exists(lnfMeta)) {
+        runCommand(QStringLiteral("plasma-apply-lookandfeel"), {QStringLiteral("-a"), themeId}, 4000);
+    }
+
+    if (QFileInfo::exists(QStringLiteral("/usr/share/color-schemes/") + themeId + QStringLiteral(".colors"))) {
+        runCommand(QStringLiteral("plasma-apply-colorscheme"), {themeId}, 2000);
+    }
+    if (QFileInfo::exists(QStringLiteral("/usr/share/Kvantum/") + themeId)) {
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("Kvantum/kvantum.kvconfig"),
+             QStringLiteral("--group"), QStringLiteral("General"),
+             QStringLiteral("--key"), QStringLiteral("theme"),
+             themeId}, 1500);
+    }
+    if (QFileInfo::exists(QStringLiteral("/usr/share/aurorae/themes/") + themeId)) {
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+             QStringLiteral("--group"), QStringLiteral("org.kde.kdecoration2"),
+             QStringLiteral("--key"), QStringLiteral("theme"),
+             QStringLiteral("__aurorae__svg__") + themeId}, 1500);
+    }
+
+    // Automatically match KWin compositor blur to the selected theme's capability
+    m_blurEnabled = hasBlur;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+         QStringLiteral("--group"), QStringLiteral("Plugins"),
+         QStringLiteral("--key"), QStringLiteral("blurEnabled"),
+         hasBlur ? QStringLiteral("true") : QStringLiteral("false")}, 1500);
+    runDetached(QStringLiteral("qdbus6"), {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("reconfigure")});
+
+    m_currentTheme = themeId;
+    QString displayName = themeId;
+    for (int i = 0; i < m_themes.size(); ++i) {
+        QVariantMap item = m_themes.at(i).toMap();
+        const bool isActive = (item.value(QStringLiteral("id")).toString() == themeId);
+        item[QStringLiteral("active")] = isActive;
+        if (isActive) {
+            displayName = item.value(QStringLiteral("name")).toString(themeId);
+        }
+        m_themes[i] = item;
+    }
+
+    notifyStatus(QStringLiteral("System theme applied: %1").arg(displayName));
     emit personalizationChanged();
 }
 
