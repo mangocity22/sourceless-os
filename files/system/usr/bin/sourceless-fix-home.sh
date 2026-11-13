@@ -44,5 +44,8 @@ if [ -d /var/home/sourceless ]; then
     chown -R 1000:1000 /var/home/sourceless
     chmod 700 /var/home/sourceless
     chmod 755 /var/home/sourceless/.config 2>/dev/null || true
+    mkdir -p /var/home/sourceless/.config/autostart
+    chown root:root /var/home/sourceless/.config/autostart 2>/dev/null || true
+    chmod 555 /var/home/sourceless/.config/autostart 2>/dev/null || true
     restorecon -RF /var/home/sourceless 2>/dev/null || true
 fi

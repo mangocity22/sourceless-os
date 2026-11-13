@@ -23,18 +23,6 @@ if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
     plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
 fi
 
-# Apply the wallpaper only if the file exists physically on disk
-WALLPAPER_DIR="/usr/share/wallpapers/SourceLess"
-if [[ -f "$WALLPAPER_DIR/contents/images/3840x2160.png" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
-    plasma-apply-wallpaperimage "$WALLPAPER_DIR" >/dev/null 2>&1 || true
-fi
-
-WALLPAPER_IMG="/usr/share/wallpapers/SourceLess/contents/images/3840x2160.png"
-
-if [[ -f "$WALLPAPER_IMG" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
-    plasma-apply-wallpaperimage "$WALLPAPER_IMG" >/dev/null 2>&1 || true
-fi
-
 # Wait up to 10 seconds for plasmashell to register on DBus
 for i in {1..20}; do
     if qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1; then
@@ -43,7 +31,7 @@ for i in {1..20}; do
     sleep 0.5
 done
 
-WALLPAPER_TARGET="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
+WALLPAPER_TARGET="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg"
 if [[ -f "$WALLPAPER_TARGET" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
     plasma-apply-wallpaperimage "$WALLPAPER_TARGET" >/dev/null 2>&1 || true
 fi

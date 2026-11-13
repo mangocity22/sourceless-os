@@ -59,9 +59,8 @@ modules:
         - kf6-ki18n-devel
         - kf6-kirigami-devel
         - kf6-kcmutils-devel
-        - qt6-qtbase-devel
-        - qt6-qtdeclarative-devel
         - qt6-qtwayland-devel
+        - qt6-qtsvg
         - kf6-qqc2-desktop-style
 
     remove:

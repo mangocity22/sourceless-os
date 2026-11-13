@@ -71,8 +71,6 @@ chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
 chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-support-dialog.py 2>/dev/null || true
-chmod +x /usr/bin/sourceless-control-center.py 2>/dev/null || true
-chmod +x files/scripts/build-control-center.sh 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # 3. User Privilege and Clean Home Directory Permissions
@@ -215,14 +213,14 @@ fi
 # -----------------------------------------------------------------------------
 
 echo "[Sourceless] Applying custom wallpapers safely..."
-WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png"
+WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg"
 
 if [ -f "$WALLPAPER_DARK" ]; then
     for pkg in Waterfall Next Breeze; do
         PKG_DIR="/usr/share/wallpapers/$pkg"
         if [ -d "$PKG_DIR" ]; then
             mkdir -p "$PKG_DIR/contents/images" "$PKG_DIR/contents/images_dark"
-            for size in 3840x2160.png 5120x2880.png 1920x1080.png; do
+            for size in 3840x2160.jpg 5120x2880.jpg 1920x1080.jpg; do
                 cp -f "$WALLPAPER_DARK" "$PKG_DIR/contents/images/$size" 2>/dev/null || true
                 cp -f "$WALLPAPER_DARK" "$PKG_DIR/contents/images_dark/$size" 2>/dev/null || true
             done
@@ -248,8 +246,8 @@ cat << 'EOF' > /etc/xdg/kscreenlockerrc
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
-Image=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png
-PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png
+Image=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
+PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
 EOF
 chmod 644 /etc/xdg/kscreenlockerrc 2>/dev/null || true
 cp -f /etc/xdg/kscreenlockerrc /etc/skel/.config/kscreenlockerrc 2>/dev/null || true
@@ -308,7 +306,7 @@ cat << 'EOF' >> /etc/xdg/kdeglobals
 
 [Wallpaper]
 defaultWallpaperTheme=SourceLess
-defaultFile=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.png
+defaultFile=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
 EOF
 
 # -----------------------------------------------------------------------------
