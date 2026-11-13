@@ -23,5 +23,5 @@
   <path d="M219.244,121.933c0-14.433,11.705-26.137,26.137-26.137h21.237c14.433,0,26.137,11.705,26.137,26.137v15.519h-73.512v-15.519Z" fill="url(#uuid-3796d0d8-efc3-4a1c-88a6-16a526839e28)" stroke="url(#uuid-b3093675-04c7-4c7e-a359-0ff169b4538a)" stroke-width="3.267"/>
   <rect x="132.664" y="130.101" width="246.672" height="53.092" rx="22.87" ry="22.87" fill="url(#uuid-7f6c9b98-12f8-495d-8079-c0449842863f)" stroke="url(#uuid-9b29c3f0-ccdb-4c4a-9d4e-9e5259cc5d93)" stroke-width="3.267"/>
   <path d="M160.435,178.292h191.13l-18.786,197.665c-1.397,14.719-13.763,25.95-28.547,25.95h-96.464c-14.784,0-27.15-11.231-28.547-25.95l-18.786-197.665Z" fill="url(#uuid-90aaa3f0-550c-486f-9679-afd8009ab439)" stroke="url(#uuid-b2931e90-7684-4e96-9a51-e98cecf6e0e2)" stroke-linejoin="round" stroke-width="3.267"/>
-  <path d="M215.16,223.216l8.168,130.687M256,223.216v130.687M296.84,223.216l-8.168,130.687" fill="none" stroke="rgba(255, 255, 255, .58)" stroke-linecap="round" stroke-width="8.168"/>
+  <path d="M215.16,223.216l8.168,130.687M256,223.216v130.687M296.84,223.216l-8.168,130.687" fill="none" stroke="#ffffff" stroke-opacity="0.58" stroke-linecap="round" stroke-width="8.168"/>
 </svg>

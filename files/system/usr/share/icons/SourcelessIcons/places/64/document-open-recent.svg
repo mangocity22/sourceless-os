@@ -18,11 +18,11 @@
     </linearGradient>
     <linearGradient id="uuid-1b99b5f2-c8ba-4868-b7c2-52fd1b089d74" x1="169.914" y1="307.946" x2="362.365" y2="98.269" xlink:href="#uuid-e158ac2d-b8c8-4595-a88a-f6d6a9de4cb5"/>
   </defs>
-  <path d="M246.962,148.483v51.711h51.711" fill="none" stroke="rgba(255, 255, 255, .45)" stroke-linejoin="round" stroke-width="3.694"/>
+  <path d="M246.962,148.483v51.711h51.711" fill="none" stroke="#ffffff" stroke-opacity="0.45" stroke-linejoin="round" stroke-width="3.694"/>
   <path d="M169.396,98.619h126.507l62.792,62.792v214.231c0,16.317-13.232,29.549-29.549,29.549h-159.75c-16.317,0-29.549-13.232-29.549-29.549v-247.474c0-16.317,13.232-29.549,29.549-29.549Z" fill="url(#uuid-696f3f0b-187d-4405-b808-b1de75a4fa50)" stroke="url(#uuid-e158ac2d-b8c8-4595-a88a-f6d6a9de4cb5)" stroke-width="3.694"/>
-  <path d="M295.903,98.619v62.792h62.792" fill="none" stroke="rgba(255, 255, 255, .56)" stroke-linejoin="round" stroke-width="3.694"/>
-  <path d="M184.17,213.122h126.507M184.17,251.905h108.039M184.17,290.688h86.8" fill="none" stroke="rgba(255, 255, 255, .42)" stroke-linecap="round" stroke-width="8.311"/>
+  <path d="M295.903,98.619v62.792h62.792" fill="none" stroke="#ffffff" stroke-opacity="0.56" stroke-linejoin="round" stroke-width="3.694"/>
+  <path d="M184.17,213.122h126.507M184.17,251.905h108.039M184.17,290.688h86.8" fill="none" stroke="#ffffff" stroke-opacity="0.42" stroke-linecap="round" stroke-width="8.311"/>
   <circle cx="327.01" cy="374.408" r="45.143" fill="url(#uuid-0b88dd32-1af6-49f5-903a-c07105bd54e8)" stroke="url(#uuid-1b99b5f2-c8ba-4868-b7c2-52fd1b089d74)" stroke-width="2.97"/>
-  <circle cx="327.01" cy="374.408" r="32.075" fill="none" stroke="rgba(255, 255, 255, .42)" stroke-width="1.782"/>
+  <circle cx="327.01" cy="374.408" r="32.075" fill="none" stroke="#ffffff" stroke-opacity="0.42" stroke-width="1.782"/>
   <path d="M326.418,353.025v23.405l16.63,10.471" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.927"/>
 </svg>

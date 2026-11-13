@@ -21,11 +21,11 @@
   <g id="uuid-65e8724d-a3c2-4560-bdd3-a48fddd4a6cb" data-name="7">
     <path d="M102.675,156.617c0-19.671,16.118-35.617,36-35.617h66c8.63,0,17.05,2.76,23.98,7.875l51.02,37.635h89c19.882,0,36,15.946,36,35.617v166.562c0,12.969-10.626,23.482-23.734,23.482H126.41c-13.108,0-23.734-10.513-23.734-23.482v-212.073Z" fill="url(#uuid-a7d97fb9-602e-4508-b4fe-463f3404088b)" stroke="url(#uuid-6c20cc0c-24cb-4162-bc06-639a3c52459b)" stroke-width="2.984"/>
     <path d="M90.675,240c0-19.88,16.12-36,36-36h254c19.88,0,36,16.12,36,36v129c0,19.88-16.12,36-36,36H126.675c-19.88,0-36-16.12-36-36v-129Z" fill="url(#uuid-6b510fb5-1150-4ee8-ac39-631929995f12)" stroke="url(#uuid-1dc045ce-b22a-4c95-9f50-6a16c8b8bd28)" stroke-width="3"/>
-    <path d="M122.675,220h258" fill="none" stroke="rgba(255, 255, 255, .2)" stroke-linecap="round" stroke-width="3"/>
+    <path d="M122.675,220h258" fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-linecap="round" stroke-width="3"/>
     <path d="M310.181,302.635l67.55.031c7.415.116,12.686,6.018,12.569,13.433l-.098,49.977c-.116,7.415-6.018,12.686-13.433,12.569l-66.636-.131c-7.415-.116-12.686-6.018-12.569-13.433l.098-49.977c.116-7.415,5.104-12.586,12.519-12.47Z" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.519"/>
     <g>
-      <path d="M356.4,303.765l-.047,74.331" fill="rgba(255, 255, 255, .06)" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.519"/>
-      <path d="M357.211,332.792l31.209.065" fill="rgba(255, 255, 255, .06)" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.519"/>
+      <path d="M356.4,303.765l-.047,74.331" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.519"/>
+      <path d="M357.211,332.792l31.209.065" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.519"/>
     </g>
   </g>
 </svg>

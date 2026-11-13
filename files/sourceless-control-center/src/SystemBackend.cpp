@@ -1086,7 +1086,7 @@ void SystemBackend::refreshSecurity()
     // 4. Support Gate & Tamper / Modified Check
     const bool supportTokenExists = QFileInfo::exists(QStringLiteral("/tmp/sourceless_support_active")) ||
                                     QFileInfo::exists(QStringLiteral("/var/run/sourceless_support_active"));
-    const bool konsoleRunning = !runCommand(QStringLiteral("pgrep"), {QStringLiteral("-f"), QStringLiteral("konsole.real")}, 1000).isEmpty();
+    const bool konsoleRunning = !runCommand(QStringLiteral("pgrep"), {QStringLiteral("-x"), QStringLiteral("konsole.real")}, 1000).isEmpty();
     m_supportSessionActive = supportTokenExists || konsoleRunning;
 
     const bool tamperFlagFile = QFileInfo::exists(QStringLiteral("/etc/sourceless/.tamper_detected")) ||
