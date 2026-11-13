@@ -1078,7 +1078,7 @@ void SystemBackend::applyTheme(const QString &themeId)
         const bool isActive = (item.value(QStringLiteral("id")).toString() == themeId);
         item[QStringLiteral("active")] = isActive;
         if (isActive) {
-            displayName = item.value(QStringLiteral("name")).toString(themeId);
+            displayName = item.value(QStringLiteral("name"), themeId).toString();
         }
         m_themes[i] = item;
     }
