@@ -58,6 +58,17 @@ ApplicationWindow {
         }
     }
 
+    // 0. Sourceless NCH Cyber High-Tech SVG Icon Component
+    component CyberIcon : Image {
+        property string iconName: ""
+        source: iconName !== "" ? ("qrc:/icons/" + iconName + ".svg") : ""
+        sourceSize.width: Math.max(width * 2, 48)
+        sourceSize.height: Math.max(height * 2, 48)
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        mipmap: true
+    }
+
     // 1. Reusable Windows 11 Setting Card Component
     component SettingCard : Rectangle {
         default property alias cardContent: innerCol.data
@@ -352,10 +363,10 @@ ApplicationWindow {
                             anchors.leftMargin: 6
                             spacing: 8
 
-                            Kirigami.Icon {
-                                source: "preferences-system"
-                                width: 16
-                                height: 16
+                            CyberIcon {
+                                iconName: "sourceless-control-center"
+                                width: 18
+                                height: 18
                             }
 
                             Label {
@@ -452,11 +463,10 @@ ApplicationWindow {
                             anchors.rightMargin: 10
                             spacing: 8
 
-                            Kirigami.Icon {
-                                source: "search"
+                            CyberIcon {
+                                iconName: "search"
                                 width: 16
                                 height: 16
-                                color: root.textMuted
                             }
 
                             TextField {
@@ -486,13 +496,13 @@ ApplicationWindow {
                     // 3. Navigation Categories (Windows 11 Structure)
                     Repeater {
                         model: [
-                            { title: "Home", iconName: "go-home", pageIdx: 0 },
-                            { title: "System", iconName: "computer", pageIdx: 1 },
-                            { title: "Bluetooth & devices", iconName: "preferences-system-bluetooth", pageIdx: 2 },
-                            { title: "Network & internet", iconName: "network-wireless", pageIdx: 3 },
-                            { title: "Personalization", iconName: "preferences-desktop-wallpaper", pageIdx: 4 },
-                            { title: "Apps", iconName: "applications-other", pageIdx: 5 },
-                            { title: "Time & language", iconName: "preferences-system-time", pageIdx: 6 },
+                            { title: "Home", iconName: "home", pageIdx: 0 },
+                            { title: "System", iconName: "system", pageIdx: 1 },
+                            { title: "Bluetooth & devices", iconName: "bluetooth", pageIdx: 2 },
+                            { title: "Network & internet", iconName: "network", pageIdx: 3 },
+                            { title: "Personalization", iconName: "personalization", pageIdx: 4 },
+                            { title: "Apps", iconName: "apps", pageIdx: 5 },
+                            { title: "Time & language", iconName: "time", pageIdx: 6 },
                             { title: "Privacy & security", iconName: "security-high", pageIdx: 7 }
                         ]
 
@@ -524,11 +534,10 @@ ApplicationWindow {
                                 anchors.rightMargin: 12
                                 spacing: 12
 
-                                Kirigami.Icon {
-                                    source: navItem.modelData.iconName
-                                    width: 20
-                                    height: 20
-                                    color: navItem.isSelected ? root.brandHighlight : root.textMuted
+                                CyberIcon {
+                                    iconName: navItem.modelData.iconName
+                                    width: 22
+                                    height: 22
                                 }
 
                                 Label {
@@ -761,11 +770,11 @@ ApplicationWindow {
                                     border.color: root.brandHighlight
                                     border.width: 1
 
-                                    Kirigami.Icon {
+                                    CyberIcon {
                                         anchors.centerIn: parent
-                                        source: "computer"
-                                        width: 36
-                                        height: 36
+                                        iconName: "system"
+                                        width: 38
+                                        height: 38
                                     }
                                 }
 
@@ -828,8 +837,8 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 14
 
-                                Kirigami.Icon {
-                                    source: backend && backend.muted ? "audio-volume-muted" : "audio-volume-high"
+                                CyberIcon {
+                                    iconName: backend && backend.muted ? "audio-muted" : "audio-high"
                                     width: 22; height: 22
                                 }
                                 Label {
@@ -916,7 +925,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "video-display"; width: 22; height: 22 }
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Display resolution & scaling"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -931,7 +940,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "network-wireless"; width: 22; height: 22 }
+                                CyberIcon { iconName: "network"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Wi-Fi & Network connections"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -946,7 +955,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "preferences-desktop-wallpaper"; width: 22; height: 22 }
+                                CyberIcon { iconName: "personalization"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Personalize Sourceless Glass"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -1026,7 +1035,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "video-display"; width: 22; height: 22 }
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Display resolution"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -1055,7 +1064,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "preferences-desktop-display-randr"; width: 22; height: 22 }
+                                CyberIcon { iconName: "scale"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Scale & Layout"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -1085,7 +1094,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "redshift-status-on"; width: 22; height: 22 }
+                                CyberIcon { iconName: "night-light"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Night Light (Eye Comfort)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -1112,7 +1121,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "audio-speakers"; width: 22; height: 22 }
+                                CyberIcon { iconName: "audio-speakers"; width: 24; height: 24 }
                                 ColumnLayout {
                                     Layout.preferredWidth: 240
                                     spacing: 2
@@ -1135,7 +1144,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "audio-input-microphone"; width: 22; height: 22 }
+                                CyberIcon { iconName: "mic"; width: 24; height: 24 }
                                 ColumnLayout {
                                     Layout.preferredWidth: 240
                                     spacing: 2
@@ -1160,7 +1169,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 12
-                                Kirigami.Icon { source: "battery-full"; width: 22; height: 22 }
+                                CyberIcon { iconName: "power"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Power Mode & Energy"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -1189,7 +1198,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 12
-                                Kirigami.Icon { source: "drive-harddisk"; width: 22; height: 22 }
+                                CyberIcon { iconName: "storage"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Storage Sense (" + (backend ? backend.diskUsedText : "") + " used of " + (backend ? backend.diskTotalText : "") + ")"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -1271,7 +1280,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "preferences-system-bluetooth"; width: 24; height: 24 }
+                                CyberIcon { iconName: "bluetooth"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Bluetooth"; color: root.textMain; font.pixelSize: 15; font.bold: true }
@@ -1324,7 +1333,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "input-mouse"; width: 22; height: 22 }
+                                CyberIcon { iconName: "mouse"; width: 24; height: 24 }
                                 ColumnLayout {
                                     Layout.preferredWidth: 220
                                     spacing: 2
@@ -1420,8 +1429,8 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 20
 
-                                Kirigami.Icon {
-                                    source: backend && backend.networkConnected ? "network-wireless-connected-100" : "network-offline"
+                                CyberIcon {
+                                    iconName: backend && backend.networkConnected ? "network-connected" : "network-offline"
                                     width: 36; height: 36
                                 }
 
@@ -1456,7 +1465,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "network-wireless"; width: 22; height: 22 }
+                                CyberIcon { iconName: "network"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Wi-Fi"; color: root.textMain; font.pixelSize: 15; font.bold: true }
@@ -1488,9 +1497,9 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: 12
 
-                                        Kirigami.Icon {
-                                            source: "network-wireless"
-                                            width: 18; height: 18
+                                        CyberIcon {
+                                            iconName: "network"
+                                            width: 20; height: 20
                                         }
 
                                         ColumnLayout {
@@ -1783,9 +1792,9 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: 12
 
-                                        Kirigami.Icon {
-                                            source: "applications-other"
-                                            width: 22; height: 22
+                                        CyberIcon {
+                                            iconName: "apps"
+                                            width: 24; height: 24
                                         }
 
                                         ColumnLayout {
@@ -1849,7 +1858,7 @@ ApplicationWindow {
                         SettingCard {
                             RowLayout {
                                 Layout.fillWidth: true
-                                Kirigami.Icon { source: "preferences-system-time"; width: 28; height: 28 }
+                                CyberIcon { iconName: "time"; width: 28; height: 28 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label {
@@ -1972,10 +1981,10 @@ ApplicationWindow {
                                     border.color: secOk ? root.statusGreen : root.statusRed
                                     border.width: 1
 
-                                    Kirigami.Icon {
+                                    CyberIcon {
                                         anchors.centerIn: parent
-                                        source: (backend && !backend.overallSecurityOk) ? "security-low" : "security-high"
-                                        width: 30; height: 30
+                                        iconName: (backend && !backend.overallSecurityOk) ? "security-low" : "security-high"
+                                        width: 32; height: 32
                                     }
                                 }
 
@@ -2076,7 +2085,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "security-medium"; width: 24; height: 24 }
+                                CyberIcon { iconName: "security-scan"; width: 26; height: 26 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "On-Demand Downloads & Home Threat Scan"; color: root.textMain; font.pixelSize: 14; font.bold: true }
@@ -2130,7 +2139,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
-                                Kirigami.Icon { source: "utilities-terminal"; width: 24; height: 24 }
+                                CyberIcon { iconName: "terminal"; width: 26; height: 26 }
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Emergency Technician Terminal"; color: root.textMain; font.pixelSize: 14; font.bold: true }

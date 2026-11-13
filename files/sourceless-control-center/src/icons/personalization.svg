@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="slGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A7FF52"/>
+      <stop offset="52%" stop-color="#6E62FF"/>
+      <stop offset="100%" stop-color="#6051ED"/>
+    </linearGradient>
+    <linearGradient id="slGradRev" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#A7FF52"/>
+      <stop offset="100%" stop-color="#7550FF"/>
+    </linearGradient>
+    <linearGradient id="slGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22273A" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#0F131E" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="slRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2546D"/>
+      <stop offset="100%" stop-color="#7550FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="10" width="48" height="36" rx="5" fill="url(#slGlass)" stroke="url(#slGrad)" stroke-width="3"/>
+  <polygon points="18,40 28,25 36,34 42,27 48,40" fill="url(#slGrad)" fill-opacity="0.8"/>
+  <circle cx="22" cy="21" r="3.2" fill="#A7FF52"/>
+  <path d="M24 53 H40" stroke="url(#slGrad)" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

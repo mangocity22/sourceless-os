@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("Sourceless NCH"));
     app.setApplicationName(QStringLiteral("SourcelessControlCenter"));
     app.setApplicationDisplayName(QStringLiteral("Sourceless Control Center"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("preferences-system")));
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/sourceless-control-center.svg")));
 
     const QString startPage = resolveInitialPage(app.arguments());
     SystemBackend backend(startPage);

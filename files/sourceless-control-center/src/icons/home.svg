@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="slGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A7FF52"/>
+      <stop offset="52%" stop-color="#6E62FF"/>
+      <stop offset="100%" stop-color="#6051ED"/>
+    </linearGradient>
+    <linearGradient id="slGradRev" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#A7FF52"/>
+      <stop offset="100%" stop-color="#7550FF"/>
+    </linearGradient>
+    <linearGradient id="slGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22273A" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#0F131E" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="slRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2546D"/>
+      <stop offset="100%" stop-color="#7550FF"/>
+    </linearGradient>
+  </defs>
+  <path d="M10 30 L32 11 L54 30" fill="none" stroke="url(#slGrad)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M16 26 V50 C16 52.2 17.8 54 20 54 H44 C46.2 54 48 52.2 48 50 V26" fill="url(#slGlass)" stroke="url(#slGrad)" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="27" y="36" width="10" height="18" rx="2" fill="none" stroke="#A7FF52" stroke-width="2.4"/>
+  <circle cx="32" cy="24" r="2.5" fill="#A7FF52"/>
+</svg>

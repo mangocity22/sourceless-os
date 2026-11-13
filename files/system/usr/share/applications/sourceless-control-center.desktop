@@ -2,7 +2,7 @@
 Name=Sourceless Control Center
 Comment=Configure Sourceless OS
 Exec=/usr/bin/sourceless-control-center
-Icon=preferences-system
+Icon=sourceless-control-center
 Terminal=false
 Type=Application
 Categories=Settings;HardwareSettings;
