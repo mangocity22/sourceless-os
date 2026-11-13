@@ -59,14 +59,21 @@ ApplicationWindow {
     }
 
     // 0. Sourceless NCH Cyber High-Tech SVG Icon Component
-    component CyberIcon : Image {
+    component CyberIcon : Item {
         property string iconName: ""
-        source: iconName !== "" ? ("qrc:/icons/" + iconName + ".svg") : ""
-        sourceSize.width: Math.max(width * 2, 48)
-        sourceSize.height: Math.max(height * 2, 48)
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-        mipmap: true
+        width: 22
+        height: 22
+        Layout.preferredWidth: width
+        Layout.preferredHeight: height
+
+        Image {
+            anchors.fill: parent
+            source: parent.iconName !== "" ? ("qrc:/icons/" + parent.iconName + ".svg") : ""
+            sourceSize: Qt.size(64, 64)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            mipmap: true
+        }
     }
 
     // 1. Reusable Windows 11 Setting Card Component
