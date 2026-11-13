@@ -804,8 +804,9 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                     }
 
-                                    RowLayout {
-                                        spacing: 18
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: 16
                                         Label {
                                             text: backend && backend.networkConnected ? ("● " + backend.connectionType + ": " + backend.activeNetworkName) : "● Network: Offline"
                                             color: backend && backend.networkConnected ? root.statusGreen : root.statusRed
@@ -813,15 +814,15 @@ ApplicationWindow {
                                             font.bold: true
                                         }
                                         Label {
+                                            width: Math.min(implicitWidth, parent.width)
                                             text: (backend && !backend.overallSecurityOk) ? ("● System: " + backend.systemIntegrity) : "● Shield: Protected"
                                             color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.statusGreen
                                             font.pixelSize: 13
                                             font.bold: true
+                                            wrapMode: Text.WordWrap
                                         }
                                     }
                                 }
-
-                                Item { Layout.fillWidth: true }
 
                                 ActionButton {
                                     labelText: "Device specs"
