@@ -47,6 +47,10 @@ class SystemBackend : public QObject
     Q_PROPERTY(QString displayName READ displayName NOTIFY displayChanged)
     Q_PROPERTY(QString currentResolution READ currentResolution NOTIFY displayChanged)
     Q_PROPERTY(QStringList availableResolutions READ availableResolutions NOTIFY displayChanged)
+    Q_PROPERTY(QString currentRefreshRate READ currentRefreshRate NOTIFY displayChanged)
+    Q_PROPERTY(QStringList availableRefreshRates READ availableRefreshRates NOTIFY displayChanged)
+    Q_PROPERTY(QString displayOrientation READ displayOrientation NOTIFY displayChanged)
+    Q_PROPERTY(QString colorAccuracy READ colorAccuracy NOTIFY displayChanged)
     Q_PROPERTY(int displayScale READ displayScale NOTIFY displayChanged)
     Q_PROPERTY(bool nightLightEnabled READ nightLightEnabled NOTIFY displayChanged)
     Q_PROPERTY(int nightLightTemp READ nightLightTemp NOTIFY displayChanged)
@@ -144,6 +148,10 @@ public:
     QString displayName() const { return m_displayName; }
     QString currentResolution() const { return m_currentResolution; }
     QStringList availableResolutions() const { return m_availableResolutions; }
+    QString currentRefreshRate() const { return m_currentRefreshRate; }
+    QStringList availableRefreshRates() const { return m_availableRefreshRates; }
+    QString displayOrientation() const { return m_displayOrientation; }
+    QString colorAccuracy() const { return m_colorAccuracy; }
     int displayScale() const { return m_displayScale; }
     bool nightLightEnabled() const { return m_nightLightEnabled; }
     int nightLightTemp() const { return m_nightLightTemp; }
@@ -219,6 +227,9 @@ public:
     // Display controls
     Q_INVOKABLE void setBrightness(int val);
     Q_INVOKABLE void setResolution(const QString &res);
+    Q_INVOKABLE void setRefreshRate(const QString &rate);
+    Q_INVOKABLE void setDisplayOrientation(const QString &orientation);
+    Q_INVOKABLE void setColorAccuracy(const QString &mode);
     Q_INVOKABLE void setDisplayScale(int percent);
     Q_INVOKABLE void setNightLight(bool enabled, int temp);
 
@@ -309,11 +320,15 @@ private:
     QString m_audioOutputName = QStringLiteral("Default System Output");
 
     int m_brightness = 100;
-    bool m_hasBrightness = false;
-    int m_maxRawBrightness = 100;
+    bool m_hasBrightness = true;
+    int m_maxRawBrightness = 0;
     QString m_displayName = QStringLiteral("Primary Display");
     QString m_currentResolution = QStringLiteral("1920x1080");
     QStringList m_availableResolutions;
+    QString m_currentRefreshRate = QStringLiteral("60 Hz");
+    QStringList m_availableRefreshRates;
+    QString m_displayOrientation = QStringLiteral("normal");
+    QString m_colorAccuracy = QStringLiteral("preferEfficiency");
     int m_displayScale = 100;
     bool m_nightLightEnabled = false;
     int m_nightLightTemp = 4500;

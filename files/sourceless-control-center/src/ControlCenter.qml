@@ -60,10 +60,18 @@ ApplicationWindow {
           keywords: "taskbar dock start menu panel layout reset restore default bara meniu" },
 
         // System (Page 1)
+        { title: "Display Brightness", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
+          keywords: "display brightness backlight dim screen monitor luminozitate ecran" },
         { title: "Display Resolution", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
-          keywords: "display resolution monitor screen graphics video pixels hz refresh ecran rezolutie monitor" },
+          keywords: "display resolution monitor screen graphics video pixels ecran rezolutie monitor" },
+        { title: "Refresh Rate (Hz)", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
+          keywords: "refresh rate hz fps hertz frequency monitor display rata reimprospatare" },
+        { title: "Display Orientation & Rotation", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
+          keywords: "display orientation rotation portrait landscape flipped 90 180 270 rotire orientare ecran" },
         { title: "Scale & Layout (DPI)", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "scale",
           keywords: "scale scaling layout dpi zoom size text ui interface font marime scalare" },
+        { title: "Preferred Color Accuracy", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
+          keywords: "preferred color accuracy efficiency tradeoff icc profile hdr gamut acuratete culori eficienta" },
         { title: "Night Light (Eye Comfort)", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "night-light",
           keywords: "night light eye comfort blue light warm color temperature kelvin sleep lumina nocturna ochi" },
         { title: "Sound & Output Volume", subtitle: "System • Sound", pageIdx: 1, sectionKey: "sound", iconName: "audio-speakers",
@@ -1213,6 +1221,38 @@ ApplicationWindow {
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
 
+                            // Display Brightness Quick Slider
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+
+                                CyberIcon {
+                                    iconName: "display"
+                                    width: 22; height: 22
+                                }
+                                Label {
+                                    text: "Display Brightness"
+                                    color: root.textMain
+                                    font.pixelSize: 14
+                                    Layout.preferredWidth: 140
+                                }
+                                WinSlider {
+                                    Layout.fillWidth: true
+                                    from: 5; to: 100; stepSize: 1
+                                    value: backend ? backend.brightness : 100
+                                    onMoved: backend.setBrightness(Math.round(value))
+                                }
+                                Label {
+                                    text: (backend ? backend.brightness : 100) + "%"
+                                    color: root.textMuted
+                                    font.pixelSize: 13
+                                    Layout.preferredWidth: 42
+                                    horizontalAlignment: Text.AlignRight
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
                             // Quick Toggles Row
                             RowLayout {
                                 Layout.fillWidth: true
@@ -1370,7 +1410,35 @@ ApplicationWindow {
                         SettingCard {
                             id: cardDisplay
                             sectionKey: "display"
-                            // Row 1: Display Resolution Dropdown
+                            // Row 1: Display Brightness
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Display brightness"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: backend ? ("Adjust screen luminance (" + backend.brightness + "%)") : "Adjust screen luminance"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSlider {
+                                    from: 5; to: 100; stepSize: 1
+                                    value: backend ? backend.brightness : 100
+                                    Layout.preferredWidth: 210
+                                    onMoved: backend.setBrightness(Math.round(value))
+                                }
+                                Label {
+                                    text: (backend ? backend.brightness : 100) + "%"
+                                    color: root.textMain
+                                    font.pixelSize: 13
+                                    Layout.preferredWidth: 44
+                                    horizontalAlignment: Text.AlignRight
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Row 2: Display Resolution Dropdown
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1399,7 +1467,66 @@ ApplicationWindow {
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
 
-                            // Row 2: Scale & Layout Dropdown
+                            // Row 3: Refresh Rate Dropdown
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Refresh rate"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Choose display update frequency (" + (backend ? backend.currentRefreshRate : "60 Hz") + ")"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: refreshCombo
+                                    model: backend ? backend.availableRefreshRates : ["60 Hz"]
+                                    currentIndex: {
+                                        if (!backend || !backend.availableRefreshRates) return 0
+                                        const idx = backend.availableRefreshRates.indexOf(backend.currentRefreshRate)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && backend.availableRefreshRates[index]) {
+                                            backend.setRefreshRate(backend.availableRefreshRates[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Row 4: Display Orientation Dropdown
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Display orientation"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Rotate screen layout for landscape or portrait monitors"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: orientationCombo
+                                    readonly property var orientationValues: ["normal", "left", "right", "inverted"]
+                                    model: ["Landscape (Normal)", "Portrait Left (90°)", "Portrait Right (270°)", "Landscape Flipped (180°)"]
+                                    currentIndex: {
+                                        if (!backend) return 0
+                                        const idx = orientationValues.indexOf(backend.displayOrientation)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && orientationValues[index] !== undefined) {
+                                            backend.setDisplayOrientation(orientationValues[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Row 5: Scale & Layout Dropdown
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1429,7 +1556,37 @@ ApplicationWindow {
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
 
-                            // Row 3: Night Light
+                            // Row 6: Preferred Color Accuracy Dropdown
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Preferred color accuracy"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Balance battery/GPU efficiency against color fidelity"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: colorAccuracyCombo
+                                    readonly property var colorValues: ["preferEfficiency", "preferAccuracy"]
+                                    model: ["Prefer efficiency", "Prefer color accuracy"]
+                                    currentIndex: {
+                                        if (!backend) return 0
+                                        const idx = colorValues.indexOf(backend.colorAccuracy)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && colorValues[index] !== undefined) {
+                                            backend.setColorAccuracy(colorValues[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Row 7: Night Light
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 14
@@ -1444,7 +1601,7 @@ ApplicationWindow {
                                     from: 2800; to: 6000; stepSize: 100
                                     value: backend ? backend.nightLightTemp : 4500
                                     Layout.preferredWidth: 180
-                                    onMoved: backend.setNightLight(backend.nightLightEnabled, Math.round(value))
+                                    onMoved: backend.setNightLight(true, Math.round(value))
                                 }
                                 WinSwitch {
                                     checkedState: backend ? backend.nightLightEnabled : false

@@ -16,6 +16,7 @@
 #include <QSysInfo>
 #include <QThread>
 #include <QUrl>
+#include <algorithm>
 #include <cmath>
 #include <unistd.h>
 
@@ -362,8 +363,46 @@ void SystemBackend::testSound()
 }
 
 // -----------------------------------------------------------------------------
-// 3. DISPLAY & BRIGHTNESS (KScreen + KDE PowerManagement + KWin NightColor)
+// 3. DISPLAY & BRIGHTNESS (KScreen + KDE PowerManagement + KWin NightLight)
 // -----------------------------------------------------------------------------
+namespace {
+int parseRefreshRateHz(double rawRate)
+{
+    if (rawRate <= 0.0) {
+        return 60;
+    }
+    const double hz = (rawRate > 1000.0) ? (rawRate / 1000.0) : rawRate;
+    return qMax(1, static_cast<int>(std::round(hz)));
+}
+
+int extractBrightnessPercent(const QJsonValue &val, int fallback)
+{
+    if (!val.isDouble()) {
+        return fallback;
+    }
+    const double raw = val.toDouble();
+    if (raw <= 1.0) {
+        return qBound(5, static_cast<int>(std::round(raw * 100.0)), 100);
+    }
+    return qBound(5, static_cast<int>(std::round(raw)), 100);
+}
+
+QString parseTradeoffString(const QJsonValue &val)
+{
+    if (val.isDouble()) {
+        return (val.toInt() == 1) ? QStringLiteral("preferAccuracy") : QStringLiteral("preferEfficiency");
+    }
+    const QString str = val.toString().trimmed();
+    if (str.compare(QStringLiteral("preferAccuracy"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("preferAccuracy");
+    }
+    if (str.compare(QStringLiteral("preferEfficiency"), Qt::CaseInsensitive) == 0) {
+        return QStringLiteral("preferEfficiency");
+    }
+    return QString();
+}
+} // namespace
+
 void SystemBackend::refreshDisplay()
 {
     const QString maxBr = runCommand(QStringLiteral("qdbus6"),
@@ -375,14 +414,17 @@ void SystemBackend::refreshDisplay()
          QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl"),
          QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl.brightness")}, 1500);
 
+    m_hasBrightness = true;
     if (!maxBr.isEmpty() && maxBr.toInt() > 0) {
-        m_hasBrightness = true;
         m_maxRawBrightness = maxBr.toInt();
         m_brightness = qBound(5, static_cast<int>(std::round((curBr.toInt() * 100.0) / m_maxRawBrightness)), 100);
     } else {
-        m_hasBrightness = false;
-        m_brightness = 100;
+        m_maxRawBrightness = 0;
     }
+
+    QStringList parsedRefreshRates;
+    bool hasKscreenBrightness = false;
+    bool hasTradeoffFromKscreen = false;
 
     const QString kscreenJson = runCommand(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2500);
     if (!kscreenJson.isEmpty()) {
@@ -397,8 +439,39 @@ void SystemBackend::refreshDisplay()
                     m_displayScale = static_cast<int>(std::round(scale * 100.0));
                     const QString currentModeId = outObj.value(QStringLiteral("currentModeId")).toString();
 
+                    if (m_maxRawBrightness <= 0 && outObj.contains(QStringLiteral("brightness"))) {
+                        m_brightness = extractBrightnessPercent(outObj.value(QStringLiteral("brightness")), m_brightness);
+                        hasKscreenBrightness = true;
+                    }
+
+                    const QJsonValue rotVal = outObj.value(QStringLiteral("rotation"));
+                    if (rotVal.isString()) {
+                        const QString rStr = rotVal.toString().toLower();
+                        if (rStr == QStringLiteral("left") || rStr == QStringLiteral("right") || rStr == QStringLiteral("inverted")) {
+                            m_displayOrientation = rStr;
+                        } else {
+                            m_displayOrientation = QStringLiteral("normal");
+                        }
+                    } else if (rotVal.isDouble()) {
+                        switch (rotVal.toInt(1)) {
+                        case 2: m_displayOrientation = QStringLiteral("left"); break;
+                        case 4: m_displayOrientation = QStringLiteral("inverted"); break;
+                        case 8: m_displayOrientation = QStringLiteral("right"); break;
+                        default: m_displayOrientation = QStringLiteral("normal"); break;
+                        }
+                    }
+
+                    if (outObj.contains(QStringLiteral("colorPowerTradeoff"))) {
+                        const QString parsed = parseTradeoffString(outObj.value(QStringLiteral("colorPowerTradeoff")));
+                        if (!parsed.isEmpty()) {
+                            m_colorAccuracy = parsed;
+                            hasTradeoffFromKscreen = true;
+                        }
+                    }
+
                     QStringList resList;
                     const QJsonArray modes = outObj.value(QStringLiteral("modes")).toArray();
+                    // First pass: collect resolutions and active mode resolution/refresh rate
                     for (const QJsonValue &mVal : modes) {
                         const QJsonObject modeObj = mVal.toObject();
                         const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
@@ -411,17 +484,80 @@ void SystemBackend::refreshDisplay()
                             }
                             if (modeObj.value(QStringLiteral("id")).toString() == currentModeId) {
                                 m_currentResolution = resStr;
+                                const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
+                                m_currentRefreshRate = QStringLiteral("%1 Hz").arg(hz);
                             }
                         }
                     }
                     if (!resList.isEmpty()) {
                         m_availableResolutions = resList;
                     }
+
+                    // Second pass: collect unique integer Hz values for the active resolution
+                    QList<int> hzValues;
+                    for (const QJsonValue &mVal : modes) {
+                        const QJsonObject modeObj = mVal.toObject();
+                        const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
+                        const QString resStr = QStringLiteral("%1x%2")
+                            .arg(sizeObj.value(QStringLiteral("width")).toInt())
+                            .arg(sizeObj.value(QStringLiteral("height")).toInt());
+                        if (resStr == m_currentResolution) {
+                            const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
+                            if (!hzValues.contains(hz)) {
+                                hzValues.append(hz);
+                            }
+                        }
+                    }
+                    std::sort(hzValues.begin(), hzValues.end(), std::greater<int>());
+                    for (int hz : hzValues) {
+                        parsedRefreshRates.append(QStringLiteral("%1 Hz").arg(hz));
+                    }
                     break;
                 }
             }
         }
     }
+
+    // Check ~/.config/kwinoutputconfig.json for colorPowerTradeoff & brightness fallback
+    QFile kwinOutFile(QDir::homePath() + QStringLiteral("/.config/kwinoutputconfig.json"));
+    if (kwinOutFile.open(QIODevice::ReadOnly)) {
+        const QJsonDocument outDoc = QJsonDocument::fromJson(kwinOutFile.readAll());
+        QJsonArray outputEntries;
+        if (outDoc.isArray()) {
+            const QJsonArray rootArr = outDoc.array();
+            for (const QJsonValue &secVal : rootArr) {
+                const QJsonObject secObj = secVal.toObject();
+                if (secObj.value(QStringLiteral("name")).toString() == QStringLiteral("outputs")) {
+                    outputEntries = secObj.value(QStringLiteral("data")).toArray();
+                    break;
+                }
+            }
+            if (outputEntries.isEmpty()) {
+                outputEntries = rootArr;
+            }
+        } else if (outDoc.isObject()) {
+            outputEntries = outDoc.object().value(QStringLiteral("outputs")).toArray();
+        }
+
+        for (const QJsonValue &entryVal : outputEntries) {
+            const QJsonObject entryObj = entryVal.toObject();
+            const QString connector = entryObj.value(QStringLiteral("connectorName")).toString(
+                entryObj.value(QStringLiteral("name")).toString());
+            if (!connector.isEmpty() && connector == m_displayName) {
+                if (!hasTradeoffFromKscreen && entryObj.contains(QStringLiteral("colorPowerTradeoff"))) {
+                    const QString parsed = parseTradeoffString(entryObj.value(QStringLiteral("colorPowerTradeoff")));
+                    if (!parsed.isEmpty()) {
+                        m_colorAccuracy = parsed;
+                    }
+                }
+                if (m_maxRawBrightness <= 0 && !hasKscreenBrightness && entryObj.contains(QStringLiteral("brightness"))) {
+                    m_brightness = extractBrightnessPercent(entryObj.value(QStringLiteral("brightness")), m_brightness);
+                }
+                break;
+            }
+        }
+    }
+
     if (m_availableResolutions.isEmpty()) {
         m_availableResolutions = {
             QStringLiteral("3840x2160"),
@@ -434,11 +570,27 @@ void SystemBackend::refreshDisplay()
         };
     }
 
+    if (!parsedRefreshRates.isEmpty()) {
+        m_availableRefreshRates = parsedRefreshRates;
+    } else {
+        m_availableRefreshRates = {m_currentRefreshRate};
+    }
+
     QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
     kwinrc.beginGroup(QStringLiteral("NightColor"));
     m_nightLightEnabled = kwinrc.value(QStringLiteral("Active"), false).toBool();
     m_nightLightTemp = kwinrc.value(QStringLiteral("NightTemperature"), 4500).toInt();
     kwinrc.endGroup();
+
+    const QString nlEnabledDbus = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.KWin"),
+         QStringLiteral("/org/kde/KWin/NightLight"),
+         QStringLiteral("org.kde.KWin.NightLight.enabled")}, 1000);
+    if (nlEnabledDbus == QStringLiteral("true")) {
+        m_nightLightEnabled = true;
+    } else if (nlEnabledDbus == QStringLiteral("false")) {
+        m_nightLightEnabled = false;
+    }
 
     emit displayChanged();
 }
@@ -446,7 +598,11 @@ void SystemBackend::refreshDisplay()
 void SystemBackend::setBrightness(int val)
 {
     m_brightness = qBound(5, val, 100);
-    if (m_hasBrightness && m_maxRawBrightness > 0) {
+    if (!m_displayName.isEmpty()) {
+        runCommand(QStringLiteral("kscreen-doctor"),
+            {QStringLiteral("output.%1.brightness.%2").arg(m_displayName).arg(m_brightness)}, 1500);
+    }
+    if (m_maxRawBrightness > 0) {
         const int raw = static_cast<int>(std::round((m_brightness / 100.0) * m_maxRawBrightness));
         runCommand(QStringLiteral("qdbus6"),
             {QStringLiteral("org.kde.Solid.PowerManagement"),
@@ -463,6 +619,8 @@ void SystemBackend::setResolution(const QString &res)
         return;
     }
     QString targetModeId;
+    int bestHz = -1;
+    const int desiredHz = m_currentRefreshRate.split(QLatin1Char(' ')).first().toInt();
     const QString kscreenJson = runCommand(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2000);
     if (!kscreenJson.isEmpty()) {
         const QJsonDocument doc = QJsonDocument::fromJson(kscreenJson.toUtf8());
@@ -478,6 +636,53 @@ void SystemBackend::setResolution(const QString &res)
                         .arg(sizeObj.value(QStringLiteral("width")).toInt())
                         .arg(sizeObj.value(QStringLiteral("height")).toInt());
                     if (modeRes == res) {
+                        const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
+                        if (hz == desiredHz) {
+                            targetModeId = modeObj.value(QStringLiteral("id")).toString();
+                            break;
+                        }
+                        if (hz > bestHz) {
+                            bestHz = hz;
+                            targetModeId = modeObj.value(QStringLiteral("id")).toString();
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if (!targetModeId.isEmpty()) {
+        runCommand(QStringLiteral("kscreen-doctor"),
+            {QStringLiteral("output.%1.mode.%2").arg(m_displayName, targetModeId)}, 2500);
+        notifyStatus(QStringLiteral("Display resolution set to %1").arg(res));
+        refreshDisplay();
+    }
+}
+
+void SystemBackend::setRefreshRate(const QString &rate)
+{
+    if (rate.isEmpty() || m_displayName.isEmpty() || rate == m_currentRefreshRate) {
+        return;
+    }
+    const int targetHz = rate.split(QLatin1Char(' ')).first().toInt();
+    QString targetModeId;
+    const QString kscreenJson = runCommand(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2000);
+    if (!kscreenJson.isEmpty()) {
+        const QJsonDocument doc = QJsonDocument::fromJson(kscreenJson.toUtf8());
+        const QJsonArray outputs = doc.object().value(QStringLiteral("outputs")).toArray();
+        for (const QJsonValue &val : outputs) {
+            const QJsonObject outObj = val.toObject();
+            if (outObj.value(QStringLiteral("name")).toString() == m_displayName) {
+                const QJsonArray modes = outObj.value(QStringLiteral("modes")).toArray();
+                for (const QJsonValue &mVal : modes) {
+                    const QJsonObject modeObj = mVal.toObject();
+                    const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
+                    const QString modeRes = QStringLiteral("%1x%2")
+                        .arg(sizeObj.value(QStringLiteral("width")).toInt())
+                        .arg(sizeObj.value(QStringLiteral("height")).toInt());
+                    const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
+                    if (modeRes == m_currentResolution && hz == targetHz) {
                         targetModeId = modeObj.value(QStringLiteral("id")).toString();
                         break;
                     }
@@ -490,10 +695,43 @@ void SystemBackend::setResolution(const QString &res)
     if (!targetModeId.isEmpty()) {
         runCommand(QStringLiteral("kscreen-doctor"),
             {QStringLiteral("output.%1.mode.%2").arg(m_displayName, targetModeId)}, 2500);
-        m_currentResolution = res;
-        notifyStatus(QStringLiteral("Display resolution set to %1").arg(res));
+        m_currentRefreshRate = rate;
+        notifyStatus(QStringLiteral("Refresh rate set to %1").arg(rate));
         emit displayChanged();
     }
+}
+
+void SystemBackend::setDisplayOrientation(const QString &orientation)
+{
+    static const QStringList validOrientations = {
+        QStringLiteral("normal"),
+        QStringLiteral("left"),
+        QStringLiteral("right"),
+        QStringLiteral("inverted")
+    };
+    if (!validOrientations.contains(orientation) || m_displayName.isEmpty() || orientation == m_displayOrientation) {
+        return;
+    }
+    runCommand(QStringLiteral("kscreen-doctor"),
+        {QStringLiteral("output.%1.rotation.%2").arg(m_displayName, orientation)}, 2500);
+    m_displayOrientation = orientation;
+    notifyStatus(QStringLiteral("Display orientation set to %1").arg(orientation));
+    emit displayChanged();
+}
+
+void SystemBackend::setColorAccuracy(const QString &mode)
+{
+    if ((mode != QStringLiteral("preferEfficiency") && mode != QStringLiteral("preferAccuracy")) ||
+        m_displayName.isEmpty() || mode == m_colorAccuracy) {
+        return;
+    }
+    runCommand(QStringLiteral("kscreen-doctor"),
+        {QStringLiteral("output.%1.colorPowerTradeoff.%2").arg(m_displayName, mode)}, 2500);
+    m_colorAccuracy = mode;
+    notifyStatus(mode == QStringLiteral("preferAccuracy")
+        ? QStringLiteral("Color accuracy prioritized")
+        : QStringLiteral("Power efficiency prioritized for color"));
+    emit displayChanged();
 }
 
 void SystemBackend::setDisplayScale(int percent)
@@ -520,20 +758,43 @@ void SystemBackend::setNightLight(bool enabled, int temp)
     runCommand(QStringLiteral("kwriteconfig6"),
         {QStringLiteral("--file"), QStringLiteral("kwinrc"),
          QStringLiteral("--group"), QStringLiteral("NightColor"),
-         QStringLiteral("--key"), QStringLiteral("Active"),
-         enabled ? QStringLiteral("true") : QStringLiteral("false")}, 1500);
-    runCommand(QStringLiteral("kwriteconfig6"),
-        {QStringLiteral("--file"), QStringLiteral("kwinrc"),
-         QStringLiteral("--group"), QStringLiteral("NightColor"),
          QStringLiteral("--key"), QStringLiteral("Mode"),
-         QStringLiteral("Constant")}, 1500);
+         QStringLiteral("Constant"),
+         QStringLiteral("--notify")}, 1500);
     runCommand(QStringLiteral("kwriteconfig6"),
         {QStringLiteral("--file"), QStringLiteral("kwinrc"),
          QStringLiteral("--group"), QStringLiteral("NightColor"),
          QStringLiteral("--key"), QStringLiteral("NightTemperature"),
-         QString::number(m_nightLightTemp)}, 1500);
+         QString::number(m_nightLightTemp),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+         QStringLiteral("--group"), QStringLiteral("NightColor"),
+         QStringLiteral("--key"), QStringLiteral("DayTemperature"),
+         enabled ? QString::number(m_nightLightTemp) : QStringLiteral("6500"),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+         QStringLiteral("--group"), QStringLiteral("NightColor"),
+         QStringLiteral("--key"), QStringLiteral("Active"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
 
-    runDetached(QStringLiteral("qdbus6"), {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("reconfigure")});
+    if (enabled) {
+        const QString inhibited = runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"),
+             QStringLiteral("/org/kde/KWin/NightLight"),
+             QStringLiteral("org.kde.KWin.NightLight.inhibited")}, 1000);
+        if (inhibited == QStringLiteral("true")) {
+            runDetached(QStringLiteral("qdbus6"),
+                {QStringLiteral("org.kde.kglobalaccel"),
+                 QStringLiteral("/component/kwin"),
+                 QStringLiteral("org.kde.kglobalaccel.Component.invokeShortcut"),
+                 QStringLiteral("Toggle Night Color")});
+        }
+    }
+
     notifyStatus(enabled ? QStringLiteral("Night Light enabled (%1K)").arg(m_nightLightTemp) : QStringLiteral("Night Light disabled"));
     emit displayChanged();
 }
