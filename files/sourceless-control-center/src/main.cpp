@@ -46,6 +46,9 @@ static QString resolveInitialPage(const QStringList &args)
         if (arg.contains(QStringLiteral("printer")) || arg.contains(QStringLiteral("cups")) || arg.contains(QStringLiteral("print"))) {
             return QStringLiteral("printers");
         }
+        if (arg.contains(QStringLiteral("user")) || arg.contains(QStringLiteral("account")) || arg.contains(QStringLiteral("profile"))) {
+            return QStringLiteral("users");
+        }
     }
     return QStringLiteral("home");
 }

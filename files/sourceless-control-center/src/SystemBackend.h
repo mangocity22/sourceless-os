@@ -16,6 +16,7 @@ class SystemBackend : public QObject
     Q_PROPERTY(QString userFullName READ userFullName NOTIFY systemInfoChanged)
     Q_PROPERTY(QString userInitials READ userInitials NOTIFY systemInfoChanged)
     Q_PROPERTY(QString userAvatar READ userAvatar NOTIFY systemInfoChanged)
+    Q_PROPERTY(QString userEmail READ userEmail NOTIFY systemInfoChanged)
     Q_PROPERTY(QString hostname READ hostname NOTIFY systemInfoChanged)
     Q_PROPERTY(QString osName READ osName NOTIFY systemInfoChanged)
     Q_PROPERTY(QString kernelVersion READ kernelVersion NOTIFY systemInfoChanged)
@@ -147,6 +148,7 @@ public:
     QString userFullName() const { return m_userFullName; }
     QString userInitials() const { return m_userInitials; }
     QString userAvatar() const { return m_userAvatar; }
+    QString userEmail() const { return m_userEmail; }
     QString hostname() const { return m_hostname; }
     QString osName() const { return m_osName; }
     QString kernelVersion() const { return m_kernelVersion; }
@@ -262,6 +264,7 @@ public:
 
     // Invokable actions for QML
     Q_INVOKABLE void refreshAll();
+    Q_INVOKABLE void refreshUserProfile();
     Q_INVOKABLE void refreshAudio();
     Q_INVOKABLE void refreshDisplay();
     Q_INVOKABLE void refreshNetwork();
@@ -354,6 +357,15 @@ public:
     Q_INVOKABLE void setToggleKeysBeep(bool enabled);
     Q_INVOKABLE void setBellSettings(bool audibleBell, bool visualBell, bool invertVisual);
 
+    // User Account controls
+    Q_INVOKABLE void setUserFullName(const QString &fullName);
+    Q_INVOKABLE void setUserEmail(const QString &email);
+    Q_INVOKABLE void chooseUserAvatar();
+    Q_INVOKABLE void clearUserAvatar();
+    Q_INVOKABLE bool changeUserPassword(const QString &currentPass, const QString &newPass, const QString &confirmPass);
+    Q_INVOKABLE void lockScreenSession();
+    Q_INVOKABLE void logoutSession();
+
 signals:
     void systemInfoChanged();
     void audioChanged();
@@ -386,6 +398,7 @@ private:
     QString m_userFullName;
     QString m_userInitials;
     QString m_userAvatar;
+    QString m_userEmail;
     QString m_hostname;
     QString m_osName;
     QString m_kernelVersion;

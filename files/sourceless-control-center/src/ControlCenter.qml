@@ -148,7 +148,13 @@ ApplicationWindow {
         { title: "Sticky Keys, Slow Keys & Bounce Keys", subtitle: "Accessibility • Keyboard", pageIdx: 8, sectionKey: "acc-keyboard", iconName: "accessibility",
           keywords: "accessibility keyboard sticky keys slow keys bounce keys latch toggle caps lock beep taste lipicioase lente" },
         { title: "Visual Bell & Hearing Alerts", subtitle: "Accessibility • Hearing", pageIdx: 8, sectionKey: "acc-bell", iconName: "accessibility",
-          keywords: "accessibility hearing visual bell flash screen system alert beep deaf sunet alerta vizuala auz" }
+          keywords: "accessibility hearing visual bell flash screen system alert beep deaf sunet alerta vizuala auz" },
+
+        // User Account (Page 9)
+        { title: "User Profile, Name & Avatar", subtitle: "Account • Profile Settings", pageIdx: 9, sectionKey: "user-profile", iconName: "system",
+          keywords: "user account profile avatar picture photo full name email cont utilizator profil poza nume" },
+        { title: "Change Account Password & Lock Screen", subtitle: "Account • Security & Sign-in", pageIdx: 9, sectionKey: "user-password", iconName: "security-high",
+          keywords: "password change password sign in lock screen logout log out parola schimbare parola blocare" }
     ]
 
     Timer {
@@ -164,11 +170,12 @@ ApplicationWindow {
         else if (pageIdx === 5) backend.refreshApps()
         else if (pageIdx === 7) backend.refreshSecurity()
         else if (pageIdx === 8) backend.refreshAccessibility()
+        else if (pageIdx === 9) backend.refreshUserProfile()
     }
 
     function scrollToSection(pageIdx, sectionKey) {
         if (!sectionKey) return
-        const scrollViews = [homeScroll, systemScroll, btScroll, netScroll, personalizationScroll, appsScroll, timeScroll, securityScroll, accessibilityScroll]
+        const scrollViews = [homeScroll, systemScroll, btScroll, netScroll, personalizationScroll, appsScroll, timeScroll, securityScroll, accessibilityScroll, userScroll]
         const cardMap = {
             "display": cardDisplay,
             "sound": cardSound,
@@ -194,7 +201,10 @@ ApplicationWindow {
             "acc-vision": cardAccVision,
             "acc-cursor": cardAccCursor,
             "acc-keyboard": cardAccKeyboard,
-            "acc-bell": cardAccBell
+            "acc-bell": cardAccBell,
+            "user-profile": cardUserProfile,
+            "user-password": cardUserPassword,
+            "user-session": cardUserSession
         }
         const sv = scrollViews[pageIdx]
         const card = cardMap[sectionKey]
@@ -281,7 +291,8 @@ ApplicationWindow {
             "apps": 5,
             "time": 6,
             "security": 7,
-            "accessibility": 8
+            "accessibility": 8,
+            "users": 9
         }
         if (backend && pageMap[backend.initialPage] !== undefined) {
             root.currentPage = pageMap[backend.initialPage]
@@ -642,15 +653,28 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         height: 68
                         radius: 10
-                        color: profileMouse.containsMouse ? root.bgCardHover : "transparent"
+                        color: root.currentPage === 9 ? Qt.rgba(0.38, 0.33, 0.95, 0.22) : (profileMouse.containsMouse ? root.bgCardHover : "transparent")
+                        border.color: root.currentPage === 9 ? root.brandHighlight : "transparent"
+                        border.width: root.currentPage === 9 ? 1 : 0
+
+                        Rectangle {
+                            visible: root.currentPage === 9
+                            width: 4
+                            height: 24
+                            radius: 2
+                            anchors.left: parent.left
+                            anchors.leftMargin: 4
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: root.brandHighlight
+                        }
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 10
+                            anchors.leftMargin: 12
                             anchors.rightMargin: 10
                             spacing: 12
 
-                            // Real User Avatar (Matches Start Menu Dog Picture!)
+                            // Real User Avatar (Matches Start Menu & Account Page)
                             Item {
                                 width: 48
                                 height: 48
@@ -659,7 +683,7 @@ ApplicationWindow {
                                     id: sidebarAvatar
                                     anchors.fill: parent
                                     source: (backend && backend.userAvatar !== "") ? backend.userAvatar : kuser.faceIconUrl
-                                    name: backend ? backend.userFullName : kuser.fullName
+                                    name: (backend && backend.userFullName !== "") ? backend.userFullName : kuser.fullName
                                 }
                             }
 
@@ -669,7 +693,7 @@ ApplicationWindow {
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: (kuser.fullName && kuser.fullName !== "") ? kuser.fullName : (backend ? backend.userFullName : "User")
+                                    text: (backend && backend.userFullName !== "") ? backend.userFullName : ((kuser.fullName && kuser.fullName !== "") ? kuser.fullName : "User")
                                     color: root.textMain
                                     font.pixelSize: 15
                                     font.bold: true
@@ -691,7 +715,7 @@ ApplicationWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.currentPage = 1 // Jump to System/About
+                            onClicked: { root.currentPage = 9; if (backend) backend.refreshUserProfile() }
                         }
                     }
 
@@ -3647,6 +3671,347 @@ ApplicationWindow {
                                     onToggled: function(val) {
                                         backend.setBellSettings(backend ? backend.systemBellEnabled : false, backend ? backend.visibleBellEnabled : true, val)
                                     }
+                                }
+                            }
+                        }
+
+                        Item { height: 24 }
+                    }
+                }
+
+                // -------------------------------------------------------------
+                // PAGE 9: USER ACCOUNT & PROFILE
+                // -------------------------------------------------------------
+                ScrollView {
+                    id: userScroll
+                    clip: true
+                    contentWidth: availableWidth
+
+                    Connections {
+                        target: backend
+                        function onSystemInfoChanged() {
+                            if (backend) {
+                                if (!fullNameInput.activeFocus) fullNameInput.text = backend.userFullName
+                                if (!emailInput.activeFocus) emailInput.text = backend.userEmail
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        width: parent.width - 64
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 18
+
+                        Item { height: 12 }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: "User Account & Profile"
+                                color: root.textMain
+                                font.pixelSize: 28
+                                font.bold: true
+                            }
+                            Item { Layout.fillWidth: true }
+                            ActionButton {
+                                labelText: "Refresh"
+                                onTriggered: backend.refreshUserProfile()
+                            }
+                        }
+
+                        Label { text: "Profile Picture, Name & Email"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardUserProfile
+                            sectionKey: "user-profile"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 18
+
+                                KirigamiComponents.Avatar {
+                                    id: pageAvatarPreview
+                                    width: 76
+                                    height: 76
+                                    Layout.preferredWidth: 76
+                                    Layout.preferredHeight: 76
+                                    source: (backend && backend.userAvatar !== "") ? backend.userAvatar : kuser.faceIconUrl
+                                    name: (backend && backend.userFullName !== "") ? backend.userFullName : kuser.fullName
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+
+                                    Label {
+                                        text: (backend && backend.userFullName !== "") ? backend.userFullName : kuser.fullName
+                                        color: root.textMain
+                                        font.pixelSize: 18
+                                        font.bold: true
+                                    }
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        text: backend
+                                            ? (backend.userName + "@" + backend.hostname + (backend.userEmail !== "" ? ("  •  " + backend.userEmail) : "  •  Standard Desktop Account"))
+                                            : "User Account"
+                                        color: root.textMuted
+                                        font.pixelSize: 13
+                                    }
+
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        Layout.topMargin: 6
+                                        spacing: 8
+
+                                        ActionButton {
+                                            labelText: "Change Picture..."
+                                            primary: true
+                                            onTriggered: backend.chooseUserAvatar()
+                                        }
+
+                                        ActionButton {
+                                            labelText: "Reset Picture"
+                                            enabledBtn: backend ? (backend.userAvatar !== "") : false
+                                            onTriggered: backend.clearUserAvatar()
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+
+                                ColumnLayout {
+                                    Layout.preferredWidth: 190
+                                    spacing: 2
+                                    Label { text: "Full Name"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Shown at login and desktop"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 36
+                                    radius: 6
+                                    color: root.bgInput
+                                    border.color: fullNameInput.activeFocus ? root.brandHighlight : root.borderSubtle
+                                    border.width: 1
+
+                                    TextField {
+                                        id: fullNameInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        text: backend ? backend.userFullName : ""
+                                        placeholderText: "Enter display name"
+                                        placeholderTextColor: root.textMuted
+                                        color: root.textMain
+                                        font.pixelSize: 13
+                                        background: Item {}
+                                        onAccepted: backend.setUserFullName(text)
+                                    }
+                                }
+
+                                ActionButton {
+                                    labelText: "Save Name"
+                                    primary: true
+                                    onTriggered: backend.setUserFullName(fullNameInput.text)
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+
+                                ColumnLayout {
+                                    Layout.preferredWidth: 190
+                                    spacing: 2
+                                    Label { text: "Email Address"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Optional account contact info"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 36
+                                    radius: 6
+                                    color: root.bgInput
+                                    border.color: emailInput.activeFocus ? root.brandHighlight : root.borderSubtle
+                                    border.width: 1
+
+                                    TextField {
+                                        id: emailInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        text: backend ? backend.userEmail : ""
+                                        placeholderText: "name@example.com"
+                                        placeholderTextColor: root.textMuted
+                                        color: root.textMain
+                                        font.pixelSize: 13
+                                        background: Item {}
+                                        onAccepted: backend.setUserEmail(text)
+                                    }
+                                }
+
+                                ActionButton {
+                                    labelText: "Save Email"
+                                    onTriggered: backend.setUserEmail(emailInput.text)
+                                }
+                            }
+                        }
+
+                        Label { text: "Password & Authentication"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardUserPassword
+                            sectionKey: "user-password"
+
+                            Label {
+                                text: "Change Account Password"
+                                color: root.textMain
+                                font.pixelSize: 15
+                                font.bold: true
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "Update the login password for your Sourceless OS user account (" + (backend ? backend.userName : "user") + ")."
+                                color: root.textMuted
+                                font.pixelSize: 12
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: 2
+                                columnSpacing: 14
+                                rowSpacing: 10
+
+                                Label { text: "Current Password"; color: root.textMuted; font.pixelSize: 13; Layout.preferredWidth: 190 }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 36
+                                    radius: 6
+                                    color: root.bgInput
+                                    border.color: curPassInput.activeFocus ? root.brandHighlight : root.borderSubtle
+                                    border.width: 1
+
+                                    TextField {
+                                        id: curPassInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        echoMode: TextInput.Password
+                                        placeholderText: "Enter current password"
+                                        placeholderTextColor: root.textMuted
+                                        color: root.textMain
+                                        font.pixelSize: 13
+                                        background: Item {}
+                                    }
+                                }
+
+                                Label { text: "New Password"; color: root.textMuted; font.pixelSize: 13; Layout.preferredWidth: 190 }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 36
+                                    radius: 6
+                                    color: root.bgInput
+                                    border.color: newPassInput.activeFocus ? root.brandHighlight : root.borderSubtle
+                                    border.width: 1
+
+                                    TextField {
+                                        id: newPassInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        echoMode: TextInput.Password
+                                        placeholderText: "Minimum 6 characters"
+                                        placeholderTextColor: root.textMuted
+                                        color: root.textMain
+                                        font.pixelSize: 13
+                                        background: Item {}
+                                    }
+                                }
+
+                                Label { text: "Confirm New Password"; color: root.textMuted; font.pixelSize: 13; Layout.preferredWidth: 190 }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 36
+                                    radius: 6
+                                    color: root.bgInput
+                                    border.color: confirmPassInput.activeFocus ? root.brandHighlight : root.borderSubtle
+                                    border.width: 1
+
+                                    TextField {
+                                        id: confirmPassInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        echoMode: TextInput.Password
+                                        placeholderText: "Re-enter new password"
+                                        placeholderTextColor: root.textMuted
+                                        color: root.textMain
+                                        font.pixelSize: 13
+                                        background: Item {}
+                                        onAccepted: {
+                                            if (backend && backend.changeUserPassword(curPassInput.text, newPassInput.text, confirmPassInput.text)) {
+                                                curPassInput.text = ""
+                                                newPassInput.text = ""
+                                                confirmPassInput.text = ""
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Item { Layout.fillWidth: true }
+                                ActionButton {
+                                    labelText: "Update Password"
+                                    primary: true
+                                    onTriggered: {
+                                        if (backend && backend.changeUserPassword(curPassInput.text, newPassInput.text, confirmPassInput.text)) {
+                                            curPassInput.text = ""
+                                            newPassInput.text = ""
+                                            confirmPassInput.text = ""
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Label { text: "Session & Sign-in Controls"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardUserSession
+                            sectionKey: "user-session"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { text: "Lock Screen or Sign Out"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Lock your desktop immediately or end your active session"; color: root.textMuted; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+
+                                ActionButton {
+                                    labelText: "Lock Screen"
+                                    onTriggered: backend.lockScreenSession()
+                                }
+
+                                ActionButton {
+                                    labelText: "Sign Out"
+                                    danger: true
+                                    onTriggered: backend.logoutSession()
                                 }
                             }
                         }

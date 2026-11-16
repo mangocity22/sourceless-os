@@ -5,11 +5,13 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMap>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
@@ -213,7 +215,353 @@ void SystemBackend::loadStaticSystemInfo()
         m_hwid = QStringLiteral("SL-VERIFIED-NODE");
     }
 
+    refreshUserProfile();
+}
+
+void SystemBackend::refreshUserProfile()
+{
+    const uid_t uid = getuid();
+    const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+
+    const QString realNameDbus = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.RealName")}, 1200);
+    const QString emailDbus = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.Email")}, 1200);
+    const QString iconDbus = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.IconFile")}, 1200);
+
+    QString accFileRealName;
+    QString accFileEmail;
+    QString accFileIcon;
+    QFile accUserFile(QStringLiteral("/var/lib/AccountsService/users/") + m_userName);
+    if (accUserFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        for (const QString &rawLine : QString::fromUtf8(accUserFile.readAll()).split(QLatin1Char('\n'))) {
+            const QString line = rawLine.trimmed();
+            if (line.startsWith(QStringLiteral("RealName="))) {
+                accFileRealName = line.mid(9).trimmed();
+            } else if (line.startsWith(QStringLiteral("Email="))) {
+                accFileEmail = line.mid(6).trimmed();
+            } else if (line.startsWith(QStringLiteral("Icon="))) {
+                accFileIcon = line.mid(5).trimmed();
+            }
+        }
+    }
+
+    QString resolvedName = !realNameDbus.trimmed().isEmpty() ? realNameDbus.trimmed() : accFileRealName;
+    if (!resolvedName.isEmpty()) {
+        m_userFullName = resolvedName;
+    } else if (m_userFullName.isEmpty()) {
+        m_userFullName = m_userName;
+    }
+
+    const QStringList parts = m_userFullName.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.size() >= 2) {
+        m_userInitials = QString(parts.first().at(0).toUpper()) + QString(parts.last().at(0).toUpper());
+    } else if (!m_userFullName.isEmpty()) {
+        m_userInitials = m_userFullName.left(2).toUpper();
+    } else {
+        m_userInitials = QStringLiteral("SL");
+    }
+
+    QString resolvedEmail = !emailDbus.trimmed().isEmpty() ? emailDbus.trimmed() : accFileEmail;
+    if (resolvedEmail.isEmpty()) {
+        QSettings mailCfg(QDir::homePath() + QStringLiteral("/.config/emaildefaults"), QSettings::IniFormat);
+        mailCfg.beginGroup(QStringLiteral("PROFILE_Default"));
+        resolvedEmail = mailCfg.value(QStringLiteral("EmailAddress")).toString().trimmed();
+        mailCfg.endGroup();
+    }
+    m_userEmail = resolvedEmail;
+
+    QString existingCachedAvatar;
+    if (!m_userAvatar.isEmpty()) {
+        const QString localCached = QUrl(m_userAvatar).toLocalFile();
+        if (!localCached.isEmpty() && localCached.contains(QStringLiteral("sourceless-avatar-")) && QFileInfo::exists(localCached)) {
+            existingCachedAvatar = m_userAvatar;
+        }
+    }
+
+    if (!existingCachedAvatar.isEmpty()) {
+        m_userAvatar = existingCachedAvatar;
+    } else {
+        KUser kuser;
+        const QStringList avatarCandidates = {
+            iconDbus,
+            accFileIcon,
+            QDir::homePath() + QStringLiteral("/.face.icon"),
+            QDir::homePath() + QStringLiteral("/.face"),
+            QDir::homePath() + QStringLiteral("/.config/face.icon"),
+            kuser.faceIconPath(),
+            QStringLiteral("/var/lib/AccountsService/icons/") + m_userName
+        };
+        m_userAvatar.clear();
+        for (const QString &candidate : avatarCandidates) {
+            const QString cleanPath = candidate.trimmed();
+            if (!cleanPath.isEmpty() && QFileInfo::exists(cleanPath) && QFileInfo(cleanPath).isFile()) {
+                m_userAvatar = QUrl::fromLocalFile(cleanPath).toString();
+                break;
+            }
+        }
+    }
+
     emit systemInfoChanged();
+}
+
+void SystemBackend::setUserFullName(const QString &fullName)
+{
+    const QString clean = fullName.trimmed();
+    if (clean.isEmpty()) {
+        notifyStatus(QStringLiteral("Display name cannot be empty"));
+        return;
+    }
+
+    const uid_t uid = getuid();
+    const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+    QProcess proc;
+    proc.start(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.SetRealName"), clean});
+    if (proc.waitForFinished(3000) && proc.exitCode() == 0) {
+        m_userFullName = clean;
+        const QStringList parts = clean.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        m_userInitials = (parts.size() >= 2)
+            ? (QString(parts.first().at(0).toUpper()) + QString(parts.last().at(0).toUpper()))
+            : clean.left(2).toUpper();
+        notifyStatus(QStringLiteral("Display name updated to %1").arg(clean));
+        emit systemInfoChanged();
+    } else {
+        const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        notifyStatus(err.isEmpty()
+            ? QStringLiteral("Could not update display name")
+            : QStringLiteral("Name error: %1").arg(err));
+    }
+}
+
+void SystemBackend::setUserEmail(const QString &email)
+{
+    const QString clean = email.trimmed();
+    const uid_t uid = getuid();
+    const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.SetEmail"), clean}, 2500);
+
+    QSettings mailCfg(QDir::homePath() + QStringLiteral("/.config/emaildefaults"), QSettings::IniFormat);
+    mailCfg.beginGroup(QStringLiteral("PROFILE_Default"));
+    mailCfg.setValue(QStringLiteral("EmailAddress"), clean);
+    mailCfg.endGroup();
+    mailCfg.sync();
+
+    m_userEmail = clean;
+    notifyStatus(clean.isEmpty() ? QStringLiteral("Email address cleared") : QStringLiteral("Email updated to %1").arg(clean));
+    emit systemInfoChanged();
+}
+
+void SystemBackend::chooseUserAvatar()
+{
+    const QString startDir = QFileInfo::exists(QDir::homePath() + QStringLiteral("/Pictures"))
+        ? (QDir::homePath() + QStringLiteral("/Pictures"))
+        : QDir::homePath();
+
+    QString selectedPath;
+    if (!QStandardPaths::findExecutable(QStringLiteral("kdialog")).isEmpty()) {
+        selectedPath = runCommand(QStringLiteral("kdialog"),
+            {QStringLiteral("--getopenfilename"), startDir,
+             QStringLiteral("Image Files (*.png *.jpg *.jpeg *.webp *.bmp *.svg)")}, 60000);
+    } else if (!QStandardPaths::findExecutable(QStringLiteral("zenity")).isEmpty()) {
+        selectedPath = runCommand(QStringLiteral("zenity"),
+            {QStringLiteral("--file-selection"),
+             QStringLiteral("--title=Choose Profile Picture"),
+             QStringLiteral("--file-filter=Images | *.png *.jpg *.jpeg *.webp *.bmp *.svg")}, 60000);
+    } else {
+        notifyStatus(QStringLiteral("No file picker dialog (kdialog/zenity) available"));
+        return;
+    }
+
+    selectedPath = selectedPath.trimmed();
+    if (selectedPath.isEmpty()) {
+        return;
+    }
+
+    QImage img(selectedPath);
+    if (img.isNull()) {
+        notifyStatus(QStringLiteral("Selected file is not a valid image"));
+        return;
+    }
+
+    img = img.scaled(256, 256, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    const int xOff = qMax(0, (img.width() - 256) / 2);
+    const int yOff = qMax(0, (img.height() - 256) / 2);
+    img = img.copy(xOff, yOff, 256, 256);
+
+    const QString faceIcon = QDir::homePath() + QStringLiteral("/.face.icon");
+    const QString faceDot = QDir::homePath() + QStringLiteral("/.face");
+    if (!img.save(faceIcon, "PNG")) {
+        notifyStatus(QStringLiteral("Failed to write profile picture to ~/.face.icon"));
+        return;
+    }
+    img.save(faceDot, "PNG");
+
+    const QString cacheDir = QDir::homePath() + QStringLiteral("/.cache");
+    QDir(cacheDir).mkpath(QStringLiteral("."));
+    const QStringList oldCached = QDir(cacheDir).entryList({QStringLiteral("sourceless-avatar-*.png")}, QDir::Files);
+    for (const QString &oldFile : oldCached) {
+        QFile::remove(cacheDir + QLatin1Char('/') + oldFile);
+    }
+    const QString cachePath = QStringLiteral("%1/sourceless-avatar-%2.png")
+        .arg(cacheDir)
+        .arg(QDateTime::currentMSecsSinceEpoch());
+    img.save(cachePath, "PNG");
+
+    const uid_t uid = getuid();
+    const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), faceIcon}, 2500);
+
+    m_userAvatar = QUrl::fromLocalFile(cachePath).toString();
+    notifyStatus(QStringLiteral("Profile picture updated"));
+    emit systemInfoChanged();
+}
+
+void SystemBackend::clearUserAvatar()
+{
+    QFile::remove(QDir::homePath() + QStringLiteral("/.face.icon"));
+    QFile::remove(QDir::homePath() + QStringLiteral("/.face"));
+    QFile::remove(QDir::homePath() + QStringLiteral("/.config/face.icon"));
+    const QString cacheDir = QDir::homePath() + QStringLiteral("/.cache");
+    const QStringList oldCached = QDir(cacheDir).entryList({QStringLiteral("sourceless-avatar-*.png")}, QDir::Files);
+    for (const QString &oldFile : oldCached) {
+        QFile::remove(cacheDir + QLatin1Char('/') + oldFile);
+    }
+
+    const uid_t uid = getuid();
+    const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+         userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), QString()}, 2500);
+
+    m_userAvatar.clear();
+    notifyStatus(QStringLiteral("Profile picture reset to initials"));
+    emit systemInfoChanged();
+}
+
+bool SystemBackend::changeUserPassword(const QString &currentPass, const QString &newPass, const QString &confirmPass)
+{
+    if (currentPass.isEmpty() || newPass.isEmpty()) {
+        notifyStatus(QStringLiteral("Enter your current and new password"));
+        return false;
+    }
+    if (newPass != confirmPass) {
+        notifyStatus(QStringLiteral("New password and confirmation do not match"));
+        return false;
+    }
+    if (newPass.length() < 6) {
+        notifyStatus(QStringLiteral("New password must be at least 6 characters"));
+        return false;
+    }
+
+    const QString pyScript = QStringLiteral(
+        "import os, pty, select, sys\n"
+        "cur = os.environ.get('SL_CUR_PASS', '')\n"
+        "newp = os.environ.get('SL_NEW_PASS', '')\n"
+        "pid, fd = pty.fork()\n"
+        "if pid == 0:\n"
+        "    os.execvp('passwd', ['passwd'])\n"
+        "buf = b''\n"
+        "sent_cur = 0\n"
+        "sent_new = 0\n"
+        "sent_confirm = 0\n"
+        "out_log = ''\n"
+        "aborted_msg = ''\n"
+        "while True:\n"
+        "    r, _, _ = select.select([fd], [], [], 10.0)\n"
+        "    if not r:\n"
+        "        aborted_msg = 'Password prompt timed out'\n"
+        "        break\n"
+        "    try:\n"
+        "        chunk = os.read(fd, 1024)\n"
+        "    except OSError:\n"
+        "        break\n"
+        "    if not chunk:\n"
+        "        break\n"
+        "    buf += chunk\n"
+        "    out_log += chunk.decode('utf-8', 'ignore')\n"
+        "    low = buf.decode('utf-8', 'ignore').lower()\n"
+        "    if 'current password' in low or 'old password' in low:\n"
+        "        if sent_cur == 0:\n"
+        "            os.write(fd, (cur + '\\n').encode('utf-8'))\n"
+        "            sent_cur += 1\n"
+        "            buf = b''\n"
+        "        else:\n"
+        "            aborted_msg = 'Current password was rejected'\n"
+        "            break\n"
+        "    elif 'retype' in low or 'confirm' in low:\n"
+        "        if sent_confirm == 0:\n"
+        "            os.write(fd, (newp + '\\n').encode('utf-8'))\n"
+        "            sent_confirm += 1\n"
+        "            buf = b''\n"
+        "    elif 'new password' in low:\n"
+        "        if sent_new == 0:\n"
+        "            os.write(fd, (newp + '\\n').encode('utf-8'))\n"
+        "            sent_new += 1\n"
+        "            buf = b''\n"
+        "        else:\n"
+        "            aborted_msg = 'New password rejected by system password policy'\n"
+        "            break\n"
+        "os.close(fd)\n"
+        "_, status = os.waitpid(pid, 0)\n"
+        "rc = os.waitstatus_to_exitcode(status) if hasattr(os, 'waitstatus_to_exitcode') else ((status >> 8) & 0xff)\n"
+        "if aborted_msg or rc != 0:\n"
+        "    err_lines = [ln.strip() for ln in out_log.splitlines() if ('bad password' in ln.lower() or 'authentication' in ln.lower() or 'sorry' in ln.lower() or 'error' in ln.lower() or 'fail' in ln.lower())]\n"
+        "    msg = aborted_msg or (err_lines[-1] if err_lines else 'Password update failed')\n"
+        "    sys.stderr.write(msg)\n"
+        "    sys.exit(1)\n"
+        "sys.exit(0)\n"
+    );
+
+    QProcess proc;
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("SL_CUR_PASS"), currentPass);
+    env.insert(QStringLiteral("SL_NEW_PASS"), newPass);
+    proc.setProcessEnvironment(env);
+    proc.start(QStringLiteral("python3"), {QStringLiteral("-c"), pyScript});
+
+    if (proc.waitForFinished(12000) && proc.exitCode() == 0) {
+        notifyStatus(QStringLiteral("Account password changed successfully"));
+        return true;
+    }
+
+    const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+    notifyStatus(err.isEmpty() ? QStringLiteral("Failed to update password") : err);
+    return false;
+}
+
+void SystemBackend::lockScreenSession()
+{
+    if (!QStandardPaths::findExecutable(QStringLiteral("loginctl")).isEmpty()) {
+        runDetached(QStringLiteral("loginctl"), {QStringLiteral("lock-session")});
+    } else {
+        runDetached(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.freedesktop.ScreenSaver"), QStringLiteral("/ScreenSaver"),
+             QStringLiteral("org.freedesktop.ScreenSaver.Lock")});
+    }
+    notifyStatus(QStringLiteral("Locking desktop session..."));
+}
+
+void SystemBackend::logoutSession()
+{
+    if (!QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty()) {
+        runDetached(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.Shutdown"), QStringLiteral("/Shutdown"),
+             QStringLiteral("org.kde.Shutdown.logout")});
+    } else {
+        runDetached(QStringLiteral("loginctl"), {QStringLiteral("terminate-user"), m_userName});
+    }
+    notifyStatus(QStringLiteral("Signing out of current session..."));
 }
 
 void SystemBackend::loadDynamicSystemMetrics()
