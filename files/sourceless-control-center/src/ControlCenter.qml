@@ -24,6 +24,12 @@ ApplicationWindow {
         id: kuser
     }
 
+    Shortcut {
+        sequence: "Escape"
+        enabled: backend ? (backend.orientationConfirmSeconds > 0) : false
+        onActivated: if (backend) backend.revertDisplayOrientation()
+    }
+
     // Sourceless Glass Design Tokens (Windows 11 Mica/Acrylic Dark Inspired)
     readonly property color brandHighlight: "#6054F2"
     readonly property color brandHighlightHover: "#7368F7"
@@ -1547,6 +1553,45 @@ ApplicationWindow {
                                 }
                             }
 
+                            // 15-Second Auto-Revert Confirmation Banner
+                            Rectangle {
+                                visible: backend ? (backend.orientationConfirmSeconds > 0) : false
+                                Layout.fillWidth: true
+                                implicitHeight: confirmRow.implicitHeight + 20
+                                radius: 8
+                                color: Qt.rgba(0.96, 0.65, 0.14, 0.14)
+                                border.color: root.statusAmber
+                                border.width: 1
+
+                                RowLayout {
+                                    id: confirmRow
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    spacing: 12
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        text: "Keep this display orientation? Reverting automatically in " + (backend ? backend.orientationConfirmSeconds : 15) + "s (or press Esc to revert)"
+                                        color: root.textMain
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                    }
+
+                                    ActionButton {
+                                        labelText: "Revert Now (Esc)"
+                                        danger: true
+                                        onTriggered: backend.revertDisplayOrientation()
+                                    }
+
+                                    ActionButton {
+                                        labelText: "Keep Changes"
+                                        primary: true
+                                        onTriggered: backend.confirmDisplayOrientation()
+                                    }
+                                }
+                            }
+
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
 
                             // Row 5: Scale & Layout Dropdown
@@ -2894,14 +2939,14 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "accessibility"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Screen Magnifier (Zoom)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Magnify the screen with Meta+= / Meta+- shortcuts or the quick controls"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Screen Magnifier (Zoom)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Magnify the screen (Meta+= / Meta+- shortcuts)"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
-                                ActionButton { labelText: "Zoom Out"; onTriggered: backend.zoomScreen(-1) }
-                                ActionButton { labelText: "Reset"; onTriggered: backend.zoomScreen(0) }
-                                ActionButton { labelText: "Zoom In"; primary: true; onTriggered: backend.zoomScreen(1) }
+                                ActionButton { implicitWidth: 80; labelText: "Zoom −"; onTriggered: backend.zoomScreen(-1) }
+                                ActionButton { implicitWidth: 80; labelText: "100%"; onTriggered: backend.zoomScreen(0) }
+                                ActionButton { implicitWidth: 80; labelText: "Zoom +"; primary: true; onTriggered: backend.zoomScreen(1) }
                                 WinSwitch {
                                     checkedState: backend ? backend.screenZoomEnabled : false
                                     onToggled: function(val) { backend.setScreenZoomEnabled(val) }
@@ -2915,14 +2960,14 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "display"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Color Blindness Filter"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Apply real-time GPU color correction for color vision deficiencies"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Color Blindness Filter"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Apply real-time GPU color correction for color vision deficiencies"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinComboBox {
                                     id: cbCombo
-                                    implicitWidth: 240
+                                    implicitWidth: 210
                                     model: [
                                         "Off (Normal Vision)",
                                         "Protanopia (Red-Weak)",
@@ -2944,11 +2989,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "night-light"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "High Contrast (Invert Colors)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Invert workspace colors across all windows for maximum legibility"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "High Contrast (Invert Colors)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Invert workspace colors across all windows for maximum legibility"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.invertScreenEnabled : false
                                     onToggled: function(val) { backend.setInvertScreenEnabled(val) }
@@ -2962,11 +3007,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "audio-speakers"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Screen Reader (Orca)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Read menus, windows, and focused controls aloud (Meta+Alt+S)"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Screen Reader (Orca)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Read menus, windows, and focused controls aloud (Meta+Alt+S)"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.screenReaderEnabled : false
                                     onToggled: function(val) { backend.setScreenReaderEnabled(val) }
@@ -2986,11 +3031,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "mouse"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Mouse Pointer Size"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Scale cursor size for better visibility (" + (backend ? backend.cursorSize : 24) + " px)"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Mouse Pointer Size"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Scale cursor size for better visibility (" + (backend ? backend.cursorSize : 24) + " px)"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinComboBox {
                                     id: cursorSizeCombo
                                     readonly property var sizes: [24, 32, 36, 48, 64]
@@ -3015,11 +3060,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "mouse"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Shake Cursor to Find It"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Temporarily enlarge the mouse pointer when shaken back and forth"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Shake Cursor to Find It"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Temporarily enlarge the mouse pointer when shaken back and forth"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.shakeCursorEnabled : true
                                     onToggled: function(val) { backend.setShakeCursorEnabled(val) }
@@ -3033,11 +3078,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "mouse"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Locate Mouse Pointer (Highlight Ring)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Draw an animated target ring around the cursor when Meta+Ctrl is pressed"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Locate Mouse Pointer (Highlight Ring)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Draw an animated target ring around the cursor when Meta+Ctrl is pressed"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.trackMouseEnabled : false
                                     onToggled: function(val) { backend.setTrackMouseEnabled(val) }
@@ -3051,11 +3096,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "mouse"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Mouse Keys (NumPad Control)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Move the cursor and click using the numeric keypad (Shift+NumLock)"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Mouse Keys (NumPad Control)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Move the cursor and click using the numeric keypad (Shift+NumLock)"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.mouseKeysEnabled : false
                                     onToggled: function(val) { backend.setMouseKeysEnabled(val) }
@@ -3075,11 +3120,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "accessibility"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Sticky Keys"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Press shortcut keys like Ctrl, Alt, or Shift one key at a time"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Sticky Keys"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Press shortcut keys like Ctrl, Alt, or Shift one key at a time"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.stickyKeysEnabled : false
                                     onToggled: function(val) { backend.setStickyKeys(val, backend ? backend.stickyKeysLock : true) }
@@ -3092,11 +3137,11 @@ ApplicationWindow {
                                 Layout.leftMargin: 38
                                 spacing: 14
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Lock modifier keys when pressed twice"; color: root.textMain; font.pixelSize: 13 }
-                                    Label { text: "Keep Ctrl, Alt, or Shift latched until pressed a third time"; color: root.textMuted; font.pixelSize: 11 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Lock modifier keys when pressed twice"; color: root.textMain; font.pixelSize: 13 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Keep Ctrl, Alt, or Shift latched until pressed a third time"; color: root.textMuted; font.pixelSize: 11 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.stickyKeysLock : true
                                     onToggled: function(val) { backend.setStickyKeys(backend ? backend.stickyKeysEnabled : true, val) }
@@ -3110,11 +3155,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "time"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Slow Keys (Acceptance Delay)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Hold a key for " + (backend ? backend.slowKeysDelay : 500) + " ms before it registers to prevent accidental taps"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Slow Keys (Acceptance Delay)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Hold a key for " + (backend ? backend.slowKeysDelay : 500) + " ms before it registers to prevent accidental taps"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSlider {
                                     from: 100; to: 2000; stepSize: 50
                                     value: backend ? backend.slowKeysDelay : 500
@@ -3134,11 +3179,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "time"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Bounce Keys (Debounce Filter)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Ignore repeated keystrokes faster than " + (backend ? backend.bounceKeysDelay : 500) + " ms"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Bounce Keys (Debounce Filter)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Ignore repeated keystrokes faster than " + (backend ? backend.bounceKeysDelay : 500) + " ms"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSlider {
                                     from: 100; to: 2000; stepSize: 50
                                     value: backend ? backend.bounceKeysDelay : 500
@@ -3158,11 +3203,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "audio-high"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Toggle Keys Audible Cue"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Play a tone whenever Caps Lock, Num Lock, or Scroll Lock changes"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Toggle Keys Audible Cue"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Play a tone whenever Caps Lock, Num Lock, or Scroll Lock changes"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.toggleKeysBeep : false
                                     onToggled: function(val) { backend.setToggleKeysBeep(val) }
@@ -3182,11 +3227,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "audio-speakers"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Audible System Bell"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Enable standard audio bell sounds on desktop alerts and notifications"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Audible System Bell"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Enable standard audio bell sounds on desktop alerts and notifications"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.systemBellEnabled : false
                                     onToggled: function(val) {
@@ -3202,11 +3247,11 @@ ApplicationWindow {
                                 spacing: 14
                                 CyberIcon { iconName: "display"; width: 24; height: 24 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Visual Bell (Flash Screen)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Flash the display visually whenever a system bell notification occurs"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Visual Bell (Flash Screen)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Flash the display visually whenever a system bell notification occurs"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.visibleBellEnabled : false
                                     onToggled: function(val) {
@@ -3221,11 +3266,11 @@ ApplicationWindow {
                                 Layout.leftMargin: 38
                                 spacing: 14
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
-                                    Label { text: "Invert screen colors during visual flash"; color: root.textMain; font.pixelSize: 13 }
-                                    Label { text: "Use full-screen color inversion instead of a color overlay flash"; color: root.textMuted; font.pixelSize: 11 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Invert screen colors during visual flash"; color: root.textMain; font.pixelSize: 13 }
+                                    Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: "Use full-screen color inversion instead of a color overlay flash"; color: root.textMuted; font.pixelSize: 11 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.visibleBellInvert : true
                                     onToggled: function(val) {

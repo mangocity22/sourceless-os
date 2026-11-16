@@ -36,6 +36,17 @@ SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
         refreshSecurity();
     });
     m_periodicTimer.start(6000);
+
+    // 15-second safety auto-revert countdown for display orientation changes
+    connect(&m_orientationRevertTimer, &QTimer::timeout, this, [this]() {
+        if (m_orientationConfirmSeconds > 1) {
+            --m_orientationConfirmSeconds;
+            emit displayChanged();
+        } else {
+            m_orientationRevertTimer.stop();
+            revertDisplayOrientation();
+        }
+    });
 }
 
 QString SystemBackend::runCommand(const QString &program, const QStringList &args, int timeoutMs) const
@@ -702,6 +713,37 @@ void SystemBackend::setRefreshRate(const QString &rate)
     }
 }
 
+void SystemBackend::applyDisplayOrientationRaw(const QString &orientation)
+{
+    if (m_displayName.isEmpty() || orientation.isEmpty()) {
+        return;
+    }
+    runCommand(QStringLiteral("kscreen-doctor"),
+        {QStringLiteral("output.%1.rotation.%2").arg(m_displayName, orientation)}, 2500);
+
+    // Sync KWin Wayland pointer/tablet devices to the rotated output coordinate matrix
+    const QString devOut = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.KWin"),
+         QStringLiteral("/org/kde/KWin/InputDevice"),
+         QStringLiteral("org.kde.KWin.InputDeviceManager.devicesSysNames")}, 1000);
+    for (const QString &dev : devOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+        const QString sysName = dev.trimmed();
+        if (sysName.startsWith(QStringLiteral("event"))) {
+            runCommand(QStringLiteral("busctl"),
+                {QStringLiteral("--user"),
+                 QStringLiteral("set-property"),
+                 QStringLiteral("org.kde.KWin"),
+                 QStringLiteral("/org/kde/KWin/InputDevice/") + sysName,
+                 QStringLiteral("org.kde.KWin.InputDevice"),
+                 QStringLiteral("outputName"),
+                 QStringLiteral("s"),
+                 m_displayName}, 400);
+        }
+    }
+
+    m_displayOrientation = orientation;
+}
+
 void SystemBackend::setDisplayOrientation(const QString &orientation)
 {
     static const QStringList validOrientations = {
@@ -713,10 +755,41 @@ void SystemBackend::setDisplayOrientation(const QString &orientation)
     if (!validOrientations.contains(orientation) || m_displayName.isEmpty() || orientation == m_displayOrientation) {
         return;
     }
-    runCommand(QStringLiteral("kscreen-doctor"),
-        {QStringLiteral("output.%1.rotation.%2").arg(m_displayName, orientation)}, 2500);
-    m_displayOrientation = orientation;
-    notifyStatus(QStringLiteral("Display orientation set to %1").arg(orientation));
+
+    if (m_orientationConfirmSeconds == 0) {
+        m_previousOrientation = m_displayOrientation;
+    }
+
+    applyDisplayOrientationRaw(orientation);
+
+    if (orientation != QStringLiteral("normal")) {
+        m_orientationConfirmSeconds = 15;
+        m_orientationRevertTimer.start(1000);
+        notifyStatus(QStringLiteral("Orientation set to %1 — confirm within 15s (or press Esc)").arg(orientation));
+    } else {
+        m_orientationRevertTimer.stop();
+        m_orientationConfirmSeconds = 0;
+        notifyStatus(QStringLiteral("Display orientation set to normal"));
+    }
+    emit displayChanged();
+}
+
+void SystemBackend::confirmDisplayOrientation()
+{
+    m_orientationRevertTimer.stop();
+    m_orientationConfirmSeconds = 0;
+    m_previousOrientation = m_displayOrientation;
+    notifyStatus(QStringLiteral("Display orientation confirmed (%1)").arg(m_displayOrientation));
+    emit displayChanged();
+}
+
+void SystemBackend::revertDisplayOrientation()
+{
+    m_orientationRevertTimer.stop();
+    m_orientationConfirmSeconds = 0;
+    const QString fallback = m_previousOrientation.isEmpty() ? QStringLiteral("normal") : m_previousOrientation;
+    applyDisplayOrientationRaw(fallback);
+    notifyStatus(QStringLiteral("Display orientation reverted to %1").arg(fallback));
     emit displayChanged();
 }
 
@@ -1782,17 +1855,50 @@ void SystemBackend::setColorBlindnessMode(int mode)
     const int clamped = qBound(0, mode, 4);
     m_colorBlindnessMode = clamped;
     if (clamped == 0) {
-        setKwinEffectEnabled(QStringLiteral("colorblindnesscorrectionEnabled"), QStringLiteral("colorblindnesscorrection"), false);
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+             QStringLiteral("--group"), QStringLiteral("Plugins"),
+             QStringLiteral("--key"), QStringLiteral("colorblindnesscorrectionEnabled"),
+             QStringLiteral("--type"), QStringLiteral("bool"),
+             QStringLiteral("false"),
+             QStringLiteral("--notify")}, 1500);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")}, 1200);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
+             QStringLiteral("colorblindnesscorrection")}, 1200);
         notifyStatus(QStringLiteral("Color blindness filter disabled"));
     } else {
         const int kwinMode = clamped - 1;
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
+             QStringLiteral("colorblindnesscorrection")}, 1200);
         runCommand(QStringLiteral("kwriteconfig6"),
             {QStringLiteral("--file"), QStringLiteral("kwinrc"),
              QStringLiteral("--group"), QStringLiteral("Effect-colorblindnesscorrection"),
              QStringLiteral("--key"), QStringLiteral("Mode"),
+             QStringLiteral("--type"), QStringLiteral("int"),
              QString::number(kwinMode),
              QStringLiteral("--notify")}, 1500);
-        setKwinEffectEnabled(QStringLiteral("colorblindnesscorrectionEnabled"), QStringLiteral("colorblindnesscorrection"), true);
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+             QStringLiteral("--group"), QStringLiteral("Plugins"),
+             QStringLiteral("--key"), QStringLiteral("colorblindnesscorrectionEnabled"),
+             QStringLiteral("--type"), QStringLiteral("bool"),
+             QStringLiteral("true"),
+             QStringLiteral("--notify")}, 1500);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")}, 1200);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.loadEffect"),
+             QStringLiteral("colorblindnesscorrection")}, 1200);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.reconfigureEffect"),
+             QStringLiteral("colorblindnesscorrection")}, 1000);
         static const QStringList labels = {
             QStringLiteral("Protanopia"),
             QStringLiteral("Deuteranopia"),
@@ -1807,7 +1913,42 @@ void SystemBackend::setColorBlindnessMode(int mode)
 void SystemBackend::setInvertScreenEnabled(bool enabled)
 {
     m_invertScreenEnabled = enabled;
-    setKwinEffectEnabled(QStringLiteral("invertEnabled"), QStringLiteral("invert"), enabled);
+    if (enabled) {
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
+             QStringLiteral("invert")}, 1000);
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+             QStringLiteral("--group"), QStringLiteral("Plugins"),
+             QStringLiteral("--key"), QStringLiteral("invertEnabled"),
+             QStringLiteral("--type"), QStringLiteral("bool"),
+             QStringLiteral("true"),
+             QStringLiteral("--notify")}, 1500);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")}, 1200);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.loadEffect"),
+             QStringLiteral("invert")}, 1200);
+        runDetached(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.kglobalaccel"),
+             QStringLiteral("/component/kwin"),
+             QStringLiteral("org.kde.kglobalaccel.Component.invokeShortcut"),
+             QStringLiteral("Invert")});
+    } else {
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
+             QStringLiteral("invert")}, 1200);
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+             QStringLiteral("--group"), QStringLiteral("Plugins"),
+             QStringLiteral("--key"), QStringLiteral("invertEnabled"),
+             QStringLiteral("--type"), QStringLiteral("bool"),
+             QStringLiteral("false"),
+             QStringLiteral("--notify")}, 1500);
+    }
     notifyStatus(enabled ? QStringLiteral("High Contrast Invert filter enabled") : QStringLiteral("High Contrast Invert filter disabled"));
     emit accessibilityChanged();
 }

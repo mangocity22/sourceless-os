@@ -50,6 +50,7 @@ class SystemBackend : public QObject
     Q_PROPERTY(QString currentRefreshRate READ currentRefreshRate NOTIFY displayChanged)
     Q_PROPERTY(QStringList availableRefreshRates READ availableRefreshRates NOTIFY displayChanged)
     Q_PROPERTY(QString displayOrientation READ displayOrientation NOTIFY displayChanged)
+    Q_PROPERTY(int orientationConfirmSeconds READ orientationConfirmSeconds NOTIFY displayChanged)
     Q_PROPERTY(QString colorAccuracy READ colorAccuracy NOTIFY displayChanged)
     Q_PROPERTY(int displayScale READ displayScale NOTIFY displayChanged)
     Q_PROPERTY(bool nightLightEnabled READ nightLightEnabled NOTIFY displayChanged)
@@ -171,6 +172,7 @@ public:
     QString currentRefreshRate() const { return m_currentRefreshRate; }
     QStringList availableRefreshRates() const { return m_availableRefreshRates; }
     QString displayOrientation() const { return m_displayOrientation; }
+    int orientationConfirmSeconds() const { return m_orientationConfirmSeconds; }
     QString colorAccuracy() const { return m_colorAccuracy; }
     int displayScale() const { return m_displayScale; }
     bool nightLightEnabled() const { return m_nightLightEnabled; }
@@ -269,6 +271,8 @@ public:
     Q_INVOKABLE void setResolution(const QString &res);
     Q_INVOKABLE void setRefreshRate(const QString &rate);
     Q_INVOKABLE void setDisplayOrientation(const QString &orientation);
+    Q_INVOKABLE void confirmDisplayOrientation();
+    Q_INVOKABLE void revertDisplayOrientation();
     Q_INVOKABLE void setColorAccuracy(const QString &mode);
     Q_INVOKABLE void setDisplayScale(int percent);
     Q_INVOKABLE void setNightLight(bool enabled, int temp);
@@ -343,6 +347,7 @@ signals:
 private:
     QString runCommand(const QString &program, const QStringList &args, int timeoutMs = 3000) const;
     void runDetached(const QString &program, const QStringList &args) const;
+    void applyDisplayOrientationRaw(const QString &orientation);
     void setKwinEffectEnabled(const QString &pluginKey, const QString &effectId, bool enabled) const;
     void reloadAccessDaemon() const;
     void notifyStatus(const QString &msg);
@@ -387,6 +392,9 @@ private:
     QString m_currentRefreshRate = QStringLiteral("60 Hz");
     QStringList m_availableRefreshRates;
     QString m_displayOrientation = QStringLiteral("normal");
+    QString m_previousOrientation = QStringLiteral("normal");
+    int m_orientationConfirmSeconds = 0;
+    QTimer m_orientationRevertTimer;
     QString m_colorAccuracy = QStringLiteral("preferEfficiency");
     int m_displayScale = 100;
     bool m_nightLightEnabled = false;
