@@ -63,6 +63,7 @@ qt_add_resources(sourceless-control-center "cyber_icons"
         src/icons/storage.svg
         src/icons/mouse.svg
         src/icons/terminal.svg
+        src/icons/accessibility.svg
 )
 
 target_link_libraries(sourceless-control-center PRIVATE

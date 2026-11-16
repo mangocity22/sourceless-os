@@ -62,6 +62,7 @@ modules:
         - qt6-qtwayland-devel
         - qt6-qtsvg
         - kf6-qqc2-desktop-style
+        - orca
 
     remove:
       packages:

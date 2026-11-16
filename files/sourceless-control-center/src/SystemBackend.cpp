@@ -277,6 +277,7 @@ void SystemBackend::refreshAll()
     refreshApps();
     refreshTime();
     refreshSecurity();
+    refreshAccessibility();
 }
 
 // -----------------------------------------------------------------------------
@@ -1656,4 +1657,347 @@ void SystemBackend::resetDesktopLayout()
         runDetached(QStringLiteral("systemctl"), {QStringLiteral("--user"), QStringLiteral("restart"), QStringLiteral("plasma-plasmashell")});
         notifyStatus(QStringLiteral("Desktop layout restored to Sourceless defaults"));
     }
+}
+
+// -----------------------------------------------------------------------------
+// 11. ACCESSIBILITY (KWin Effects + KAccess AccessX + KCM Input + Orca)
+// -----------------------------------------------------------------------------
+void SystemBackend::setKwinEffectEnabled(const QString &pluginKey, const QString &effectId, bool enabled) const
+{
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+         QStringLiteral("--group"), QStringLiteral("Plugins"),
+         QStringLiteral("--key"), pluginKey,
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.KWin"),
+         QStringLiteral("/Effects"),
+         enabled ? QStringLiteral("org.kde.kwin.Effects.loadEffect") : QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
+         effectId}, 1200);
+    if (enabled) {
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"),
+             QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.reconfigureEffect"),
+             effectId}, 1000);
+    }
+}
+
+void SystemBackend::reloadAccessDaemon() const
+{
+    runCommand(QStringLiteral("systemctl"),
+        {QStringLiteral("--user"), QStringLiteral("try-restart"), QStringLiteral("plasma-kaccess.service")}, 1500);
+    runDetached(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")});
+}
+
+void SystemBackend::refreshAccessibility()
+{
+    QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+    kwinrc.beginGroup(QStringLiteral("Plugins"));
+    m_screenZoomEnabled = kwinrc.value(QStringLiteral("zoomEnabled"), false).toBool();
+    const bool cbEnabled = kwinrc.value(QStringLiteral("colorblindnesscorrectionEnabled"), false).toBool();
+    m_invertScreenEnabled = kwinrc.value(QStringLiteral("invertEnabled"), false).toBool();
+    m_shakeCursorEnabled = kwinrc.value(QStringLiteral("shakecursorEnabled"), true).toBool();
+    m_trackMouseEnabled = kwinrc.value(QStringLiteral("trackmouseEnabled"), false).toBool();
+    kwinrc.endGroup();
+
+    if (cbEnabled) {
+        kwinrc.beginGroup(QStringLiteral("Effect-colorblindnesscorrection"));
+        const int cbRawMode = kwinrc.value(QStringLiteral("Mode"), 0).toInt();
+        kwinrc.endGroup();
+        m_colorBlindnessMode = qBound(0, cbRawMode, 3) + 1;
+    } else {
+        m_colorBlindnessMode = 0;
+    }
+
+    QSettings kcminputrc(QDir::homePath() + QStringLiteral("/.config/kcminputrc"), QSettings::IniFormat);
+    kcminputrc.beginGroup(QStringLiteral("Mouse"));
+    m_cursorSize = qBound(24, kcminputrc.value(QStringLiteral("cursorSize"), 24).toInt(), 64);
+    kcminputrc.endGroup();
+
+    QSettings kaccessrc(QDir::homePath() + QStringLiteral("/.config/kaccessrc"), QSettings::IniFormat);
+    kaccessrc.beginGroup(QStringLiteral("ScreenReader"));
+    if (kaccessrc.contains(QStringLiteral("Enabled"))) {
+        m_screenReaderEnabled = kaccessrc.value(QStringLiteral("Enabled"), false).toBool();
+    } else {
+        m_screenReaderEnabled = kaccessrc.value(QStringLiteral("enabled"), false).toBool();
+    }
+    kaccessrc.endGroup();
+
+    kaccessrc.beginGroup(QStringLiteral("Mouse"));
+    m_mouseKeysEnabled = kaccessrc.value(QStringLiteral("MouseKeys"), false).toBool();
+    kaccessrc.endGroup();
+
+    kaccessrc.beginGroup(QStringLiteral("Keyboard"));
+    m_stickyKeysEnabled = kaccessrc.value(QStringLiteral("StickyKeys"), false).toBool();
+    m_stickyKeysLock = kaccessrc.value(QStringLiteral("StickyKeysLatch"), true).toBool();
+    m_slowKeysEnabled = kaccessrc.value(QStringLiteral("SlowKeys"), false).toBool();
+    m_slowKeysDelay = qBound(100, kaccessrc.value(QStringLiteral("SlowKeysDelay"), 500).toInt(), 2000);
+    m_bounceKeysEnabled = kaccessrc.value(QStringLiteral("BounceKeys"), false).toBool();
+    m_bounceKeysDelay = qBound(100, kaccessrc.value(QStringLiteral("BounceKeysDelay"), 500).toInt(), 2000);
+    m_toggleKeysBeep = kaccessrc.value(QStringLiteral("ToggleKeysBeep"), false).toBool();
+    kaccessrc.endGroup();
+
+    kaccessrc.beginGroup(QStringLiteral("Bell"));
+    m_systemBellEnabled = kaccessrc.value(QStringLiteral("SystemBell"), false).toBool();
+    m_visibleBellEnabled = kaccessrc.value(QStringLiteral("VisibleBell"), false).toBool();
+    m_visibleBellInvert = kaccessrc.value(QStringLiteral("VisibleBellInvert"), true).toBool();
+    kaccessrc.endGroup();
+
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setScreenZoomEnabled(bool enabled)
+{
+    m_screenZoomEnabled = enabled;
+    setKwinEffectEnabled(QStringLiteral("zoomEnabled"), QStringLiteral("zoom"), enabled);
+    notifyStatus(enabled ? QStringLiteral("Screen Magnifier enabled (Meta+= / Meta+-)") : QStringLiteral("Screen Magnifier disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::zoomScreen(int direction)
+{
+    if (direction > 0 && !m_screenZoomEnabled) {
+        setScreenZoomEnabled(true);
+    }
+    QString shortcutName = QStringLiteral("view_actual_size");
+    if (direction > 0) {
+        shortcutName = QStringLiteral("view_zoom_in");
+    } else if (direction < 0) {
+        shortcutName = QStringLiteral("view_zoom_out");
+    }
+    runDetached(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.kglobalaccel"),
+         QStringLiteral("/component/kwin"),
+         QStringLiteral("org.kde.kglobalaccel.Component.invokeShortcut"),
+         shortcutName});
+}
+
+void SystemBackend::setColorBlindnessMode(int mode)
+{
+    const int clamped = qBound(0, mode, 4);
+    m_colorBlindnessMode = clamped;
+    if (clamped == 0) {
+        setKwinEffectEnabled(QStringLiteral("colorblindnesscorrectionEnabled"), QStringLiteral("colorblindnesscorrection"), false);
+        notifyStatus(QStringLiteral("Color blindness filter disabled"));
+    } else {
+        const int kwinMode = clamped - 1;
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+             QStringLiteral("--group"), QStringLiteral("Effect-colorblindnesscorrection"),
+             QStringLiteral("--key"), QStringLiteral("Mode"),
+             QString::number(kwinMode),
+             QStringLiteral("--notify")}, 1500);
+        setKwinEffectEnabled(QStringLiteral("colorblindnesscorrectionEnabled"), QStringLiteral("colorblindnesscorrection"), true);
+        static const QStringList labels = {
+            QStringLiteral("Protanopia"),
+            QStringLiteral("Deuteranopia"),
+            QStringLiteral("Tritanopia"),
+            QStringLiteral("Monochrome")
+        };
+        notifyStatus(QStringLiteral("Color filter applied: %1").arg(labels.value(kwinMode)));
+    }
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setInvertScreenEnabled(bool enabled)
+{
+    m_invertScreenEnabled = enabled;
+    setKwinEffectEnabled(QStringLiteral("invertEnabled"), QStringLiteral("invert"), enabled);
+    notifyStatus(enabled ? QStringLiteral("High Contrast Invert filter enabled") : QStringLiteral("High Contrast Invert filter disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setScreenReaderEnabled(bool enabled)
+{
+    m_screenReaderEnabled = enabled;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("ScreenReader"),
+         QStringLiteral("--key"), QStringLiteral("Enabled"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+
+    if (enabled) {
+        if (runCommand(QStringLiteral("pgrep"), {QStringLiteral("-x"), QStringLiteral("orca")}, 800).isEmpty()) {
+            runDetached(QStringLiteral("orca"), {QStringLiteral("--replace")});
+        }
+        notifyStatus(QStringLiteral("Orca Screen Reader enabled"));
+    } else {
+        runCommand(QStringLiteral("pkill"), {QStringLiteral("-x"), QStringLiteral("orca")}, 800);
+        notifyStatus(QStringLiteral("Orca Screen Reader disabled"));
+    }
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setCursorSize(int size)
+{
+    const int clamped = qBound(24, size, 64);
+    m_cursorSize = clamped;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kcminputrc"),
+         QStringLiteral("--group"), QStringLiteral("Mouse"),
+         QStringLiteral("--key"), QStringLiteral("cursorSize"),
+         QString::number(m_cursorSize),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("dbus-send"),
+        {QStringLiteral("--type=signal"),
+         QStringLiteral("/KGlobalSettings"),
+         QStringLiteral("org.kde.KGlobalSettings.notifyChange"),
+         QStringLiteral("int32:5"),
+         QStringLiteral("int32:0")}, 1000);
+    runDetached(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")});
+    notifyStatus(QStringLiteral("Pointer cursor size set to %1 px").arg(m_cursorSize));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setShakeCursorEnabled(bool enabled)
+{
+    m_shakeCursorEnabled = enabled;
+    setKwinEffectEnabled(QStringLiteral("shakecursorEnabled"), QStringLiteral("shakecursor"), enabled);
+    notifyStatus(enabled ? QStringLiteral("Shake cursor to locate enabled") : QStringLiteral("Shake cursor to locate disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setTrackMouseEnabled(bool enabled)
+{
+    m_trackMouseEnabled = enabled;
+    setKwinEffectEnabled(QStringLiteral("trackmouseEnabled"), QStringLiteral("trackmouse"), enabled);
+    notifyStatus(enabled ? QStringLiteral("Locate mouse pointer effect enabled") : QStringLiteral("Locate mouse pointer effect disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setMouseKeysEnabled(bool enabled)
+{
+    m_mouseKeysEnabled = enabled;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Mouse"),
+         QStringLiteral("--key"), QStringLiteral("MouseKeys"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+    notifyStatus(enabled ? QStringLiteral("Mouse Keys (NumPad cursor control) enabled") : QStringLiteral("Mouse Keys disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setStickyKeys(bool enabled, bool lockKeys)
+{
+    m_stickyKeysEnabled = enabled;
+    m_stickyKeysLock = lockKeys;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("StickyKeys"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("StickyKeysLatch"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         lockKeys ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+    notifyStatus(enabled ? QStringLiteral("Sticky Keys enabled") : QStringLiteral("Sticky Keys disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setSlowKeys(bool enabled, int delayMs)
+{
+    m_slowKeysEnabled = enabled;
+    m_slowKeysDelay = qBound(100, delayMs, 2000);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("SlowKeys"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("SlowKeysDelay"),
+         QString::number(m_slowKeysDelay),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+    notifyStatus(enabled ? QStringLiteral("Slow Keys enabled (%1 ms)").arg(m_slowKeysDelay) : QStringLiteral("Slow Keys disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setBounceKeys(bool enabled, int delayMs)
+{
+    m_bounceKeysEnabled = enabled;
+    m_bounceKeysDelay = qBound(100, delayMs, 2000);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("BounceKeys"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("BounceKeysDelay"),
+         QString::number(m_bounceKeysDelay),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+    notifyStatus(enabled ? QStringLiteral("Bounce Keys enabled (%1 ms)").arg(m_bounceKeysDelay) : QStringLiteral("Bounce Keys disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setToggleKeysBeep(bool enabled)
+{
+    m_toggleKeysBeep = enabled;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Keyboard"),
+         QStringLiteral("--key"), QStringLiteral("ToggleKeysBeep"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+    notifyStatus(enabled ? QStringLiteral("Toggle Keys audible beep enabled") : QStringLiteral("Toggle Keys audible beep disabled"));
+    emit accessibilityChanged();
+}
+
+void SystemBackend::setBellSettings(bool audibleBell, bool visualBell, bool invertVisual)
+{
+    m_systemBellEnabled = audibleBell;
+    m_visibleBellEnabled = visualBell;
+    m_visibleBellInvert = invertVisual;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Bell"),
+         QStringLiteral("--key"), QStringLiteral("SystemBell"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         audibleBell ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Bell"),
+         QStringLiteral("--key"), QStringLiteral("VisibleBell"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         visualBell ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kaccessrc"),
+         QStringLiteral("--group"), QStringLiteral("Bell"),
+         QStringLiteral("--key"), QStringLiteral("VisibleBellInvert"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         invertVisual ? QStringLiteral("true") : QStringLiteral("false"),
+         QStringLiteral("--notify")}, 1500);
+    reloadAccessDaemon();
+    notifyStatus(QStringLiteral("Accessibility bell preferences updated"));
+    emit accessibilityChanged();
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="slGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A7FF52"/>
+      <stop offset="52%" stop-color="#6E62FF"/>
+      <stop offset="100%" stop-color="#6051ED"/>
+    </linearGradient>
+    <linearGradient id="slGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22273A" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#0F131E" stop-opacity="0.98"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="25" fill="url(#slGlass)" stroke="url(#slGrad)" stroke-width="3"/>
+  <circle cx="32" cy="18" r="4" fill="#A7FF52"/>
+  <path d="M18 26.5 H46 M32 26.5 V38 M23 50 L32 37.5 L41 50" fill="none" stroke="url(#slGrad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

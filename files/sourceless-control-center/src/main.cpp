@@ -40,6 +40,9 @@ static QString resolveInitialPage(const QStringList &args)
         if (arg.contains(QStringLiteral("security")) || arg.contains(QStringLiteral("firewall"))) {
             return QStringLiteral("security");
         }
+        if (arg.contains(QStringLiteral("access")) || arg.contains(QStringLiteral("kcm_access")) || arg.contains(QStringLiteral("zoom"))) {
+            return QStringLiteral("accessibility");
+        }
     }
     return QStringLiteral("home");
 }

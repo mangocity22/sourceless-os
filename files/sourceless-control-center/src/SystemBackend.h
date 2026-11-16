@@ -111,6 +111,26 @@ class SystemBackend : public QObject
     Q_PROPERTY(QString lastScanResult READ lastScanResult NOTIFY securityChanged)
     Q_PROPERTY(QVariantList securityEvents READ securityEvents NOTIFY securityChanged)
 
+    // 11. Accessibility
+    Q_PROPERTY(bool screenZoomEnabled READ screenZoomEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(int colorBlindnessMode READ colorBlindnessMode NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool invertScreenEnabled READ invertScreenEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool screenReaderEnabled READ screenReaderEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(int cursorSize READ cursorSize NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool shakeCursorEnabled READ shakeCursorEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool trackMouseEnabled READ trackMouseEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool mouseKeysEnabled READ mouseKeysEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool stickyKeysEnabled READ stickyKeysEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool stickyKeysLock READ stickyKeysLock NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool slowKeysEnabled READ slowKeysEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(int slowKeysDelay READ slowKeysDelay NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool bounceKeysEnabled READ bounceKeysEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(int bounceKeysDelay READ bounceKeysDelay NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool toggleKeysBeep READ toggleKeysBeep NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool systemBellEnabled READ systemBellEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool visibleBellEnabled READ visibleBellEnabled NOTIFY accessibilityChanged)
+    Q_PROPERTY(bool visibleBellInvert READ visibleBellInvert NOTIFY accessibilityChanged)
+
 public:
     explicit SystemBackend(const QString &startPage = QStringLiteral("home"), QObject *parent = nullptr);
 
@@ -205,6 +225,25 @@ public:
     QString lastScanResult() const { return m_lastScanResult; }
     QVariantList securityEvents() const { return m_securityEvents; }
 
+    bool screenZoomEnabled() const { return m_screenZoomEnabled; }
+    int colorBlindnessMode() const { return m_colorBlindnessMode; }
+    bool invertScreenEnabled() const { return m_invertScreenEnabled; }
+    bool screenReaderEnabled() const { return m_screenReaderEnabled; }
+    int cursorSize() const { return m_cursorSize; }
+    bool shakeCursorEnabled() const { return m_shakeCursorEnabled; }
+    bool trackMouseEnabled() const { return m_trackMouseEnabled; }
+    bool mouseKeysEnabled() const { return m_mouseKeysEnabled; }
+    bool stickyKeysEnabled() const { return m_stickyKeysEnabled; }
+    bool stickyKeysLock() const { return m_stickyKeysLock; }
+    bool slowKeysEnabled() const { return m_slowKeysEnabled; }
+    int slowKeysDelay() const { return m_slowKeysDelay; }
+    bool bounceKeysEnabled() const { return m_bounceKeysEnabled; }
+    int bounceKeysDelay() const { return m_bounceKeysDelay; }
+    bool toggleKeysBeep() const { return m_toggleKeysBeep; }
+    bool systemBellEnabled() const { return m_systemBellEnabled; }
+    bool visibleBellEnabled() const { return m_visibleBellEnabled; }
+    bool visibleBellInvert() const { return m_visibleBellInvert; }
+
     // Invokable actions for QML
     Q_INVOKABLE void refreshAll();
     Q_INVOKABLE void refreshAudio();
@@ -216,6 +255,7 @@ public:
     Q_INVOKABLE void refreshApps();
     Q_INVOKABLE void refreshTime();
     Q_INVOKABLE void refreshSecurity();
+    Q_INVOKABLE void refreshAccessibility();
 
     // Audio controls
     Q_INVOKABLE void setVolume(int val);
@@ -269,6 +309,22 @@ public:
     Q_INVOKABLE void runQuickSecurityScan();
     Q_INVOKABLE void resetDesktopLayout();
 
+    // Accessibility controls
+    Q_INVOKABLE void setScreenZoomEnabled(bool enabled);
+    Q_INVOKABLE void zoomScreen(int direction);
+    Q_INVOKABLE void setColorBlindnessMode(int mode);
+    Q_INVOKABLE void setInvertScreenEnabled(bool enabled);
+    Q_INVOKABLE void setScreenReaderEnabled(bool enabled);
+    Q_INVOKABLE void setCursorSize(int size);
+    Q_INVOKABLE void setShakeCursorEnabled(bool enabled);
+    Q_INVOKABLE void setTrackMouseEnabled(bool enabled);
+    Q_INVOKABLE void setMouseKeysEnabled(bool enabled);
+    Q_INVOKABLE void setStickyKeys(bool enabled, bool lockKeys);
+    Q_INVOKABLE void setSlowKeys(bool enabled, int delayMs);
+    Q_INVOKABLE void setBounceKeys(bool enabled, int delayMs);
+    Q_INVOKABLE void setToggleKeysBeep(bool enabled);
+    Q_INVOKABLE void setBellSettings(bool audibleBell, bool visualBell, bool invertVisual);
+
 signals:
     void systemInfoChanged();
     void audioChanged();
@@ -281,11 +337,14 @@ signals:
     void appsChanged();
     void timeChanged();
     void securityChanged();
+    void accessibilityChanged();
     void statusMessageChanged();
 
 private:
     QString runCommand(const QString &program, const QStringList &args, int timeoutMs = 3000) const;
     void runDetached(const QString &program, const QStringList &args) const;
+    void setKwinEffectEnabled(const QString &pluginKey, const QString &effectId, bool enabled) const;
+    void reloadAccessDaemon() const;
     void notifyStatus(const QString &msg);
     void loadStaticSystemInfo();
     void loadDynamicSystemMetrics();
@@ -381,6 +440,25 @@ private:
     int m_securityScore = 100;
     QString m_lastScanResult = QStringLiteral("Real-time watcher active on ~/Downloads and ~/.config/autostart");
     QVariantList m_securityEvents;
+
+    bool m_screenZoomEnabled = false;
+    int m_colorBlindnessMode = 0;
+    bool m_invertScreenEnabled = false;
+    bool m_screenReaderEnabled = false;
+    int m_cursorSize = 24;
+    bool m_shakeCursorEnabled = true;
+    bool m_trackMouseEnabled = false;
+    bool m_mouseKeysEnabled = false;
+    bool m_stickyKeysEnabled = false;
+    bool m_stickyKeysLock = true;
+    bool m_slowKeysEnabled = false;
+    int m_slowKeysDelay = 500;
+    bool m_bounceKeysEnabled = false;
+    int m_bounceKeysDelay = 500;
+    bool m_toggleKeysBeep = false;
+    bool m_systemBellEnabled = false;
+    bool m_visibleBellEnabled = false;
+    bool m_visibleBellInvert = true;
 
     QTimer m_periodicTimer;
 };

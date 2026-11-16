@@ -119,7 +119,23 @@ ApplicationWindow {
         { title: "Security Audit Findings", subtitle: "Privacy & security • Audit", pageIdx: 7, sectionKey: "audit", iconName: "security-high",
           keywords: "audit findings events alerts logs warnings security" },
         { title: "Emergency Technician Support Terminal", subtitle: "Privacy & security • Support", pageIdx: 7, sectionKey: "support", iconName: "terminal",
-          keywords: "support session technician emergency terminal shell console unlock key konsole suport tehnic" }
+          keywords: "support session technician emergency terminal shell console unlock key konsole suport tehnic" },
+
+        // Accessibility (Page 8)
+        { title: "Screen Magnifier & Zoom", subtitle: "Accessibility • Vision", pageIdx: 8, sectionKey: "acc-vision", iconName: "accessibility",
+          keywords: "accessibility vision magnifier zoom enlarge screen meta plus lupa marire zoom accesibilitate" },
+        { title: "Color Blindness & Vision Filters", subtitle: "Accessibility • Vision", pageIdx: 8, sectionKey: "acc-vision", iconName: "accessibility",
+          keywords: "accessibility color blindness protanopia deuteranopia tritanopia monochrome filter daltonism culori" },
+        { title: "High Contrast & Screen Invert", subtitle: "Accessibility • Vision", pageIdx: 8, sectionKey: "acc-vision", iconName: "accessibility",
+          keywords: "accessibility high contrast invert colors dark screen vision inversare culori contrast" },
+        { title: "Screen Reader (Orca)", subtitle: "Accessibility • Vision", pageIdx: 8, sectionKey: "acc-vision", iconName: "accessibility",
+          keywords: "accessibility screen reader orca speech tts voice blind cititor ecran voce" },
+        { title: "Large Pointer, Shake Cursor & Mouse Keys", subtitle: "Accessibility • Pointer", pageIdx: 8, sectionKey: "acc-cursor", iconName: "accessibility",
+          keywords: "accessibility cursor size large pointer shake find track mouse keys numpad cursor marime mouse" },
+        { title: "Sticky Keys, Slow Keys & Bounce Keys", subtitle: "Accessibility • Keyboard", pageIdx: 8, sectionKey: "acc-keyboard", iconName: "accessibility",
+          keywords: "accessibility keyboard sticky keys slow keys bounce keys latch toggle caps lock beep taste lipicioase lente" },
+        { title: "Visual Bell & Hearing Alerts", subtitle: "Accessibility • Hearing", pageIdx: 8, sectionKey: "acc-bell", iconName: "accessibility",
+          keywords: "accessibility hearing visual bell flash screen system alert beep deaf sunet alerta vizuala auz" }
     ]
 
     Timer {
@@ -134,11 +150,12 @@ ApplicationWindow {
         else if (pageIdx === 3) backend.refreshNetwork()
         else if (pageIdx === 5) backend.refreshApps()
         else if (pageIdx === 7) backend.refreshSecurity()
+        else if (pageIdx === 8) backend.refreshAccessibility()
     }
 
     function scrollToSection(pageIdx, sectionKey) {
         if (!sectionKey) return
-        const scrollViews = [homeScroll, systemScroll, btScroll, netScroll, personalizationScroll, appsScroll, timeScroll, securityScroll]
+        const scrollViews = [homeScroll, systemScroll, btScroll, netScroll, personalizationScroll, appsScroll, timeScroll, securityScroll, accessibilityScroll]
         const cardMap = {
             "display": cardDisplay,
             "sound": cardSound,
@@ -158,7 +175,11 @@ ApplicationWindow {
             "telemetry": cardTelemetry,
             "scanner": cardScanner,
             "audit": cardAudit,
-            "support": cardSupport
+            "support": cardSupport,
+            "acc-vision": cardAccVision,
+            "acc-cursor": cardAccCursor,
+            "acc-keyboard": cardAccKeyboard,
+            "acc-bell": cardAccBell
         }
         const sv = scrollViews[pageIdx]
         const card = cardMap[sectionKey]
@@ -243,7 +264,8 @@ ApplicationWindow {
             "personalization": 4,
             "apps": 5,
             "time": 6,
-            "security": 7
+            "security": 7,
+            "accessibility": 8
         }
         if (backend && pageMap[backend.initialPage] !== undefined) {
             root.currentPage = pageMap[backend.initialPage]
@@ -755,6 +777,7 @@ ApplicationWindow {
                             { title: "Personalization", iconName: "personalization", pageIdx: 4 },
                             { title: "Apps", iconName: "apps", pageIdx: 5 },
                             { title: "Time & language", iconName: "time", pageIdx: 6 },
+                            { title: "Accessibility", iconName: "accessibility", pageIdx: 8 },
                             { title: "Privacy & security", iconName: "security-high", pageIdx: 7 }
                         ]
 
@@ -2821,6 +2844,393 @@ ApplicationWindow {
                                 ActionButton {
                                     labelText: "Authorize Support Shell"
                                     onTriggered: backend.launchEmergencyTerminal()
+                                }
+                            }
+                        }
+
+                        Item { height: 24 }
+                    }
+                }
+
+                // -------------------------------------------------------------
+                // PAGE 8: ACCESSIBILITY (Vision, Pointer, Keyboard, Hearing)
+                // -------------------------------------------------------------
+                ScrollView {
+                    id: accessibilityScroll
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width - 64
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 18
+
+                        Item { height: 12 }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label {
+                                text: "Accessibility"
+                                color: root.textMain
+                                font.pixelSize: 28
+                                font.bold: true
+                            }
+                            Item { Layout.fillWidth: true }
+                            ActionButton {
+                                labelText: "Refresh"
+                                onTriggered: backend.refreshAccessibility()
+                            }
+                        }
+
+                        // 1. VISION & DISPLAY ASSISTANCE
+                        Label { text: "Vision & Display Assistance"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardAccVision
+                            sectionKey: "acc-vision"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "accessibility"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Screen Magnifier (Zoom)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Magnify the screen with Meta+= / Meta+- shortcuts or the quick controls"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                ActionButton { labelText: "Zoom Out"; onTriggered: backend.zoomScreen(-1) }
+                                ActionButton { labelText: "Reset"; onTriggered: backend.zoomScreen(0) }
+                                ActionButton { labelText: "Zoom In"; primary: true; onTriggered: backend.zoomScreen(1) }
+                                WinSwitch {
+                                    checkedState: backend ? backend.screenZoomEnabled : false
+                                    onToggled: function(val) { backend.setScreenZoomEnabled(val) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Color Blindness Filter"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Apply real-time GPU color correction for color vision deficiencies"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: cbCombo
+                                    implicitWidth: 240
+                                    model: [
+                                        "Off (Normal Vision)",
+                                        "Protanopia (Red-Weak)",
+                                        "Deuteranopia (Green-Weak)",
+                                        "Tritanopia (Blue-Weak)",
+                                        "Monochrome (Grayscale)"
+                                    ]
+                                    currentIndex: backend ? backend.colorBlindnessMode : 0
+                                    onActivated: function(index) {
+                                        if (backend) backend.setColorBlindnessMode(index)
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "night-light"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "High Contrast (Invert Colors)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Invert workspace colors across all windows for maximum legibility"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.invertScreenEnabled : false
+                                    onToggled: function(val) { backend.setInvertScreenEnabled(val) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "audio-speakers"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Screen Reader (Orca)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Read menus, windows, and focused controls aloud (Meta+Alt+S)"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.screenReaderEnabled : false
+                                    onToggled: function(val) { backend.setScreenReaderEnabled(val) }
+                                }
+                            }
+                        }
+
+                        // 2. POINTER & CURSOR AIDS
+                        Label { text: "Pointer & Cursor Aids"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardAccCursor
+                            sectionKey: "acc-cursor"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "mouse"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Mouse Pointer Size"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Scale cursor size for better visibility (" + (backend ? backend.cursorSize : 24) + " px)"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: cursorSizeCombo
+                                    readonly property var sizes: [24, 32, 36, 48, 64]
+                                    model: ["24 px (Default)", "32 px (Medium)", "36 px (Large)", "48 px (Extra Large)", "64 px (Huge)"]
+                                    currentIndex: {
+                                        if (!backend) return 0
+                                        const idx = sizes.indexOf(backend.cursorSize)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && sizes[index] !== undefined) {
+                                            backend.setCursorSize(sizes[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "mouse"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Shake Cursor to Find It"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Temporarily enlarge the mouse pointer when shaken back and forth"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.shakeCursorEnabled : true
+                                    onToggled: function(val) { backend.setShakeCursorEnabled(val) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "mouse"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Locate Mouse Pointer (Highlight Ring)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Draw an animated target ring around the cursor when Meta+Ctrl is pressed"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.trackMouseEnabled : false
+                                    onToggled: function(val) { backend.setTrackMouseEnabled(val) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "mouse"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Mouse Keys (NumPad Control)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Move the cursor and click using the numeric keypad (Shift+NumLock)"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.mouseKeysEnabled : false
+                                    onToggled: function(val) { backend.setMouseKeysEnabled(val) }
+                                }
+                            }
+                        }
+
+                        // 3. KEYBOARD ACCESSIBILITY FILTERS
+                        Label { text: "Keyboard Accessibility Filters"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardAccKeyboard
+                            sectionKey: "acc-keyboard"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "accessibility"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Sticky Keys"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Press shortcut keys like Ctrl, Alt, or Shift one key at a time"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.stickyKeysEnabled : false
+                                    onToggled: function(val) { backend.setStickyKeys(val, backend ? backend.stickyKeysLock : true) }
+                                }
+                            }
+
+                            RowLayout {
+                                visible: backend ? backend.stickyKeysEnabled : false
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 38
+                                spacing: 14
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Lock modifier keys when pressed twice"; color: root.textMain; font.pixelSize: 13 }
+                                    Label { text: "Keep Ctrl, Alt, or Shift latched until pressed a third time"; color: root.textMuted; font.pixelSize: 11 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.stickyKeysLock : true
+                                    onToggled: function(val) { backend.setStickyKeys(backend ? backend.stickyKeysEnabled : true, val) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "time"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Slow Keys (Acceptance Delay)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Hold a key for " + (backend ? backend.slowKeysDelay : 500) + " ms before it registers to prevent accidental taps"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSlider {
+                                    from: 100; to: 2000; stepSize: 50
+                                    value: backend ? backend.slowKeysDelay : 500
+                                    Layout.preferredWidth: 180
+                                    onMoved: backend.setSlowKeys(backend ? backend.slowKeysEnabled : true, Math.round(value))
+                                }
+                                WinSwitch {
+                                    checkedState: backend ? backend.slowKeysEnabled : false
+                                    onToggled: function(val) { backend.setSlowKeys(val, backend ? backend.slowKeysDelay : 500) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "time"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Bounce Keys (Debounce Filter)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Ignore repeated keystrokes faster than " + (backend ? backend.bounceKeysDelay : 500) + " ms"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSlider {
+                                    from: 100; to: 2000; stepSize: 50
+                                    value: backend ? backend.bounceKeysDelay : 500
+                                    Layout.preferredWidth: 180
+                                    onMoved: backend.setBounceKeys(backend ? backend.bounceKeysEnabled : true, Math.round(value))
+                                }
+                                WinSwitch {
+                                    checkedState: backend ? backend.bounceKeysEnabled : false
+                                    onToggled: function(val) { backend.setBounceKeys(val, backend ? backend.bounceKeysDelay : 500) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "audio-high"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Toggle Keys Audible Cue"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Play a tone whenever Caps Lock, Num Lock, or Scroll Lock changes"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.toggleKeysBeep : false
+                                    onToggled: function(val) { backend.setToggleKeysBeep(val) }
+                                }
+                            }
+                        }
+
+                        // 4. HEARING & SYSTEM BELL ALERTS
+                        Label { text: "Hearing & Visual Bell Alerts"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardAccBell
+                            sectionKey: "acc-bell"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "audio-speakers"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Audible System Bell"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Enable standard audio bell sounds on desktop alerts and notifications"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.systemBellEnabled : false
+                                    onToggled: function(val) {
+                                        backend.setBellSettings(val, backend ? backend.visibleBellEnabled : false, backend ? backend.visibleBellInvert : true)
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "display"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Visual Bell (Flash Screen)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Flash the display visually whenever a system bell notification occurs"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.visibleBellEnabled : false
+                                    onToggled: function(val) {
+                                        backend.setBellSettings(backend ? backend.systemBellEnabled : false, val, backend ? backend.visibleBellInvert : true)
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                visible: backend ? backend.visibleBellEnabled : false
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 38
+                                spacing: 14
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Invert screen colors during visual flash"; color: root.textMain; font.pixelSize: 13 }
+                                    Label { text: "Use full-screen color inversion instead of a color overlay flash"; color: root.textMuted; font.pixelSize: 11 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.visibleBellInvert : true
+                                    onToggled: function(val) {
+                                        backend.setBellSettings(backend ? backend.systemBellEnabled : false, backend ? backend.visibleBellEnabled : true, val)
+                                    }
                                 }
                             }
                         }
