@@ -66,6 +66,8 @@ modules:
         - cups
         - cups-filters
         - system-config-printer-udev
+        - sddm
+        - sddm-wayland-plasma
 
     remove:
       packages:
@@ -102,8 +104,10 @@ modules:
           - sourceless-quarantine-purge.timer
           - dev-shm.mount
           - cups.service
+          - sddm.service
       disabled:
           - fedora-atomic-desktop-appstream-cache-refresh.service
+          - plasmalogin.service
 
   - type: script
     scripts:

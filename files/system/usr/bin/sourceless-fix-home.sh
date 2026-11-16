@@ -36,6 +36,12 @@ if [ -d /var/home/sourceless ]; then
         fi
     fi
 
+    # 2b. Sync Sourceless Liquid Glass lock screen config for existing user homes
+    if [ -f /etc/xdg/kscreenlockerrc ]; then
+        mkdir -p /var/home/sourceless/.config
+        cp -f /etc/xdg/kscreenlockerrc /var/home/sourceless/.config/kscreenlockerrc
+    fi
+
     # 3. Activam Starship si restauram contextul SELinux (partea ta existenta)
     if ! grep -q "starship init bash" /var/home/sourceless/.bashrc 2>/dev/null; then
          echo 'eval "$(starship init bash)"' >> /var/home/sourceless/.bashrc
