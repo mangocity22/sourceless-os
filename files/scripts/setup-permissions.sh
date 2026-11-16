@@ -403,6 +403,7 @@ mkdir -p /etc/xdg
 kwriteconfig6 --file /etc/xdg/plasmarc --group Theme --key name "SourcelessGlass" 2>/dev/null || true
 kwriteconfig6 --file /etc/xdg/kwinrc --group Plugins --key blurEnabled "true" 2>/dev/null || true
 kwriteconfig6 --file /etc/xdg/kwinrc --group Plugins --key contrastEnabled "true" 2>/dev/null || true
+kwriteconfig6 --file /etc/xdg/kwinrc --group Plugins --key invertEnabled "true" 2>/dev/null || true
 
 # Asigurare ca layout.js este preluat garantat pe orice instalare ISO curata
 LAYOUT_SRC="/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js"

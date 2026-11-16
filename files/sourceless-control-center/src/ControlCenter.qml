@@ -53,6 +53,7 @@ ApplicationWindow {
     property string highlightedSection: ""
     property bool searchPopupOpen: false
     property bool searchPopupHovered: false
+    property bool addingPrinter: false
 
     readonly property var searchCatalog: [
         // Personalization (Page 4)
@@ -94,6 +95,10 @@ ApplicationWindow {
         // Bluetooth & devices (Page 2)
         { title: "Bluetooth & Wireless Devices", subtitle: "Bluetooth & devices", pageIdx: 2, sectionKey: "bluetooth", iconName: "bluetooth",
           keywords: "bluetooth wireless pair connect disconnect devices headphones speaker mouse keyboard dispozitive" },
+        { title: "Printers & Scanners", subtitle: "Bluetooth & devices • Printers", pageIdx: 2, sectionKey: "printers", iconName: "printer",
+          keywords: "printer printers print scanner cups queue lpstat default test page network usb ipp imprimanta imprimante tiparire scaner coada" },
+        { title: "Print Queue & Active Jobs", subtitle: "Bluetooth & devices • Printers", pageIdx: 2, sectionKey: "printers", iconName: "printer",
+          keywords: "print queue jobs cancel clear spooler cups document page coada imprimare joburi anulare" },
         { title: "Mouse & Cursor Speed", subtitle: "Bluetooth & devices • Mouse & Touchpad", pageIdx: 2, sectionKey: "mouse", iconName: "mouse",
           keywords: "mouse cursor pointer speed sensitivity left handed buttons swap viteza cursor" },
         { title: "Touchpad, Tap to Click & Natural Scrolling", subtitle: "Bluetooth & devices • Mouse & Touchpad", pageIdx: 2, sectionKey: "mouse", iconName: "mouse",
@@ -152,7 +157,7 @@ ApplicationWindow {
 
     function refreshPageData(pageIdx) {
         if (!backend) return
-        if (pageIdx === 2) backend.refreshBluetooth()
+        if (pageIdx === 2) { backend.refreshBluetooth(); backend.refreshPrinters() }
         else if (pageIdx === 3) backend.refreshNetwork()
         else if (pageIdx === 5) backend.refreshApps()
         else if (pageIdx === 7) backend.refreshSecurity()
@@ -168,6 +173,7 @@ ApplicationWindow {
             "power": cardPower,
             "about": cardAbout,
             "bluetooth": cardBluetooth,
+            "printers": cardPrinters,
             "mouse": cardMouse,
             "net-status": cardNetStatus,
             "wifi": cardWifi,
@@ -266,6 +272,7 @@ ApplicationWindow {
             "home": 0,
             "system": 1,
             "bluetooth": 2,
+            "printers": 2,
             "network": 3,
             "personalization": 4,
             "apps": 5,
@@ -275,6 +282,11 @@ ApplicationWindow {
         }
         if (backend && pageMap[backend.initialPage] !== undefined) {
             root.currentPage = pageMap[backend.initialPage]
+            if (backend.initialPage === "printers") {
+                root.highlightedSection = "printers"
+                highlightResetTimer.restart()
+                root.scrollToSection(2, "printers")
+            }
         }
     }
 
@@ -1893,6 +1905,248 @@ ApplicationWindow {
                                             labelText: modelData.connected ? "Disconnect" : "Connect"
                                             primary: !modelData.connected
                                             onTriggered: backend.toggleBluetoothDevice(modelData.mac, !modelData.connected)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // PRINTERS & SCANNERS SECTION
+                        Label { text: "Printers & Scanners", color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardPrinters
+                            sectionKey: "printers"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                CyberIcon { iconName: "printer"; width: 24; height: 24 }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { text: "Printers & Scanners"; color: root.textMain; font.pixelSize: 15; font.bold: true }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        text: {
+                                            if (!backend) return "CUPS Print Service"
+                                            if (!backend.cupsRunning) return "CUPS spooler stopped • Enable cups.service to manage printers"
+                                            return backend.printers.length + " printer(s) configured • Default: " + backend.defaultPrinter + " • Active jobs: " + backend.activePrintJobs
+                                        }
+                                        color: backend && !backend.cupsRunning ? root.statusAmber : root.textMuted
+                                        font.pixelSize: 12
+                                    }
+                                }
+                            }
+
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                ActionButton {
+                                    visible: backend ? (backend.activePrintJobs > 0) : false
+                                    labelText: "Clear Queue"
+                                    danger: true
+                                    onTriggered: backend.cancelAllPrintJobs("")
+                                }
+
+                                ActionButton {
+                                    labelText: root.addingPrinter ? "Cancel Add" : "Add Network Printer"
+                                    primary: !root.addingPrinter
+                                    onTriggered: root.addingPrinter = !root.addingPrinter
+                                }
+
+                                ActionButton {
+                                    labelText: "Refresh"
+                                    onTriggered: backend.refreshPrinters()
+                                }
+
+                                ActionButton {
+                                    labelText: "Advanced Config"
+                                    onTriggered: backend.openSystemPrinterConfig()
+                                }
+                            }
+
+                            // Inline Add Network Printer (IPP / Driverless) form
+                            ColumnLayout {
+                                visible: root.addingPrinter
+                                Layout.fillWidth: true
+                                spacing: 10
+
+                                Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                                Label {
+                                    text: "Add IPP / Driverless Network Printer"
+                                    color: root.textMain
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    Rectangle {
+                                        Layout.preferredWidth: 190
+                                        height: 34
+                                        radius: 6
+                                        color: root.bgInput
+                                        border.color: root.brandHighlight
+                                        border.width: 1
+
+                                        TextField {
+                                            id: printerNameField
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 10
+                                            placeholderText: "Name (e.g. Office_HP)"
+                                            placeholderTextColor: root.textMuted
+                                            color: root.textMain
+                                            font.pixelSize: 13
+                                            background: Item {}
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        height: 34
+                                        radius: 6
+                                        color: root.bgInput
+                                        border.color: root.brandHighlight
+                                        border.width: 1
+
+                                        TextField {
+                                            id: printerUriField
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 10
+                                            placeholderText: "IP or URI (e.g. 192.168.1.50 or ipp://host/ipp/print)"
+                                            placeholderTextColor: root.textMuted
+                                            color: root.textMain
+                                            font.pixelSize: 13
+                                            background: Item {}
+                                        }
+                                    }
+
+                                    ActionButton {
+                                        labelText: "Save Printer"
+                                        primary: true
+                                        onTriggered: {
+                                            if (backend) {
+                                                backend.addNetworkPrinter(printerNameField.text, printerUriField.text)
+                                                if (printerNameField.text.trim() !== "" && printerUriField.text.trim() !== "") {
+                                                    printerNameField.text = ""
+                                                    printerUriField.text = ""
+                                                    root.addingPrinter = false
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Label {
+                                visible: backend ? (backend.printers.length === 0) : true
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "No printers configured or detected yet. Plug in a USB printer (auto-discovered via CUPS/IPP) or click \"Add Network Printer\" above."
+                                color: root.textMuted
+                                font.pixelSize: 12
+                            }
+
+                            Repeater {
+                                model: backend ? backend.printers : []
+                                delegate: ColumnLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 12
+
+                                        CyberIcon { iconName: "printer"; width: 20; height: 20 }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 3
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 8
+
+                                                Label {
+                                                    text: modelData.name
+                                                    color: root.textMain
+                                                    font.pixelSize: 14
+                                                    font.bold: true
+                                                }
+
+                                                Rectangle {
+                                                    visible: modelData.isDefault
+                                                    implicitWidth: defaultBadgeLbl.implicitWidth + 14
+                                                    height: 20
+                                                    radius: 5
+                                                    color: Qt.rgba(0.16, 0.76, 0.63, 0.18)
+                                                    border.color: root.statusGreen
+                                                    border.width: 1
+
+                                                    Label {
+                                                        id: defaultBadgeLbl
+                                                        anchors.centerIn: parent
+                                                        text: "Default"
+                                                        color: root.statusGreen
+                                                        font.pixelSize: 11
+                                                        font.bold: true
+                                                    }
+                                                }
+
+                                                Label {
+                                                    text: modelData.status + (modelData.jobs > 0 ? (" • " + modelData.jobs + " job(s)") : "")
+                                                    color: modelData.status === "Paused / Disabled" ? root.statusAmber : root.textMuted
+                                                    font.pixelSize: 12
+                                                }
+                                            }
+
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: modelData.uri
+                                                color: root.textMuted
+                                                font.pixelSize: 12
+                                                elide: Text.ElideMiddle
+                                            }
+                                        }
+                                    }
+
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        ActionButton {
+                                            visible: !modelData.isDefault
+                                            labelText: "Set Default"
+                                            onTriggered: backend.setDefaultPrinter(modelData.name)
+                                        }
+
+                                        ActionButton {
+                                            labelText: "Print Test Page"
+                                            primary: true
+                                            onTriggered: backend.printTestPage(modelData.name)
+                                        }
+
+                                        ActionButton {
+                                            visible: modelData.jobs > 0
+                                            labelText: "Cancel Jobs"
+                                            onTriggered: backend.cancelAllPrintJobs(modelData.name)
+                                        }
+
+                                        ActionButton {
+                                            labelText: "Remove"
+                                            danger: true
+                                            onTriggered: backend.removePrinter(modelData.name)
                                         }
                                     }
                                 }

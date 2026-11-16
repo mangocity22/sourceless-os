@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMap>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSettings>
@@ -282,6 +283,7 @@ void SystemBackend::refreshAll()
     refreshDisplay();
     refreshNetwork();
     refreshBluetooth();
+    refreshPrinters();
     loadInputSettings();
     refreshPower();
     refreshPersonalization();
@@ -1101,6 +1103,232 @@ void SystemBackend::setMouseSettings(int speed, bool natural, bool tap, bool lef
     emit inputChanged();
 }
 
+void SystemBackend::refreshPrinters()
+{
+    const QString sched = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-r")}, 1500);
+    m_cupsRunning = sched.contains(QStringLiteral("is running"), Qt::CaseInsensitive);
+
+    QString defaultDest;
+    QFile lpOptsFile(QDir::homePath() + QStringLiteral("/.cups/lpoptions"));
+    if (lpOptsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        for (const QString &line : QString::fromUtf8(lpOptsFile.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("Default "))) {
+                const QStringList parts = trimmed.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                if (parts.size() >= 2) {
+                    defaultDest = parts.at(1);
+                    break;
+                }
+            }
+        }
+    }
+    if (defaultDest.isEmpty()) {
+        const QString lpstatD = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-d")}, 1200);
+        const int colonIdx = lpstatD.indexOf(QLatin1Char(':'));
+        if (colonIdx != -1) {
+            defaultDest = lpstatD.mid(colonIdx + 1).trimmed();
+        }
+    }
+    m_defaultPrinter = defaultDest.isEmpty() ? QStringLiteral("None") : defaultDest;
+
+    QMap<QString, QString> uris;
+    const QString lpstatV = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-v")}, 1500);
+    QRegularExpression reUri(QStringLiteral("^device for ([^:]+):\\s*(.+)$"));
+    for (const QString &line : lpstatV.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+        const auto m = reUri.match(line.trimmed());
+        if (m.hasMatch()) {
+            uris.insert(m.captured(1).trimmed(), m.captured(2).trimmed());
+        }
+    }
+
+    QMap<QString, int> jobsPerPrinter;
+    m_activePrintJobs = 0;
+    const QString lpstatO = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-o")}, 1500);
+    QRegularExpression reJob(QStringLiteral("^(.+)-\\d+\\s+"));
+    for (const QString &line : lpstatO.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty()) {
+            continue;
+        }
+        ++m_activePrintJobs;
+        const auto m = reJob.match(trimmed);
+        if (m.hasMatch()) {
+            const QString pName = m.captured(1);
+            jobsPerPrinter[pName] = jobsPerPrinter.value(pName, 0) + 1;
+        }
+    }
+
+    QStringList orderedNames;
+    QMap<QString, QString> statuses;
+    const QString lpstatP = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-p")}, 1500);
+    QRegularExpression rePrinter(QStringLiteral("^printer\\s+(\\S+)\\s+(.+)$"));
+    for (const QString &line : lpstatP.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+        const auto m = rePrinter.match(line.trimmed());
+        if (m.hasMatch()) {
+            const QString name = m.captured(1);
+            const QString desc = m.captured(2);
+            QString status = QStringLiteral("Ready");
+            if (desc.contains(QStringLiteral("disabled"), Qt::CaseInsensitive)) {
+                status = QStringLiteral("Paused / Disabled");
+            } else if (desc.contains(QStringLiteral("printing"), Qt::CaseInsensitive)) {
+                status = QStringLiteral("Printing");
+            } else if (desc.contains(QStringLiteral("idle"), Qt::CaseInsensitive)) {
+                status = QStringLiteral("Idle");
+            }
+            if (!orderedNames.contains(name)) {
+                orderedNames.append(name);
+            }
+            statuses.insert(name, status);
+        }
+    }
+
+    for (auto it = uris.constBegin(); it != uris.constEnd(); ++it) {
+        if (!orderedNames.contains(it.key())) {
+            orderedNames.append(it.key());
+            statuses.insert(it.key(), QStringLiteral("Ready"));
+        }
+    }
+
+    QVariantList printerList;
+    for (const QString &name : orderedNames) {
+        QVariantMap item;
+        item[QStringLiteral("name")] = name;
+        item[QStringLiteral("uri")] = uris.value(name, QStringLiteral("Local / Auto-discovered"));
+        item[QStringLiteral("status")] = statuses.value(name, QStringLiteral("Ready"));
+        item[QStringLiteral("isDefault")] = (!defaultDest.isEmpty() && name == defaultDest);
+        item[QStringLiteral("jobs")] = jobsPerPrinter.value(name, 0);
+        printerList.append(item);
+    }
+
+    m_printers = printerList;
+    emit printersChanged();
+}
+
+void SystemBackend::setDefaultPrinter(const QString &printerName)
+{
+    const QString clean = printerName.trimmed();
+    if (clean.isEmpty()) {
+        return;
+    }
+    runCommand(QStringLiteral("lpoptions"), {QStringLiteral("-d"), clean}, 1500);
+    runCommand(QStringLiteral("lpadmin"), {QStringLiteral("-d"), clean}, 1500);
+    notifyStatus(QStringLiteral("Default printer set to %1").arg(clean));
+    refreshPrinters();
+}
+
+void SystemBackend::printTestPage(const QString &printerName)
+{
+    const QString clean = printerName.trimmed();
+    if (clean.isEmpty()) {
+        return;
+    }
+
+    QString testFile;
+    if (QFileInfo::exists(QStringLiteral("/usr/share/cups/data/testprint"))) {
+        testFile = QStringLiteral("/usr/share/cups/data/testprint");
+    } else if (QFileInfo::exists(QStringLiteral("/usr/share/cups/data/default-testpage.pdf"))) {
+        testFile = QStringLiteral("/usr/share/cups/data/default-testpage.pdf");
+    }
+
+    QProcess proc;
+    if (!testFile.isEmpty()) {
+        proc.start(QStringLiteral("lp"),
+            {QStringLiteral("-d"), clean, QStringLiteral("-t"), QStringLiteral("Sourceless OS Test Page"), testFile});
+    } else {
+        proc.start(QStringLiteral("sh"),
+            {QStringLiteral("-c"),
+             QStringLiteral("printf 'Sourceless OS Printer Test Page\\nPrinter: %s\\n' \"$1\" | lp -d \"$1\" -t \"Sourceless OS Test Page\""),
+             QStringLiteral("sh"),
+             clean});
+    }
+
+    if (proc.waitForFinished(4000) && proc.exitCode() == 0) {
+        notifyStatus(QStringLiteral("Test page queued on %1").arg(clean));
+    } else {
+        const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        notifyStatus(err.isEmpty()
+            ? QStringLiteral("Failed to queue test page on %1").arg(clean)
+            : QStringLiteral("Print error: %1").arg(err));
+    }
+    refreshPrinters();
+}
+
+void SystemBackend::cancelAllPrintJobs(const QString &printerName)
+{
+    const QString clean = printerName.trimmed();
+    if (clean.isEmpty()) {
+        runCommand(QStringLiteral("cancel"), {QStringLiteral("-a")}, 2000);
+        notifyStatus(QStringLiteral("All active print jobs cancelled"));
+    } else {
+        runCommand(QStringLiteral("cancel"), {QStringLiteral("-a"), clean}, 2000);
+        notifyStatus(QStringLiteral("Cancelled queued jobs for %1").arg(clean));
+    }
+    refreshPrinters();
+}
+
+void SystemBackend::addNetworkPrinter(const QString &name, const QString &uri)
+{
+    QString cleanName = name.trimmed();
+    cleanName.replace(QRegularExpression(QStringLiteral("\\s+")), QStringLiteral("_"));
+    cleanName.remove(QRegularExpression(QStringLiteral("[/#?]")));
+
+    QString cleanUri = uri.trimmed();
+    if (cleanName.isEmpty() || cleanUri.isEmpty()) {
+        notifyStatus(QStringLiteral("Enter both printer name and IP/URI"));
+        return;
+    }
+
+    if (!cleanUri.contains(QStringLiteral("://"))) {
+        cleanUri = QStringLiteral("ipp://%1/ipp/print").arg(cleanUri);
+    }
+
+    QProcess proc;
+    proc.start(QStringLiteral("lpadmin"),
+        {QStringLiteral("-p"), cleanName, QStringLiteral("-E"), QStringLiteral("-v"), cleanUri, QStringLiteral("-m"), QStringLiteral("everywhere")});
+    if (proc.waitForFinished(6000) && proc.exitCode() == 0) {
+        notifyStatus(QStringLiteral("Added network printer: %1").arg(cleanName));
+    } else {
+        const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        notifyStatus(err.isEmpty()
+            ? QStringLiteral("Could not add printer %1 (check privileges or URI)").arg(cleanName)
+            : QStringLiteral("Printer setup failed: %1").arg(err));
+    }
+    refreshPrinters();
+}
+
+void SystemBackend::removePrinter(const QString &printerName)
+{
+    const QString clean = printerName.trimmed();
+    if (clean.isEmpty()) {
+        return;
+    }
+    QProcess proc;
+    proc.start(QStringLiteral("lpadmin"), {QStringLiteral("-x"), clean});
+    if (proc.waitForFinished(3000) && proc.exitCode() == 0) {
+        notifyStatus(QStringLiteral("Removed printer: %1").arg(clean));
+    } else {
+        const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        notifyStatus(err.isEmpty()
+            ? QStringLiteral("Failed to remove printer %1").arg(clean)
+            : QStringLiteral("Remove error: %1").arg(err));
+    }
+    refreshPrinters();
+}
+
+void SystemBackend::openSystemPrinterConfig()
+{
+    if (!QStandardPaths::findExecutable(QStringLiteral("kcmshell6")).isEmpty()) {
+        runDetached(QStringLiteral("kcmshell6"), {QStringLiteral("kcm_printer_manager")});
+    } else if (!QStandardPaths::findExecutable(QStringLiteral("kde-add-printer")).isEmpty()) {
+        runDetached(QStringLiteral("kde-add-printer"), {QStringLiteral("--add-printer")});
+    } else if (!QStandardPaths::findExecutable(QStringLiteral("system-config-printer")).isEmpty()) {
+        runDetached(QStringLiteral("system-config-printer"), {});
+    } else {
+        runDetached(QStringLiteral("xdg-open"), {QStringLiteral("http://localhost:631")});
+    }
+    notifyStatus(QStringLiteral("Opening system printer configuration..."));
+}
+
 // -----------------------------------------------------------------------------
 // 6. POWER & BATTERY
 // -----------------------------------------------------------------------------
@@ -1862,24 +2090,33 @@ void SystemBackend::setColorBlindnessMode(int mode)
              QStringLiteral("--type"), QStringLiteral("bool"),
              QStringLiteral("false"),
              QStringLiteral("--notify")}, 1500);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")}, 1200);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
-             QStringLiteral("colorblindnesscorrection")}, 1200);
+        runDetached(QStringLiteral("sh"),
+            {QStringLiteral("-c"),
+             QStringLiteral("qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect colorblindnesscorrection >/dev/null 2>&1; "
+                            "qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1")});
         notifyStatus(QStringLiteral("Color blindness filter disabled"));
     } else {
         const int kwinMode = clamped - 1;
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
-             QStringLiteral("colorblindnesscorrection")}, 1200);
+        static const QStringList kwinGroups = {
+            QStringLiteral("Effect-colorblindnesscorrection"),
+            QStringLiteral("Effect-ColorblindnessCorrection"),
+            QStringLiteral("Effect-ColorBlindnessCorrection"),
+            QStringLiteral("ColorBlindnessCorrection"),
+            QStringLiteral("ColorblindnessCorrection")
+        };
+        {
+            QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+            for (const QString &group : kwinGroups) {
+                kwinrc.beginGroup(group);
+                kwinrc.setValue(QStringLiteral("Mode"), kwinMode);
+                kwinrc.endGroup();
+            }
+            kwinrc.sync();
+        }
         runCommand(QStringLiteral("kwriteconfig6"),
             {QStringLiteral("--file"), QStringLiteral("kwinrc"),
              QStringLiteral("--group"), QStringLiteral("Effect-colorblindnesscorrection"),
              QStringLiteral("--key"), QStringLiteral("Mode"),
-             QStringLiteral("--type"), QStringLiteral("int"),
              QString::number(kwinMode),
              QStringLiteral("--notify")}, 1500);
         runCommand(QStringLiteral("kwriteconfig6"),
@@ -1889,16 +2126,13 @@ void SystemBackend::setColorBlindnessMode(int mode)
              QStringLiteral("--type"), QStringLiteral("bool"),
              QStringLiteral("true"),
              QStringLiteral("--notify")}, 1500);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")}, 1200);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.loadEffect"),
-             QStringLiteral("colorblindnesscorrection")}, 1200);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.reconfigureEffect"),
-             QStringLiteral("colorblindnesscorrection")}, 1000);
+        runDetached(QStringLiteral("sh"),
+            {QStringLiteral("-c"),
+             QStringLiteral("qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1; "
+                            "sleep 0.25; "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect colorblindnesscorrection >/dev/null 2>&1; "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect colorblindnesscorrection >/dev/null 2>&1; "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect colorblindnesscorrection >/dev/null 2>&1")});
         static const QStringList labels = {
             QStringLiteral("Protanopia"),
             QStringLiteral("Deuteranopia"),
@@ -1914,10 +2148,6 @@ void SystemBackend::setInvertScreenEnabled(bool enabled)
 {
     m_invertScreenEnabled = enabled;
     if (enabled) {
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
-             QStringLiteral("invert")}, 1000);
         runCommand(QStringLiteral("kwriteconfig6"),
             {QStringLiteral("--file"), QStringLiteral("kwinrc"),
              QStringLiteral("--group"), QStringLiteral("Plugins"),
@@ -1925,22 +2155,13 @@ void SystemBackend::setInvertScreenEnabled(bool enabled)
              QStringLiteral("--type"), QStringLiteral("bool"),
              QStringLiteral("true"),
              QStringLiteral("--notify")}, 1500);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin.reconfigure")}, 1200);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.loadEffect"),
-             QStringLiteral("invert")}, 1200);
-        runDetached(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.kglobalaccel"),
-             QStringLiteral("/component/kwin"),
-             QStringLiteral("org.kde.kglobalaccel.Component.invokeShortcut"),
-             QStringLiteral("Invert")});
+        runDetached(QStringLiteral("sh"),
+            {QStringLiteral("-c"),
+             QStringLiteral("qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect invert >/dev/null 2>&1; "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect invert >/dev/null 2>&1; "
+                            "sleep 0.25; "
+                            "qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.invokeShortcut \"Invert\" >/dev/null 2>&1")});
     } else {
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
-             QStringLiteral("invert")}, 1200);
         runCommand(QStringLiteral("kwriteconfig6"),
             {QStringLiteral("--file"), QStringLiteral("kwinrc"),
              QStringLiteral("--group"), QStringLiteral("Plugins"),
@@ -1948,6 +2169,10 @@ void SystemBackend::setInvertScreenEnabled(bool enabled)
              QStringLiteral("--type"), QStringLiteral("bool"),
              QStringLiteral("false"),
              QStringLiteral("--notify")}, 1500);
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
+             QStringLiteral("invert")}, 1200);
     }
     notifyStatus(enabled ? QStringLiteral("High Contrast Invert filter enabled") : QStringLiteral("High Contrast Invert filter disabled"));
     emit accessibilityChanged();

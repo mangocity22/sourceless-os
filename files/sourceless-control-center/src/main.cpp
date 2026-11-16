@@ -43,6 +43,9 @@ static QString resolveInitialPage(const QStringList &args)
         if (arg.contains(QStringLiteral("access")) || arg.contains(QStringLiteral("kcm_access")) || arg.contains(QStringLiteral("zoom"))) {
             return QStringLiteral("accessibility");
         }
+        if (arg.contains(QStringLiteral("printer")) || arg.contains(QStringLiteral("cups")) || arg.contains(QStringLiteral("print"))) {
+            return QStringLiteral("printers");
+        }
     }
     return QStringLiteral("home");
 }

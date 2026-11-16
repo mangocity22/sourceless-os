@@ -5,6 +5,7 @@ NoiseStrength=0
 [Plugins]
 blurEnabled=true
 contrastEnabled=true
+invertEnabled=true
 
 [org.kde.kdecoration2]
 library=org.kde.kwin.aurorae

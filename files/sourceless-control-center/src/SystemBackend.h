@@ -72,6 +72,10 @@ class SystemBackend : public QObject
     Q_PROPERTY(bool naturalScroll READ naturalScroll NOTIFY inputChanged)
     Q_PROPERTY(bool tapToClick READ tapToClick NOTIFY inputChanged)
     Q_PROPERTY(bool leftHandedMouse READ leftHandedMouse NOTIFY inputChanged)
+    Q_PROPERTY(bool cupsRunning READ cupsRunning NOTIFY printersChanged)
+    Q_PROPERTY(QVariantList printers READ printers NOTIFY printersChanged)
+    Q_PROPERTY(QString defaultPrinter READ defaultPrinter NOTIFY printersChanged)
+    Q_PROPERTY(int activePrintJobs READ activePrintJobs NOTIFY printersChanged)
 
     // 6. Power & Battery
     Q_PROPERTY(bool hasBattery READ hasBattery NOTIFY powerChanged)
@@ -192,6 +196,10 @@ public:
     bool naturalScroll() const { return m_naturalScroll; }
     bool tapToClick() const { return m_tapToClick; }
     bool leftHandedMouse() const { return m_leftHandedMouse; }
+    bool cupsRunning() const { return m_cupsRunning; }
+    QVariantList printers() const { return m_printers; }
+    QString defaultPrinter() const { return m_defaultPrinter; }
+    int activePrintJobs() const { return m_activePrintJobs; }
 
     bool hasBattery() const { return m_hasBattery; }
     int batteryPercent() const { return m_batteryPercent; }
@@ -252,6 +260,7 @@ public:
     Q_INVOKABLE void refreshDisplay();
     Q_INVOKABLE void refreshNetwork();
     Q_INVOKABLE void refreshBluetooth();
+    Q_INVOKABLE void refreshPrinters();
     Q_INVOKABLE void refreshPower();
     Q_INVOKABLE void refreshPersonalization();
     Q_INVOKABLE void refreshApps();
@@ -288,6 +297,12 @@ public:
     Q_INVOKABLE void scanBluetooth();
     Q_INVOKABLE void toggleBluetoothDevice(const QString &mac, bool connectDevice);
     Q_INVOKABLE void setMouseSettings(int speed, bool natural, bool tap, bool leftHanded);
+    Q_INVOKABLE void setDefaultPrinter(const QString &printerName);
+    Q_INVOKABLE void printTestPage(const QString &printerName);
+    Q_INVOKABLE void cancelAllPrintJobs(const QString &printerName = QString());
+    Q_INVOKABLE void addNetworkPrinter(const QString &name, const QString &uri);
+    Q_INVOKABLE void removePrinter(const QString &printerName);
+    Q_INVOKABLE void openSystemPrinterConfig();
 
     // Power controls
     Q_INVOKABLE void setPowerProfile(const QString &profile);
@@ -335,6 +350,7 @@ signals:
     void displayChanged();
     void networkChanged();
     void bluetoothChanged();
+    void printersChanged();
     void inputChanged();
     void powerChanged();
     void personalizationChanged();
@@ -414,6 +430,10 @@ private:
     bool m_naturalScroll = false;
     bool m_tapToClick = true;
     bool m_leftHandedMouse = false;
+    bool m_cupsRunning = false;
+    QVariantList m_printers;
+    QString m_defaultPrinter = QStringLiteral("None");
+    int m_activePrintJobs = 0;
 
     bool m_hasBattery = false;
     int m_batteryPercent = 100;
