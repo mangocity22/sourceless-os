@@ -121,32 +121,29 @@ Item {
         }
     }
 
-    // 1. Background Wallpaper + Deep Cyber Vignette
+    // 1. Base Obsidian + Full-Screen Wallpaper Layer (resizes cleanly with VM/display)
+    Rectangle {
+        anchors.fill: parent
+        color: root.bgObsidian
+    }
+
     Item {
         id: wallpaperLayer
         anchors.fill: parent
 
-        Repeater {
-            model: screenModel
-            Item {
-                x: geometry.x
-                y: geometry.y
-                width: geometry.width
-                height: geometry.height
+        Rectangle {
+            anchors.fill: parent
+            color: root.bgObsidian
+        }
 
-                Rectangle {
-                    anchors.fill: parent
-                    color: root.bgObsidian
-                }
-
-                Image {
-                    anchors.fill: parent
-                    visible: config.type === "image" && config.background !== ""
-                    source: config.background || ""
-                    fillMode: Image.PreserveAspectCrop
-                    smooth: true
-                }
-            }
+        Image {
+            anchors.fill: parent
+            visible: config.type === "image"
+            source: (config.background && config.background !== "")
+                ? config.background
+                : "/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg"
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
         }
     }
 
@@ -327,10 +324,11 @@ Item {
             // Top SourceLess NCH Cyber Gradient Accent Line (#A7FF52 -> #6054F2)
             Rectangle {
                 anchors.top: parent.top
+                anchors.topMargin: 1
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
+                anchors.leftMargin: 24
+                anchors.rightMargin: 24
                 height: 2
                 radius: 1
                 gradient: Gradient {

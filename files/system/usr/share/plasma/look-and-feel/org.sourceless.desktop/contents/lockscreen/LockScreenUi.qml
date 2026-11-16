@@ -293,10 +293,11 @@ Item {
             // Top SourceLess NCH Cyber Gradient Accent Line (#A7FF52 -> #6054F2)
             Rectangle {
                 anchors.top: parent.top
+                anchors.topMargin: 1
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
+                anchors.leftMargin: 24
+                anchors.rightMargin: 24
                 height: 2
                 radius: 1
                 gradient: Gradient {
