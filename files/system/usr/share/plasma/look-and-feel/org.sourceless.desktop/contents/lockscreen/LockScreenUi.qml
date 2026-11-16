@@ -5,12 +5,9 @@
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as QQC2
 import Qt5Compat.GraphicalEffects
 
-import org.kde.plasma.components 3.0 as PlasmaComponents3
 import org.kde.plasma.plasma5support 2.0 as P5Support
-import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components 1.0 as KirigamiComponents
 import org.kde.coreaddons 1.0 as KCoreAddons
 import org.kde.plasma.private.sessions 2.0 as Sessions
@@ -19,14 +16,13 @@ Item {
     id: root
 
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
-    readonly property color brandHighlight: "#6054F2"
-    readonly property color brandHighlightHover: "#7368F7"
+    readonly property color cyberLime: "#A7FF52"
+    readonly property color cyberViolet: "#6054F2"
+    readonly property color cyberVioletHover: "#7368F7"
+    readonly property color bgObsidian: "#090B12"
     readonly property color textMain: "#E8ECFF"
-    readonly property color textMuted: "#9CA3C7"
-    readonly property color statusAmber: "#F5A623"
-    readonly property color statusRed: "#F2546D"
+    readonly property color textMuted: "#949BC0"
 
-    property bool uiVisible: true
     property string errorText: ""
     property string infoText: ""
     property bool capsLockOn: false
@@ -88,21 +84,15 @@ Item {
             if (typeof authenticator.startAuthenticating === "function") {
                 authenticator.startAuthenticating();
             }
-            authenticator.respond(passwordField.text);
+            authenticator.respond(passwordInput.text);
         }
-    }
-
-    function wakeUi() {
-        root.uiVisible = true;
-        idleTimer.restart();
-        passwordField.forceActiveFocus();
     }
 
     Component.onCompleted: {
         if (typeof authenticator !== "undefined" && authenticator && typeof authenticator.startAuthenticating === "function") {
             authenticator.startAuthenticating();
         }
-        Qt.callLater(() => passwordField.forceActiveFocus());
+        Qt.callLater(() => passwordInput.forceActiveFocus());
     }
 
     Connections {
@@ -116,9 +106,9 @@ Item {
 
         function onFailed() {
             root.authenticating = false;
-            root.errorText = i18nd("plasma_lookandfeel_org.kde.lookandfeel", "Unlocking failed");
-            passwordField.selectAll();
-            passwordField.forceActiveFocus();
+            root.errorText = "Authentication Failed — Check Credentials";
+            passwordInput.selectAll();
+            passwordInput.forceActiveFocus();
             rejectShake.restart();
         }
 
@@ -137,140 +127,182 @@ Item {
         }
     }
 
-    Timer {
-        id: idleTimer
-        interval: 45000
-        running: root.uiVisible && passwordField.text.length === 0
-        repeat: false
-        onTriggered: {
-            if (passwordField.text.length === 0) {
-                root.showPassword = false;
-                root.uiVisible = false;
+    // 1. Dark Obsidian Cyber Tint over Wallpaper
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.04, 0.07, 0.72) }
+            GradientStop { position: 0.5; color: Qt.rgba(0.04, 0.05, 0.09, 0.68) }
+            GradientStop { position: 1.0; color: Qt.rgba(0.02, 0.03, 0.06, 0.84) }
+        }
+    }
+
+    // Subtle Cyber Grid Pattern
+    Canvas {
+        anchors.fill: parent
+        opacity: 0.045
+        onPaint: {
+            var ctx = getContext("2d");
+            ctx.clearRect(0, 0, width, height);
+            ctx.strokeStyle = "#A7FF52";
+            ctx.lineWidth = 1;
+            var step = 64;
+            for (var x = 0; x < width; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (var y = 0; y < height; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
             }
         }
     }
 
-    // Subtle Liquid Glass backdrop tint & fallback gradient
+    // 2. Top Cyber HUD Bar
     Rectangle {
-        id: backdropLayer
-        anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: root.uiVisible ? Qt.rgba(0.04, 0.05, 0.09, 0.56) : Qt.rgba(0.03, 0.04, 0.08, 0.25) }
-            GradientStop { position: 1.0; color: root.uiVisible ? Qt.rgba(0.05, 0.06, 0.11, 0.68) : Qt.rgba(0.03, 0.04, 0.08, 0.35) }
-        }
-        Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.InOutQuad } }
-    }
-
-    // Ambient Sourceless glow behind the glass card
-    Rectangle {
-        width: 520
-        height: 520
-        radius: 260
-        anchors.centerIn: glassCard
-        opacity: root.uiVisible ? 0.22 : 0.0
-        visible: !root.softwareRendering
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#6054F2" }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-        Behavior on opacity { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    }
-
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        onPressed: root.wakeUi()
-        onPositionChanged: root.wakeUi()
-    }
-
-    Keys.onPressed: event => {
-        root.wakeUi();
-        event.accepted = false;
-    }
-
-    // Minimalist Top Clock
-    ColumnLayout {
-        id: clockBlock
-        anchors.horizontalCenter: parent.horizontalCenter
+        id: topHud
         anchors.top: parent.top
-        anchors.topMargin: Math.max(48, parent.height * 0.10)
-        spacing: 4
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 56
+        color: Qt.rgba(0.04, 0.05, 0.09, 0.72)
 
-        readonly property var nowDate: (timeSource.data["Local"] && timeSource.data["Local"]["DateTime"])
-            ? timeSource.data["Local"]["DateTime"]
-            : new Date()
-
-        QQC2.Label {
-            Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatTime(clockBlock.nowDate, "HH:mm")
-            color: "#FFFFFF"
-            font.pixelSize: 76
-            font.weight: Font.Light
-            font.letterSpacing: 2
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.08)
         }
 
-        QQC2.Label {
-            Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatDate(clockBlock.nowDate, Qt.DefaultLocaleLongDate)
-            color: Qt.rgba(0.91, 0.93, 1.0, 0.78)
-            font.pixelSize: 16
-            font.weight: Font.Normal
-            font.letterSpacing: 0.5
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 28
+            anchors.rightMargin: 28
+            spacing: 12
+
+            Image {
+                source: "/usr/share/pixmaps/sourceless-logo.svg"
+                Layout.preferredWidth: 22
+                Layout.preferredHeight: 22
+                sourceSize: Qt.size(44, 44)
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+            }
+
+            Text {
+                text: "SOURCELESS OS"
+                color: root.textMain
+                font.pixelSize: 13
+                font.bold: true
+                font.letterSpacing: 1.8
+            }
+
+            Rectangle {
+                width: 1
+                height: 16
+                color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            Rectangle {
+                width: 8
+                height: 8
+                radius: 4
+                color: root.cyberLime
+            }
+
+            Text {
+                text: "SESSION LOCKED // ENCRYPTED"
+                color: root.textMuted
+                font.pixelSize: 11
+                font.letterSpacing: 1.2
+            }
+
+            Item { Layout.fillWidth: true }
+
+            readonly property var nowDate: (timeSource.data["Local"] && timeSource.data["Local"]["DateTime"])
+                ? timeSource.data["Local"]["DateTime"]
+                : new Date()
+
+            Text {
+                text: Qt.formatDate(parent.nowDate, "ddd, dd MMM yyyy")
+                color: root.textMuted
+                font.pixelSize: 12
+                font.letterSpacing: 0.6
+            }
+
+            Rectangle {
+                width: 1
+                height: 14
+                color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            Text {
+                text: Qt.formatTime(parent.nowDate, "HH:mm:ss")
+                color: root.textMain
+                font.pixelSize: 14
+                font.bold: true
+                font.letterSpacing: 1.2
+            }
         }
     }
 
-    // Central Liquid Glass Card
+    // 3. Central Cyber High-Tech Auth Card
     Item {
-        id: glassCardWrapper
+        id: authContainer
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: 28
-        width: Math.min(380, parent.width - 48)
-        height: glassCard.implicitHeight
-        opacity: root.uiVisible ? 1.0 : 0.0
-        scale: root.uiVisible ? 1.0 : 0.96
-
-        Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+        width: Math.min(420, parent.width - 48)
+        height: cyberCard.implicitHeight
 
         SequentialAnimation {
             id: rejectShake
-            NumberAnimation { target: glassCardWrapper; property: "anchors.horizontalCenterOffset"; to: -12; duration: 55; easing.type: Easing.OutQuad }
-            NumberAnimation { target: glassCardWrapper; property: "anchors.horizontalCenterOffset"; to: 12; duration: 70; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: glassCardWrapper; property: "anchors.horizontalCenterOffset"; to: -8; duration: 60; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: glassCardWrapper; property: "anchors.horizontalCenterOffset"; to: 6; duration: 55; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: glassCardWrapper; property: "anchors.horizontalCenterOffset"; to: 0; duration: 50; easing.type: Easing.OutQuad }
+            NumberAnimation { target: authContainer; property: "anchors.horizontalCenterOffset"; to: -12; duration: 50; easing.type: Easing.OutQuad }
+            NumberAnimation { target: authContainer; property: "anchors.horizontalCenterOffset"; to: 12; duration: 65; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: authContainer; property: "anchors.horizontalCenterOffset"; to: -8; duration: 55; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: authContainer; property: "anchors.horizontalCenterOffset"; to: 6; duration: 50; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: authContainer; property: "anchors.horizontalCenterOffset"; to: 0; duration: 45; easing.type: Easing.OutQuad }
         }
 
         DropShadow {
-            anchors.fill: glassCard
-            source: glassCard
+            anchors.fill: cyberCard
+            source: cyberCard
             visible: !root.softwareRendering
             horizontalOffset: 0
-            verticalOffset: 16
-            radius: 36
+            verticalOffset: 18
+            radius: 40
             samples: 24
-            color: Qt.rgba(0, 0, 0, 0.55)
+            color: Qt.rgba(0, 0, 0, 0.72)
         }
 
         Rectangle {
-            id: glassCard
+            id: cyberCard
             width: parent.width
             implicitHeight: cardCol.implicitHeight + 56
-            radius: 28
-            color: Qt.rgba(0.08, 0.10, 0.16, 0.62)
+            radius: 16
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.20)
+            border.color: Qt.rgba(0.38, 0.33, 0.95, 0.42)
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0.11, 0.13, 0.21, 0.88) }
+                GradientStop { position: 1.0; color: Qt.rgba(0.05, 0.07, 0.12, 0.94) }
+            }
 
-            // Specular Liquid Glass top highlight
+            // Top SourceLess NCH Cyber Gradient Accent Line (#A7FF52 -> #6054F2)
             Rectangle {
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.margins: 1
-                height: parent.height * 0.45
-                radius: 27
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                height: 2
+                radius: 1
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.10) }
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: root.cyberLime }
+                    GradientStop { position: 0.55; color: root.cyberViolet }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
             }
@@ -279,143 +311,181 @@ Item {
                 id: cardCol
                 anchors.fill: parent
                 anchors.margins: 28
-                spacing: 16
+                spacing: 18
 
-                // User Avatar with Liquid Glass Ring
+                // User Avatar + Cyber Gradient Ring
                 Item {
                     Layout.alignment: Qt.AlignHCenter
-                    width: 92
-                    height: 92
+                    width: 88
+                    height: 88
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: 46
-                        color: Qt.rgba(1, 1, 1, 0.06)
-                        border.width: 1.5
-                        border.color: Qt.rgba(1, 1, 1, 0.28)
+                        radius: 44
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: root.cyberLime }
+                            GradientStop { position: 1.0; color: root.cyberViolet }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 82
+                        height: 82
+                        radius: 41
+                        color: root.bgObsidian
                     }
 
                     KirigamiComponents.Avatar {
                         anchors.centerIn: parent
-                        width: 82
-                        height: 82
+                        width: 78
+                        height: 78
                         source: root.resolvedUserAvatar
                         name: root.resolvedUserName
                     }
                 }
 
-                // Username & OS Subtitle
+                // Identity Header
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: 4
 
-                    QQC2.Label {
+                    Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         text: root.resolvedUserName
                         color: root.textMain
-                        font.pixelSize: 20
-                        font.weight: Font.DemiBold
+                        font.pixelSize: 21
+                        font.bold: true
                         elide: Text.ElideRight
                     }
 
-                    QQC2.Label {
+                    Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
-                        text: "Sourceless OS"
-                        color: root.textMuted
-                        font.pixelSize: 12
-                        font.letterSpacing: 0.6
+                        text: "AUTHORIZATION REQUIRED"
+                        color: root.cyberLime
+                        font.pixelSize: 10
+                        font.bold: true
+                        font.letterSpacing: 1.8
                     }
                 }
 
-                // Liquid Glass Pill Password Field
+                // Password Input Box
                 Rectangle {
-                    id: inputPill
                     Layout.fillWidth: true
-                    Layout.topMargin: 4
                     height: 46
-                    radius: 23
-                    color: Qt.rgba(1, 1, 1, 0.08)
-                    border.width: 1.2
-                    border.color: passwordField.activeFocus
-                        ? root.brandHighlight
-                        : Qt.rgba(1, 1, 1, 0.18)
+                    radius: 10
+                    color: Qt.rgba(0.04, 0.05, 0.08, 0.90)
+                    border.width: 1.5
+                    border.color: passwordInput.activeFocus ? root.cyberViolet : Qt.rgba(1, 1, 1, 0.14)
 
                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 18
+                        anchors.leftMargin: 14
                         anchors.rightMargin: 6
                         spacing: 6
 
-                        QQC2.TextField {
-                            id: passwordField
+                        Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            placeholderText: i18nd("plasma_lookandfeel_org.kde.lookandfeel", "Password")
-                            placeholderTextColor: Qt.rgba(0.91, 0.93, 1.0, 0.45)
-                            color: "#FFFFFF"
-                            font.pixelSize: 14
-                            echoMode: root.showPassword ? TextInput.Normal : TextInput.Password
-                            passwordCharacter: "•"
-                            verticalAlignment: TextInput.AlignVCenter
-                            background: Item {}
-                            enabled: !root.authenticating
-                            focus: true
 
-                            onTextChanged: {
-                                idleTimer.restart();
-                                if (root.errorText !== "" && text.length > 0) {
-                                    root.errorText = "";
-                                }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Enter password..."
+                                color: Qt.rgba(0.58, 0.61, 0.75, 0.65)
+                                font.pixelSize: 13
+                                visible: passwordInput.text.length === 0
                             }
-                            onAccepted: root.submitPassword()
-                        }
 
-                        // Reveal password toggle
-                        QQC2.ToolButton {
-                            visible: passwordField.text.length > 0
-                            implicitWidth: 32
-                            implicitHeight: 32
-                            opacity: 0.75
-                            onClicked: {
-                                root.showPassword = !root.showPassword;
-                                passwordField.forceActiveFocus();
-                            }
-                            contentItem: Kirigami.Icon {
-                                source: root.showPassword ? "view-hidden" : "view-visible"
-                                isMask: true
-                                color: root.textMain
-                            }
-                            background: Rectangle {
-                                radius: 16
-                                color: parent.hovered ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
-                            }
-                        }
-
-                        // Integrated Unlock Pill Button
-                        Rectangle {
-                            id: unlockBtn
-                            width: 34
-                            height: 34
-                            radius: 17
-                            visible: passwordField.text.length > 0 || root.authenticating
-                            color: unlockMouse.containsMouse ? root.brandHighlightHover : root.brandHighlight
-
-                            Behavior on color { ColorAnimation { duration: 120 } }
-
-                            QQC2.Label {
-                                anchors.centerIn: parent
-                                text: root.authenticating ? "…" : "→"
+                            TextInput {
+                                id: passwordInput
+                                anchors.fill: parent
+                                verticalAlignment: TextInput.AlignVCenter
                                 color: "#FFFFFF"
-                                font.pixelSize: 16
-                                font.bold: true
+                                font.pixelSize: 13
+                                echoMode: root.showPassword ? TextInput.Normal : TextInput.Password
+                                passwordCharacter: "●"
+                                clip: true
+                                focus: true
+                                enabled: !root.authenticating
+                                selectionColor: root.cyberViolet
+
+                                onTextChanged: {
+                                    if (root.errorText !== "" && text.length > 0) {
+                                        root.errorText = "";
+                                    }
+                                }
+                                onAccepted: root.submitPassword()
+                            }
+                        }
+
+                        // Eye Toggle
+                        Rectangle {
+                            visible: passwordInput.text.length > 0
+                            width: 30
+                            height: 30
+                            radius: 7
+                            color: eyeMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+
+                            Canvas {
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                property bool activeState: root.showPassword
+                                onActiveStateChanged: requestPaint()
+                                onPaint: {
+                                    var ctx = getContext("2d");
+                                    ctx.clearRect(0, 0, width, height);
+                                    ctx.strokeStyle = root.showPassword ? "#A7FF52" : "#949BC0";
+                                    ctx.lineWidth = 1.5;
+                                    ctx.beginPath();
+                                    ctx.moveTo(1, 8);
+                                    ctx.quadraticCurveTo(8, 2, 15, 8);
+                                    ctx.quadraticCurveTo(8, 14, 1, 8);
+                                    ctx.stroke();
+                                    ctx.beginPath();
+                                    ctx.arc(8, 8, 2.3, 0, Math.PI * 2);
+                                    ctx.stroke();
+                                }
                             }
 
                             MouseArea {
-                                id: unlockMouse
+                                id: eyeMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.showPassword = !root.showPassword;
+                                    passwordInput.forceActiveFocus();
+                                }
+                            }
+                        }
+
+                        // Cyber Unlock Button
+                        Rectangle {
+                            width: 76
+                            height: 34
+                            radius: 8
+                            color: root.authenticating
+                                ? Qt.rgba(0.38, 0.33, 0.95, 0.5)
+                                : (loginMouse.containsMouse ? root.cyberVioletHover : root.cyberViolet)
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.authenticating ? "..." : "UNLOCK"
+                                color: "#FFFFFF"
+                                font.pixelSize: 11
+                                font.bold: true
+                                font.letterSpacing: 0.9
+                            }
+
+                            MouseArea {
+                                id: loginMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
@@ -426,118 +496,158 @@ Item {
                     }
                 }
 
-                // Status / Caps Lock / Error Pill
+                // Error / Caps Lock / Info Strip
                 Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
                     visible: root.errorText !== "" || root.capsLockOn || root.infoText !== ""
-                    implicitWidth: statusLbl.implicitWidth + 24
-                    implicitHeight: 28
-                    radius: 14
+                    height: 32
+                    radius: 8
                     color: root.errorText !== ""
-                        ? Qt.rgba(0.95, 0.33, 0.43, 0.18)
-                        : Qt.rgba(0.96, 0.65, 0.14, 0.18)
+                        ? Qt.rgba(0.95, 0.33, 0.43, 0.16)
+                        : Qt.rgba(0.96, 0.65, 0.14, 0.16)
                     border.width: 1
                     border.color: root.errorText !== ""
-                        ? Qt.rgba(0.95, 0.33, 0.43, 0.45)
-                        : Qt.rgba(0.96, 0.65, 0.14, 0.45)
+                        ? Qt.rgba(0.95, 0.33, 0.43, 0.50)
+                        : Qt.rgba(0.96, 0.65, 0.14, 0.50)
 
-                    QQC2.Label {
-                        id: statusLbl
+                    Text {
                         anchors.centerIn: parent
                         text: {
                             if (root.errorText !== "") return root.errorText;
-                            if (root.capsLockOn) return i18nd("plasma_lookandfeel_org.kde.lookandfeel", "Caps Lock is on");
+                            if (root.capsLockOn) return "CAPS LOCK IS ACTIVE";
                             return root.infoText;
                         }
                         color: root.errorText !== "" ? "#FF8FA3" : "#FFD175"
-                        font.pixelSize: 12
-                        font.weight: Font.Medium
+                        font.pixelSize: 11
+                        font.bold: true
+                        font.letterSpacing: 0.6
                     }
                 }
             }
         }
     }
 
-    // Minimalist Bottom Floating Glass Action Bar
+    // 4. Bottom Cyber Action Dock
     Rectangle {
-        id: footerBar
+        id: bottomDock
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 28
-        implicitWidth: footerRow.implicitWidth + 24
-        implicitHeight: 44
-        radius: 22
-        color: Qt.rgba(0.08, 0.10, 0.16, 0.55)
+        anchors.bottomMargin: 24
+        implicitWidth: dockRow.implicitWidth + 20
+        height: 44
+        radius: 12
+        color: Qt.rgba(0.06, 0.08, 0.13, 0.84)
         border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.16)
-        opacity: root.uiVisible ? 1.0 : 0.0
-        visible: opacity > 0.01
+        border.color: Qt.rgba(1, 1, 1, 0.12)
+        visible: dockRow.implicitWidth > 0
 
-        Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+        component CyberDockBtn : Rectangle {
+            id: btnRoot
+            property string labelText: ""
+            property string iconType: "power"
+            signal triggered()
+
+            implicitWidth: btnContent.implicitWidth + 22
+            height: 32
+            radius: 8
+            color: btnMouse.containsMouse ? Qt.rgba(0.38, 0.33, 0.95, 0.28) : "transparent"
+            border.width: btnMouse.containsMouse ? 1 : 0
+            border.color: Qt.rgba(0.38, 0.33, 0.95, 0.65)
+
+            RowLayout {
+                id: btnContent
+                anchors.centerIn: parent
+                spacing: 7
+
+                Canvas {
+                    Layout.preferredWidth: 14
+                    Layout.preferredHeight: 14
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.strokeStyle = "#A7FF52";
+                        ctx.lineWidth = 1.6;
+                        ctx.lineCap = "round";
+                        if (btnRoot.iconType === "power") {
+                            ctx.beginPath();
+                            ctx.arc(7, 7.5, 4.5, -Math.PI * 0.25, Math.PI * 1.25, false);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(7, 2);
+                            ctx.lineTo(7, 6.5);
+                            ctx.stroke();
+                        } else if (btnRoot.iconType === "restart") {
+                            ctx.beginPath();
+                            ctx.arc(7, 7, 4.5, 0.3, Math.PI * 1.85, false);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(10, 2.5);
+                            ctx.lineTo(11.5, 5.2);
+                            ctx.lineTo(8.5, 5.5);
+                            ctx.stroke();
+                        } else if (btnRoot.iconType === "sleep") {
+                            ctx.beginPath();
+                            ctx.arc(8, 7, 4.5, Math.PI * 0.35, Math.PI * 1.65, true);
+                            ctx.stroke();
+                        } else {
+                            ctx.beginPath();
+                            ctx.arc(7, 4.5, 2.3, 0, Math.PI * 2);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.arc(7, 12.5, 4.5, Math.PI * 1.15, Math.PI * 1.85, false);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                Text {
+                    text: btnRoot.labelText
+                    color: root.textMain
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                }
+            }
+
+            MouseArea {
+                id: btnMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: btnRoot.triggered()
+            }
+        }
 
         RowLayout {
-            id: footerRow
+            id: dockRow
             anchors.centerIn: parent
-            spacing: 8
+            spacing: 6
 
-            component GlassFooterBtn : QQC2.ToolButton {
-                property string btnIcon: ""
-                property string btnText: ""
-                implicitWidth: btnLbl.implicitWidth + 34
-                implicitHeight: 32
-                onClicked: idleTimer.restart()
-
-                contentItem: RowLayout {
-                    spacing: 6
-                    Kirigami.Icon {
-                        Layout.preferredWidth: 16
-                        Layout.preferredHeight: 16
-                        source: btnIcon
-                        isMask: true
-                        color: root.textMain
-                    }
-                    QQC2.Label {
-                        id: btnLbl
-                        text: btnText
-                        color: root.textMain
-                        font.pixelSize: 12
-                        font.weight: Font.Medium
-                    }
-                }
-
-                background: Rectangle {
-                    radius: 16
-                    color: parent.hovered ? Qt.rgba(1, 1, 1, 0.14) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-            }
-
-            GlassFooterBtn {
-                btnIcon: "system-suspend"
-                btnText: i18ndc("plasma_lookandfeel_org.kde.lookandfeel", "Suspend to RAM", "Sleep")
+            CyberDockBtn {
+                labelText: "Sleep"
+                iconType: "sleep"
                 visible: sessionManagement.canSuspend
-                onClicked: sessionManagement.suspend()
+                onTriggered: sessionManagement.suspend()
             }
 
-            GlassFooterBtn {
-                btnIcon: "system-reboot"
-                btnText: i18nd("plasma_lookandfeel_org.kde.lookandfeel", "Restart")
+            CyberDockBtn {
+                labelText: "Restart"
+                iconType: "restart"
                 visible: sessionManagement.canReboot
-                onClicked: sessionManagement.reboot()
+                onTriggered: sessionManagement.reboot()
             }
 
-            GlassFooterBtn {
-                btnIcon: "system-shutdown"
-                btnText: i18nd("plasma_lookandfeel_org.kde.lookandfeel", "Shut Down")
+            CyberDockBtn {
+                labelText: "Shut Down"
+                iconType: "power"
                 visible: sessionManagement.canPowerOff
-                onClicked: sessionManagement.powerOff()
+                onTriggered: sessionManagement.powerOff()
             }
 
-            GlassFooterBtn {
-                btnIcon: "system-switch-user"
-                btnText: i18nd("plasma_lookandfeel_org.kde.lookandfeel", "Switch User")
+            CyberDockBtn {
+                labelText: "Switch User"
+                iconType: "user"
                 visible: sessionManagement.canSwitchUser
-                onClicked: sessionManagement.switchUser()
+                onTriggered: sessionManagement.switchUser()
             }
         }
     }
