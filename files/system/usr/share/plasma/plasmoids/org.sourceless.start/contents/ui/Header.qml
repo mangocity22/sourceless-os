@@ -18,6 +18,7 @@
  ****************************************************************************/
 import org.kde.plasma.core as PlasmaCore
 import QtQuick
+import org.kde.plasma.plasma5support 2.0 as P5Support
 import org.kde.kcmutils as KCM
 
 import org.kde.plasma.private.kicker as Kicker
@@ -31,6 +32,18 @@ Item {
   property var iconSize
   width: iconSize * 3.55
   height: iconSize
+
+  P5Support.DataSource {
+      id: executable
+      engine: "executable"
+      connectedSources: []
+      onNewData: function(sourceName, data) {
+          disconnectSource(sourceName)
+      }
+      function exec(cmd) {
+          connectSource(cmd)
+      }
+  }
 
   Kicker.SystemModel {
     id: systemModel
@@ -91,7 +104,7 @@ Item {
         color: main.textColor
     }
     onClicked: {
-      KCM.KCMLauncher.openSystemSettings("kcm_landingpage")
+      executable.exec("/usr/bin/sourceless-control-center")
       root.toggle()
     }
   }
