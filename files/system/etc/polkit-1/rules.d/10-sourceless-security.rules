@@ -16,3 +16,13 @@ polkit.addRule(function(action, subject) {
         return polkit.Result.YES;
     }
 });
+
+// Allow active local desktop users to configure timezone, NTP, and system locale via Control Center
+polkit.addRule(function(action, subject) {
+    if ((action.id === "org.freedesktop.timedate1.set-timezone" ||
+         action.id === "org.freedesktop.timedate1.set-ntp" ||
+         action.id === "org.freedesktop.locale1.set-locale") &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

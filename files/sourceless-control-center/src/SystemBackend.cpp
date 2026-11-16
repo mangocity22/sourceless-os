@@ -19,6 +19,7 @@
 #include <QUrl>
 #include <algorithm>
 #include <cmath>
+#include <ctime>
 #include <unistd.h>
 
 SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
@@ -1762,11 +1763,47 @@ void SystemBackend::clearUserCache()
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshTime()
 {
-    m_currentDateTime = QDateTime::currentDateTime().toString(m_use24Hour ? QStringLiteral("dddd, dd MMMM yyyy  •  HH:mm") : QStringLiteral("dddd, dd MMMM yyyy  •  hh:mm AP"));
+    m_availableTimezones = {
+        QStringLiteral("Europe/Bucharest"),
+        QStringLiteral("UTC"),
+        QStringLiteral("Europe/London"),
+        QStringLiteral("Europe/Berlin"),
+        QStringLiteral("Europe/Paris"),
+        QStringLiteral("Europe/Madrid"),
+        QStringLiteral("Europe/Rome"),
+        QStringLiteral("Europe/Vienna"),
+        QStringLiteral("Europe/Warsaw"),
+        QStringLiteral("Europe/Budapest"),
+        QStringLiteral("Europe/Prague"),
+        QStringLiteral("Europe/Athens"),
+        QStringLiteral("Europe/Istanbul"),
+        QStringLiteral("Europe/Kyiv"),
+        QStringLiteral("Europe/Chisinau"),
+        QStringLiteral("Europe/Zurich"),
+        QStringLiteral("Europe/Amsterdam"),
+        QStringLiteral("Europe/Brussels"),
+        QStringLiteral("Europe/Stockholm"),
+        QStringLiteral("America/New_York"),
+        QStringLiteral("America/Chicago"),
+        QStringLiteral("America/Denver"),
+        QStringLiteral("America/Los_Angeles"),
+        QStringLiteral("America/Toronto"),
+        QStringLiteral("America/Sao_Paulo"),
+        QStringLiteral("Asia/Tokyo"),
+        QStringLiteral("Asia/Seoul"),
+        QStringLiteral("Asia/Shanghai"),
+        QStringLiteral("Asia/Singapore"),
+        QStringLiteral("Asia/Dubai"),
+        QStringLiteral("Asia/Kolkata"),
+        QStringLiteral("Australia/Sydney")
+    };
 
     const QString tz = runCommand(QStringLiteral("timedatectl"), {QStringLiteral("show"), QStringLiteral("-p"), QStringLiteral("Timezone"), QStringLiteral("--value")}, 1500);
     if (!tz.isEmpty()) {
-        m_timezone = tz;
+        m_timezone = tz.trimmed();
+        if (!m_availableTimezones.contains(m_timezone)) {
+            m_availableTimezones.prepend(m_timezone);
+        }
     }
 
     const QString ntp = runCommand(QStringLiteral("timedatectl"), {QStringLiteral("show"), QStringLiteral("-p"), QStringLiteral("NTP"), QStringLiteral("--value")}, 1500);
@@ -1777,7 +1814,96 @@ void SystemBackend::refreshTime()
     m_keyboardLayout = kxkb.value(QStringLiteral("LayoutList"), QStringLiteral("us")).toString();
     kxkb.endGroup();
 
+    QSettings localeRc(QDir::homePath() + QStringLiteral("/.config/plasma-localerc"), QSettings::IniFormat);
+    localeRc.beginGroup(QStringLiteral("Clock"));
+    m_use24Hour = localeRc.value(QStringLiteral("Use24Hour"), m_use24Hour).toBool();
+    localeRc.endGroup();
+
+    localeRc.beginGroup(QStringLiteral("Formats"));
+    QString fmtLang = localeRc.value(QStringLiteral("LANG")).toString().trimmed();
+    localeRc.endGroup();
+
+    if (fmtLang.isEmpty()) {
+        QFile sysLocale(QStringLiteral("/etc/locale.conf"));
+        if (sysLocale.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            for (const QString &rawLine : QString::fromUtf8(sysLocale.readAll()).split(QLatin1Char('\n'))) {
+                const QString line = rawLine.trimmed();
+                if (line.startsWith(QStringLiteral("LANG="))) {
+                    fmtLang = line.mid(5).trimmed();
+                    fmtLang.remove(QLatin1Char('"'));
+                    break;
+                }
+            }
+        }
+    }
+    if (fmtLang.endsWith(QStringLiteral(".utf8"), Qt::CaseInsensitive)) {
+        fmtLang.replace(fmtLang.size() - 5, 5, QStringLiteral(".UTF-8"));
+    }
+    if (!fmtLang.isEmpty()) {
+        m_regionalFormat = fmtLang;
+    }
+
+    localeRc.beginGroup(QStringLiteral("Translations"));
+    const QString transLang = localeRc.value(QStringLiteral("LANGUAGE")).toString().trimmed();
+    localeRc.endGroup();
+    if (!transLang.isEmpty()) {
+        const QStringList langs = transLang.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+        if (!langs.isEmpty()) {
+            m_systemLanguage = langs.first().trimmed();
+        }
+    } else if (!m_regionalFormat.isEmpty()) {
+        const QString base = m_regionalFormat.section(QLatin1Char('.'), 0, 0).trimmed();
+        if (!base.isEmpty() && base != QStringLiteral("C")) {
+            m_systemLanguage = base;
+        }
+    }
+
+    m_currentDateTime = QDateTime::currentDateTime().toString(
+        m_use24Hour ? QStringLiteral("dddd, dd MMMM yyyy  •  HH:mm") : QStringLiteral("dddd, dd MMMM yyyy  •  hh:mm AP"));
+
     emit timeChanged();
+}
+
+void SystemBackend::setTimezone(const QString &tz)
+{
+    const QString cleanTz = tz.trimmed();
+    if (cleanTz.isEmpty()) {
+        return;
+    }
+
+    QProcess proc;
+    proc.start(QStringLiteral("timedatectl"), {QStringLiteral("set-timezone"), cleanTz});
+    if (proc.waitForFinished(4000) && proc.exitCode() == 0) {
+        m_timezone = cleanTz;
+        if (!m_availableTimezones.contains(cleanTz)) {
+            m_availableTimezones.prepend(cleanTz);
+        }
+        qputenv("TZ", cleanTz.toUtf8());
+        tzset();
+        notifyStatus(QStringLiteral("Time zone updated to %1").arg(cleanTz));
+    } else {
+        const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        notifyStatus(err.isEmpty()
+            ? QStringLiteral("Failed to set time zone to %1").arg(cleanTz)
+            : QStringLiteral("Time zone error: %1").arg(err));
+    }
+    refreshTime();
+}
+
+void SystemBackend::setNtpEnabled(bool enabled)
+{
+    QProcess proc;
+    proc.start(QStringLiteral("timedatectl"),
+        {QStringLiteral("set-ntp"), enabled ? QStringLiteral("true") : QStringLiteral("false")});
+    if (proc.waitForFinished(4000) && proc.exitCode() == 0) {
+        notifyStatus(enabled ? QStringLiteral("Automatic NTP time sync enabled") : QStringLiteral("Automatic NTP time sync disabled"));
+    } else {
+        const QString err = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+        notifyStatus(err.isEmpty()
+            ? QStringLiteral("Failed to change NTP synchronization state")
+            : QStringLiteral("NTP error: %1").arg(err));
+    }
+    refreshTime();
 }
 
 void SystemBackend::setKeyboardLayout(const QString &layout)
@@ -1804,7 +1930,87 @@ void SystemBackend::setKeyboardLayout(const QString &layout)
 void SystemBackend::setUse24Hour(bool use24)
 {
     m_use24Hour = use24;
+    QSettings localeRc(QDir::homePath() + QStringLiteral("/.config/plasma-localerc"), QSettings::IniFormat);
+    localeRc.beginGroup(QStringLiteral("Clock"));
+    localeRc.setValue(QStringLiteral("Use24Hour"), m_use24Hour);
+    localeRc.endGroup();
+    localeRc.sync();
+    notifyStatus(use24 ? QStringLiteral("Clock format set to 24-hour") : QStringLiteral("Clock format set to 12-hour"));
     refreshTime();
+}
+
+void SystemBackend::writePlasmaLocaleSettings() const
+{
+    const QString shortLang = m_systemLanguage.section(QLatin1Char('_'), 0, 0).trimmed();
+    QStringList langChain = {m_systemLanguage};
+    if (!shortLang.isEmpty() && shortLang != m_systemLanguage) {
+        langChain.append(shortLang);
+    }
+    if (m_systemLanguage != QStringLiteral("en_US")) {
+        langChain.append(QStringLiteral("en_US"));
+    }
+    const QString languageValue = langChain.join(QLatin1Char(':'));
+
+    {
+        QSettings localeRc(QDir::homePath() + QStringLiteral("/.config/plasma-localerc"), QSettings::IniFormat);
+        localeRc.beginGroup(QStringLiteral("Formats"));
+        localeRc.setValue(QStringLiteral("LANG"), m_regionalFormat);
+        localeRc.endGroup();
+        localeRc.beginGroup(QStringLiteral("Translations"));
+        localeRc.setValue(QStringLiteral("LANGUAGE"), languageValue);
+        localeRc.endGroup();
+        localeRc.sync();
+    }
+
+    const QString scriptPath = QDir::homePath() + QStringLiteral("/.config/plasma-locale-settings.sh");
+    QFile localeScript(scriptPath);
+    if (localeScript.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        const QString content = QStringLiteral(
+            "#!/bin/sh\n"
+            "# Generated by Sourceless Control Center, do not edit\n"
+            "export LANG=%1\n"
+            "export LANGUAGE=%2\n")
+            .arg(m_regionalFormat, languageValue);
+        localeScript.write(content.toUtf8());
+        localeScript.close();
+        localeScript.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner
+                                    | QFileDevice::ReadGroup | QFileDevice::ExeGroup
+                                    | QFileDevice::ReadOther | QFileDevice::ExeOther);
+    }
+
+    runCommand(QStringLiteral("systemctl"),
+        {QStringLiteral("--user"), QStringLiteral("set-environment"),
+         QStringLiteral("LANG=%1").arg(m_regionalFormat),
+         QStringLiteral("LANGUAGE=%1").arg(languageValue)}, 1500);
+}
+
+void SystemBackend::setSystemLanguage(const QString &langCode)
+{
+    const QString clean = langCode.trimmed();
+    if (clean.isEmpty()) {
+        return;
+    }
+    m_systemLanguage = clean;
+    writePlasmaLocaleSettings();
+    notifyStatus(QStringLiteral("System display language set to %1 (re-login to apply across all apps)").arg(clean));
+    emit timeChanged();
+}
+
+void SystemBackend::setRegionalFormat(const QString &localeCode)
+{
+    const QString clean = localeCode.trimmed();
+    if (clean.isEmpty()) {
+        return;
+    }
+    m_regionalFormat = clean;
+    writePlasmaLocaleSettings();
+
+    QProcess proc;
+    proc.start(QStringLiteral("localectl"), {QStringLiteral("set-locale"), QStringLiteral("LANG=%1").arg(clean)});
+    proc.waitForFinished(3000);
+
+    notifyStatus(QStringLiteral("Regional format updated to %1 (re-login for full session effect)").arg(clean));
+    emit timeChanged();
 }
 
 // -----------------------------------------------------------------------------
@@ -2001,10 +2207,29 @@ void SystemBackend::refreshAccessibility()
     kwinrc.beginGroup(QStringLiteral("Plugins"));
     m_screenZoomEnabled = kwinrc.value(QStringLiteral("zoomEnabled"), false).toBool();
     const bool cbEnabled = kwinrc.value(QStringLiteral("colorblindnesscorrectionEnabled"), false).toBool();
-    m_invertScreenEnabled = kwinrc.value(QStringLiteral("invertEnabled"), false).toBool();
+    const bool invertPluginEnabled = kwinrc.value(QStringLiteral("invertEnabled"), false).toBool();
+    if (!invertPluginEnabled) {
+        kwinrc.setValue(QStringLiteral("invertEnabled"), true);
+    }
     m_shakeCursorEnabled = kwinrc.value(QStringLiteral("shakecursorEnabled"), true).toBool();
     m_trackMouseEnabled = kwinrc.value(QStringLiteral("trackmouseEnabled"), false).toBool();
     kwinrc.endGroup();
+    if (!invertPluginEnabled) {
+        kwinrc.sync();
+        runDetached(QStringLiteral("sh"),
+            {QStringLiteral("-c"),
+             QStringLiteral("if [ \"$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded invert 2>/dev/null)\" != \"true\" ]; then "
+                            "qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1; "
+                            "sleep 0.35; "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect invert >/dev/null 2>&1; "
+                            "fi")});
+    }
+
+    const QString activeEffectsOut = runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+         QStringLiteral("org.kde.kwin.Effects.activeEffects")}, 1000);
+    m_invertScreenEnabled = activeEffectsOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)
+                                            .contains(QStringLiteral("invert"));
 
     if (cbEnabled) {
         kwinrc.beginGroup(QStringLiteral("Effect-colorblindnesscorrection"));
@@ -2147,32 +2372,43 @@ void SystemBackend::setColorBlindnessMode(int mode)
 void SystemBackend::setInvertScreenEnabled(bool enabled)
 {
     m_invertScreenEnabled = enabled;
+    {
+        QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+        kwinrc.beginGroup(QStringLiteral("Plugins"));
+        kwinrc.setValue(QStringLiteral("invertEnabled"), true);
+        kwinrc.endGroup();
+        kwinrc.sync();
+    }
+
     if (enabled) {
-        runCommand(QStringLiteral("kwriteconfig6"),
-            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
-             QStringLiteral("--group"), QStringLiteral("Plugins"),
-             QStringLiteral("--key"), QStringLiteral("invertEnabled"),
-             QStringLiteral("--type"), QStringLiteral("bool"),
-             QStringLiteral("true"),
-             QStringLiteral("--notify")}, 1500);
         runDetached(QStringLiteral("sh"),
             {QStringLiteral("-c"),
-             QStringLiteral("qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect invert >/dev/null 2>&1; "
+             QStringLiteral("if [ \"$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded invert 2>/dev/null)\" != \"true\" ]; then "
+                            "kwriteconfig6 --file kwinrc --group Plugins --key invertEnabled --type bool true --notify >/dev/null 2>&1; "
+                            "qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1; "
+                            "sleep 0.35; "
                             "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect invert >/dev/null 2>&1; "
-                            "sleep 0.25; "
-                            "qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.invokeShortcut \"Invert\" >/dev/null 2>&1")});
+                            "sleep 0.35; "
+                            "fi; "
+                            "if ! qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.activeEffects 2>/dev/null | grep -qx \"invert\"; then "
+                            "qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.invokeShortcut \"Invert\" >/dev/null 2>&1; "
+                            "sleep 0.15; "
+                            "if ! qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.activeEffects 2>/dev/null | grep -qx \"invert\"; then "
+                            "qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.invokeShortcut \"Invert Screen Colors\" >/dev/null 2>&1; "
+                            "fi; "
+                            "fi")});
     } else {
-        runCommand(QStringLiteral("kwriteconfig6"),
-            {QStringLiteral("--file"), QStringLiteral("kwinrc"),
-             QStringLiteral("--group"), QStringLiteral("Plugins"),
-             QStringLiteral("--key"), QStringLiteral("invertEnabled"),
-             QStringLiteral("--type"), QStringLiteral("bool"),
-             QStringLiteral("false"),
-             QStringLiteral("--notify")}, 1500);
-        runCommand(QStringLiteral("qdbus6"),
-            {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-             QStringLiteral("org.kde.kwin.Effects.unloadEffect"),
-             QStringLiteral("invert")}, 1200);
+        runDetached(QStringLiteral("sh"),
+            {QStringLiteral("-c"),
+             QStringLiteral("if qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.activeEffects 2>/dev/null | grep -qx \"invert\"; then "
+                            "qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.invokeShortcut \"Invert\" >/dev/null 2>&1; "
+                            "sleep 0.15; "
+                            "if qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.activeEffects 2>/dev/null | grep -qx \"invert\"; then "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect invert >/dev/null 2>&1; "
+                            "sleep 0.1; "
+                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect invert >/dev/null 2>&1; "
+                            "fi; "
+                            "fi")});
     }
     notifyStatus(enabled ? QStringLiteral("High Contrast Invert filter enabled") : QStringLiteral("High Contrast Invert filter disabled"));
     emit accessibilityChanged();

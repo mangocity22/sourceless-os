@@ -97,9 +97,12 @@ class SystemBackend : public QObject
     // 9. Time & Language
     Q_PROPERTY(QString currentDateTime READ currentDateTime NOTIFY timeChanged)
     Q_PROPERTY(QString timezone READ timezone NOTIFY timeChanged)
+    Q_PROPERTY(QStringList availableTimezones READ availableTimezones NOTIFY timeChanged)
     Q_PROPERTY(bool ntpEnabled READ ntpEnabled NOTIFY timeChanged)
     Q_PROPERTY(bool use24Hour READ use24Hour NOTIFY timeChanged)
     Q_PROPERTY(QString keyboardLayout READ keyboardLayout NOTIFY timeChanged)
+    Q_PROPERTY(QString systemLanguage READ systemLanguage NOTIFY timeChanged)
+    Q_PROPERTY(QString regionalFormat READ regionalFormat NOTIFY timeChanged)
 
     // 10. Privacy & Security
     Q_PROPERTY(QString selinuxStatus READ selinuxStatus NOTIFY securityChanged)
@@ -217,9 +220,12 @@ public:
 
     QString currentDateTime() const { return m_currentDateTime; }
     QString timezone() const { return m_timezone; }
+    QStringList availableTimezones() const { return m_availableTimezones; }
     bool ntpEnabled() const { return m_ntpEnabled; }
     bool use24Hour() const { return m_use24Hour; }
     QString keyboardLayout() const { return m_keyboardLayout; }
+    QString systemLanguage() const { return m_systemLanguage; }
+    QString regionalFormat() const { return m_regionalFormat; }
 
     QString selinuxStatus() const { return m_selinuxStatus; }
     bool selinuxOk() const { return m_selinuxOk; }
@@ -320,8 +326,12 @@ public:
     Q_INVOKABLE void clearUserCache();
 
     // Time & Language controls
+    Q_INVOKABLE void setTimezone(const QString &tz);
+    Q_INVOKABLE void setNtpEnabled(bool enabled);
     Q_INVOKABLE void setKeyboardLayout(const QString &layout);
     Q_INVOKABLE void setUse24Hour(bool use24);
+    Q_INVOKABLE void setSystemLanguage(const QString &langCode);
+    Q_INVOKABLE void setRegionalFormat(const QString &localeCode);
 
     // Security & Support controls
     Q_INVOKABLE void launchEmergencyTerminal();
@@ -366,6 +376,7 @@ private:
     void applyDisplayOrientationRaw(const QString &orientation);
     void setKwinEffectEnabled(const QString &pluginKey, const QString &effectId, bool enabled) const;
     void reloadAccessDaemon() const;
+    void writePlasmaLocaleSettings() const;
     void notifyStatus(const QString &msg);
     void loadStaticSystemInfo();
     void loadDynamicSystemMetrics();
@@ -451,9 +462,12 @@ private:
 
     QString m_currentDateTime;
     QString m_timezone = QStringLiteral("UTC");
+    QStringList m_availableTimezones;
     bool m_ntpEnabled = true;
     bool m_use24Hour = true;
     QString m_keyboardLayout = QStringLiteral("us");
+    QString m_systemLanguage = QStringLiteral("en_US");
+    QString m_regionalFormat = QStringLiteral("en_US.UTF-8");
 
     QString m_selinuxStatus = QStringLiteral("Enforcing");
     bool m_selinuxOk = true;

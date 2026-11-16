@@ -117,6 +117,8 @@ ApplicationWindow {
         // Time & language (Page 6)
         { title: "Date, Time, Timezone & 24-Hour Clock", subtitle: "Time & language", pageIdx: 6, sectionKey: "datetime", iconName: "time",
           keywords: "time date clock 24 hour military timezone ntp sync calendar ceas ora data fus orar" },
+        { title: "Region & System Language", subtitle: "Time & language • Region & Language", pageIdx: 6, sectionKey: "region", iconName: "time",
+          keywords: "region regional format language display language locale english romana romanian deutsch francais espanol italiano currency date format metric limba regiune sistem" },
         { title: "Keyboard Layout & Input Language", subtitle: "Time & language • Keyboard", pageIdx: 6, sectionKey: "keyboard", iconName: "time",
           keywords: "keyboard layout language input typing english romana romanian us uk de fr es it alt shift tastatura limba" },
 
@@ -182,6 +184,7 @@ ApplicationWindow {
             "effects": cardEffects,
             "apps": cardApps,
             "datetime": cardDateTime,
+            "region": cardRegion,
             "keyboard": cardKeyboard,
             "posture": cardPosture,
             "telemetry": cardTelemetry,
@@ -2841,6 +2844,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 CyberIcon { iconName: "time"; width: 28; height: 28 }
                                 ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label {
                                         text: backend ? backend.currentDateTime : ""
@@ -2849,12 +2853,13 @@ ApplicationWindow {
                                         font.bold: true
                                     }
                                     Label {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
                                         text: backend ? ("Time zone: " + backend.timezone + "  •  NTP Synchronization: " + (backend.ntpEnabled ? "Active" : "Manual")) : ""
                                         color: root.textMuted
                                         font.pixelSize: 13
                                     }
                                 }
-                                Item { Layout.fillWidth: true }
                             }
 
                             Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
@@ -2862,14 +2867,126 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { text: "Automatic date & time (NTP)"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Synchronize system clock automatically over network time servers"; color: root.textMuted; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+                                WinSwitch {
+                                    checkedState: backend ? backend.ntpEnabled : true
+                                    onToggled: function(val) { backend.setNtpEnabled(val) }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { text: "Time zone"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Choose your geographic region and daylight saving rules"; color: root.textMuted; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+                                WinComboBox {
+                                    id: timezoneCombo
+                                    Layout.preferredWidth: 250
+                                    model: backend ? backend.availableTimezones : ["UTC"]
+                                    currentIndex: {
+                                        if (!backend || !backend.availableTimezones) return 0
+                                        const idx = backend.availableTimezones.indexOf(backend.timezone)
+                                        return idx >= 0 ? idx : 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && backend.availableTimezones[index]) {
+                                            backend.setTimezone(backend.availableTimezones[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                ColumnLayout {
+                                    Layout.fillWidth: true
                                     spacing: 2
                                     Label { text: "24-hour clock format"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Display time using 24-hour military notation"; color: root.textMuted; font.pixelSize: 12 }
                                 }
-                                Item { Layout.fillWidth: true }
                                 WinSwitch {
                                     checkedState: backend ? backend.use24Hour : true
                                     onToggled: function(val) { backend.setUse24Hour(val) }
+                                }
+                            }
+                        }
+
+                        Label { text: "Region & Language"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardRegion
+                            sectionKey: "region"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { text: "System display language"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Menus, desktop environment, and KDE application language (re-login to apply everywhere)"; color: root.textMuted; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+                                WinComboBox {
+                                    id: sysLangCombo
+                                    Layout.preferredWidth: 250
+                                    readonly property var langValues: ["en_US", "ro_RO", "en_GB", "de_DE", "fr_FR", "es_ES", "it_IT"]
+                                    model: ["English (United States)", "Română (România)", "English (United Kingdom)", "Deutsch (Deutschland)", "Français (France)", "Español (España)", "Italiano (Italia)"]
+                                    currentIndex: {
+                                        if (!backend) return 0
+                                        const cur = backend.systemLanguage
+                                        const exact = langValues.indexOf(cur)
+                                        if (exact >= 0) return exact
+                                        for (let i = 0; i < langValues.length; i++) {
+                                            if (langValues[i].startsWith(cur + "_")) return i
+                                        }
+                                        return 0
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && langValues[index] !== undefined) {
+                                            backend.setSystemLanguage(langValues[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Label { text: "Region & Regional Format"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Dates, numbers, currency, measurement units, and first day of week"; color: root.textMuted; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                }
+                                WinComboBox {
+                                    id: regionFormatCombo
+                                    Layout.preferredWidth: 250
+                                    readonly property var localeValues: ["ro_RO.UTF-8", "en_US.UTF-8", "en_GB.UTF-8", "de_DE.UTF-8", "fr_FR.UTF-8", "es_ES.UTF-8", "it_IT.UTF-8", "C.UTF-8"]
+                                    model: ["România (ro_RO.UTF-8)", "United States (en_US.UTF-8)", "United Kingdom (en_GB.UTF-8)", "Deutschland (de_DE.UTF-8)", "France (fr_FR.UTF-8)", "España (es_ES.UTF-8)", "Italia (it_IT.UTF-8)", "POSIX / Neutral (C.UTF-8)"]
+                                    currentIndex: {
+                                        if (!backend) return 0
+                                        const idx = localeValues.indexOf(backend.regionalFormat)
+                                        return idx >= 0 ? idx : 1
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && localeValues[index] !== undefined) {
+                                            backend.setRegionalFormat(localeValues[index])
+                                        }
+                                    }
                                 }
                             }
                         }
