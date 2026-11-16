@@ -23,3 +23,11 @@ name=SourcelessGlass
 [ColorEffects:Inactive]
 Enable=false
 ChangeSelectionColor=false
+
+[kscreenlockerrc][Greeter]
+Theme=org.sourceless.desktop
+WallpaperPlugin=org.kde.image
+
+[kscreenlockerrc][Greeter][Wallpaper][org.kde.image][General]
+Image=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
+PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg

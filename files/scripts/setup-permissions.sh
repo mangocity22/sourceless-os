@@ -240,10 +240,11 @@ cat << 'EOF' > /usr/share/wallpapers/SourceLess/metadata.json
 EOF
 chmod 644 /usr/share/wallpapers/SourceLess/metadata.json 2>/dev/null || true
 
-# Lock Screen & SDDM Branding Enforcement
+# Lock Screen, SDDM & Plasma Login Manager Liquid Glass Enforcement
 mkdir -p /etc/xdg
 cat << 'EOF' > /etc/xdg/kscreenlockerrc
 [Greeter]
+Theme=org.sourceless.desktop
 WallpaperPlugin=org.kde.image
 
 [Greeter][Wallpaper][org.kde.image][General]
@@ -252,6 +253,14 @@ PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
 EOF
 chmod 644 /etc/xdg/kscreenlockerrc 2>/dev/null || true
 cp -f /etc/xdg/kscreenlockerrc /etc/skel/.config/kscreenlockerrc 2>/dev/null || true
+
+# Integrate Sourceless Liquid Glass Lock Screen into Plasma 6 Desktop Shell fallback as well
+SOURCELESS_LOCKSCREEN="/usr/share/plasma/look-and-feel/org.sourceless.desktop/contents/lockscreen"
+SHELL_LOCKSCREEN="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
+if [ -d "$SOURCELESS_LOCKSCREEN" ] && [ -d "/usr/share/plasma/shells/org.kde.plasma.desktop/contents" ]; then
+    rm -rf "$SHELL_LOCKSCREEN"
+    cp -a "$SOURCELESS_LOCKSCREEN" "$SHELL_LOCKSCREEN"
+fi
 
 for sddm_theme in /usr/share/sddm/themes/*; do
     if [ -d "$sddm_theme" ]; then
@@ -274,6 +283,15 @@ PreviewImage=/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg
 EOF
 chmod 644 /etc/plasmalogin.conf.d/10-sourceless.conf 2>/dev/null || true
 cp -f /etc/plasmalogin.conf.d/10-sourceless.conf /etc/xdg/plasmaloginrc 2>/dev/null || true
+
+# Sync SourcelessGlass theme, color scheme & KWin blur into Plasma Login Manager greeter config
+if id "plasmalogin" &>/dev/null || [ -d /var/lib/plasmalogin ]; then
+    mkdir -p /var/lib/plasmalogin/.config
+    cp -f /etc/xdg/kdeglobals /var/lib/plasmalogin/.config/kdeglobals 2>/dev/null || true
+    cp -f /etc/xdg/plasmarc /var/lib/plasmalogin/.config/plasmarc 2>/dev/null || true
+    cp -f /etc/xdg/kwinrc /var/lib/plasmalogin/.config/kwinrc 2>/dev/null || true
+    chown -R plasmalogin:plasmalogin /var/lib/plasmalogin 2>/dev/null || true
+fi
 
 # Curatare tapete implicite upstream
 rm -rf /usr/share/backgrounds/* 2>/dev/null || true
