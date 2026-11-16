@@ -65,7 +65,6 @@ modules:
         - orca
         - cups
         - cups-filters
-        - print-manager
         - system-config-printer-udev
 
     remove:
