@@ -1912,7 +1912,7 @@ ApplicationWindow {
                         }
 
                         // PRINTERS & SCANNERS SECTION
-                        Label { text: "Printers & Scanners", color: root.textMain; font.pixelSize: 16; font.bold: true }
+                        Label { text: "Printers & Scanners"; color: root.textMain; font.pixelSize: 16; font.bold: true }
 
                         SettingCard {
                             id: cardPrinters
