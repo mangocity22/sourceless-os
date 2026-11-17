@@ -55,3 +55,19 @@ if [ -d /var/home/sourceless ]; then
     chmod 555 /var/home/sourceless/.config/autostart 2>/dev/null || true
     restorecon -RF /var/home/sourceless 2>/dev/null || true
 fi
+
+# 4. Live USB Session handling (only active when booted with rd.live.image)
+if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
+    if ! id liveuser >/dev/null 2>&1; then
+        useradd -m -G wheel -s /bin/bash liveuser 2>/dev/null || true
+        passwd -d liveuser 2>/dev/null || true
+    fi
+    mkdir -p /etc/sddm.conf.d
+    cat << 'EOF' > /etc/sddm.conf.d/99-live-autologin.conf
+[Autologin]
+User=liveuser
+Session=plasma
+EOF
+else
+    rm -f /etc/sddm.conf.d/99-live-autologin.conf 2>/dev/null || true
+fi

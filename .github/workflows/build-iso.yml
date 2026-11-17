@@ -59,18 +59,13 @@ jobs:
           # Eliberam imaginea trasa doar pentru inspectie ca sa pastram spatiul maxim
           sudo podman rmi --all --force 2>/dev/null || true
 
-      # 3. Generare Installer ISO cu build-container-installer (compatibil BlueBuild & custom os-release)
-      - name: Build Container Installer ISO
+      # 3. Generare 2-in-1 Live + Installer ISO cu Titanoboa (ublue-os/titanoboa)
+      - name: Build 2-in-1 Live ISO (Titanoboa)
         id: build
-        uses: jasonn3/build-container-installer@main
+        uses: ublue-os/titanoboa@main
         with:
-          arch: x86_64
-          image_name: sourceless-os
-          image_repo: ghcr.io/${{ steps.meta.outputs.owner }}
-          image_tag: latest
-          variant: Kinoite
-          version: ${{ steps.meta.outputs.version }}
-          iso_name: sourceless-os.iso
+          image-ref: ${{ steps.meta.outputs.image }}
+          iso-dest: ${{ runner.temp }}/sourceless-os-live.iso
 
       # 4. Eliberare imagini container inainte de arhivare
       - name: Reclaim Container Storage Before Compression
@@ -86,8 +81,9 @@ jobs:
           if ! command -v 7z >/dev/null 2>&1; then
             sudo apt-get update && sudo apt-get install -y p7zip-full
           fi
-          ISO_DIR="${{ steps.build.outputs.iso_path }}"
-          ISO_FILE="${{ steps.build.outputs.iso_name }}"
+          ISO_PATH="${{ steps.build.outputs.iso-dest }}"
+          ISO_DIR="$(dirname "$ISO_PATH")"
+          ISO_FILE="$(basename "$ISO_PATH")"
           sudo chown -R "$USER:$USER" "$ISO_DIR"
           cd "$ISO_DIR"
 
@@ -108,8 +104,8 @@ jobs:
         with:
           tag_name: latest-iso
           name: "Sourceless OS Live ISO"
-          body: "Automated multi-part build. Download all parts (.001, .002...) and extract using 7-Zip or PeaZip."
-          files: ${{ steps.build.outputs.iso_path }}/sourceless-os.7z.*
+          body: "Automated 2-in-1 Live + Install ISO build. Download all parts (.001, .002...) and extract using 7-Zip or PeaZip."
+          files: ${{ runner.temp }}/sourceless-os.7z.*
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

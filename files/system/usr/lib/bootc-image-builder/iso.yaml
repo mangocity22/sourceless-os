@@ -1,0 +1,13 @@
+label: "SOURCELESS_OS"
+grub2:
+  default: 0
+  timeout: 10
+  entries:
+    - name: "Live Sourceless OS"
+      linux: "/images/pxeboot/vmlinuz"
+      initrd: "/images/pxeboot/initrd.img"
+      options: "root=live:CDLABEL=SOURCELESS_OS rd.live.image enforcing=0 quiet rhgb"
+    - name: "Install Sourceless OS"
+      linux: "/images/pxeboot/vmlinuz"
+      initrd: "/images/pxeboot/initrd.img"
+      options: "root=live:CDLABEL=SOURCELESS_OS rd.live.image liveinst enforcing=0 quiet rhgb"

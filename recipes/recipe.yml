@@ -68,6 +68,10 @@ modules:
         - system-config-printer-udev
         - sddm
         - sddm-wayland-plasma
+        - dracut-live
+        - livesys-scripts
+        - anaconda-live
+        - anaconda-webui
 
     remove:
       packages:
