@@ -26,9 +26,37 @@ Item {
     property string errorText: ""
     property string infoText: ""
     property string pendingPassword: ""
+    property bool promptReady: false
     property bool capsLockOn: false
     property bool showPassword: false
     property bool authenticating: false
+
+    function hasPendingPrompt() {
+        if (root.promptReady) {
+            return true;
+        }
+        if (typeof authenticator === "undefined" || !authenticator) {
+            return false;
+        }
+        var pSecret = (typeof authenticator.promptForSecret === "string") ? authenticator.promptForSecret : "";
+        var pText = (typeof authenticator.prompt === "string") ? authenticator.prompt : "";
+        return pSecret.length > 0 || pText.length > 0;
+    }
+
+    Timer {
+        id: initAuthTimer
+        interval: 350
+        repeat: false
+        onTriggered: {
+            if (!root.hasPendingPrompt() && typeof authenticator !== "undefined" && authenticator && typeof authenticator.startAuthenticating === "function") {
+                try {
+                    authenticator.startAuthenticating();
+                } catch (e) {
+                    root.errorText = "Auth init error: " + e;
+                }
+            }
+        }
+    }
 
     Timer {
         id: authTimeoutTimer
@@ -36,17 +64,16 @@ Item {
         repeat: false
         onTriggered: {
             if (root.authenticating) {
+                var hadPrompt = root.hasPendingPrompt();
                 root.authenticating = false;
                 root.pendingPassword = "";
+                root.promptReady = false;
                 if (typeof authenticator !== "undefined" && authenticator) {
-                    var hasPrompt = Boolean(authenticator.promptForSecret || authenticator.prompt);
                     var isBusy = Boolean(authenticator.busy);
                     root.errorText = authenticator.errorMessage
                         ? authenticator.errorMessage
-                        : ("Auth timeout (prompt=" + (hasPrompt ? "yes" : "no") + ", busy=" + (isBusy ? "yes" : "no") + ")");
-                    if (typeof authenticator.startAuthenticating === "function") {
-                        authenticator.startAuthenticating();
-                    }
+                        : ("Auth timeout (prompt=" + (hadPrompt ? "yes" : "no") + ", busy=" + (isBusy ? "yes" : "no") + ")");
+                    initAuthTimer.restart();
                 } else {
                     root.errorText = "Authenticator unavailable";
                 }
@@ -125,6 +152,15 @@ Item {
         }
     }
 
+    function handlePromptReady() {
+        root.promptReady = true;
+        if (root.pendingPassword !== "") {
+            var pwd = root.pendingPassword;
+            root.pendingPassword = "";
+            root.respondWithPassword(pwd);
+        }
+    }
+
     function submitPassword() {
         if (root.authenticating) {
             return;
@@ -137,8 +173,7 @@ Item {
         root.authenticating = true;
         authTimeoutTimer.restart();
 
-        var hasPrompt = Boolean(authenticator.promptForSecret || authenticator.prompt);
-        if (hasPrompt || authenticator.promptForSecret === undefined) {
+        if (root.hasPendingPrompt()) {
             root.pendingPassword = "";
             root.respondWithPassword(passwordInput.text);
         } else {
@@ -160,13 +195,7 @@ Item {
     }
 
     Component.onCompleted: {
-        if (typeof authenticator !== "undefined" && authenticator && typeof authenticator.startAuthenticating === "function") {
-            try {
-                authenticator.startAuthenticating();
-            } catch (e) {
-                root.errorText = "Auth init error: " + e;
-            }
-        }
+        initAuthTimer.start();
         Qt.callLater(() => passwordInput.forceActiveFocus());
     }
 
@@ -174,25 +203,30 @@ Item {
         target: (typeof authenticator !== "undefined") ? authenticator : null
         ignoreUnknownSignals: true
 
+        function onPromptForSecret(msg) {
+            root.handlePromptReady();
+        }
+
         function onPromptForSecretChanged() {
-            if (authenticator && authenticator.promptForSecret && root.pendingPassword !== "") {
-                var pwd = root.pendingPassword;
-                root.pendingPassword = "";
-                root.respondWithPassword(pwd);
+            if (authenticator && typeof authenticator.promptForSecret === "string" && authenticator.promptForSecret.length > 0) {
+                root.handlePromptReady();
             }
         }
 
+        function onPrompt(msg) {
+            root.handlePromptReady();
+        }
+
         function onPromptChanged() {
-            if (authenticator && authenticator.prompt && root.pendingPassword !== "") {
-                var pwd = root.pendingPassword;
-                root.pendingPassword = "";
-                root.respondWithPassword(pwd);
+            if (authenticator && typeof authenticator.prompt === "string" && authenticator.prompt.length > 0) {
+                root.handlePromptReady();
             }
         }
 
         function onSucceeded() {
             authTimeoutTimer.stop();
             root.pendingPassword = "";
+            root.promptReady = false;
             root.authenticating = false;
             root.errorText = "";
         }
@@ -200,23 +234,24 @@ Item {
         function onFailed() {
             authTimeoutTimer.stop();
             root.pendingPassword = "";
+            root.promptReady = false;
             root.authenticating = false;
             root.errorText = "Authentication Failed — Check Credentials";
             passwordInput.selectAll();
             passwordInput.forceActiveFocus();
             rejectShake.restart();
-            if (authenticator && typeof authenticator.startAuthenticating === "function") {
-                authenticator.startAuthenticating();
-            }
+            initAuthTimer.restart();
         }
 
         function onErrorMessageChanged() {
             if (authenticator && authenticator.errorMessage) {
                 authTimeoutTimer.stop();
                 root.pendingPassword = "";
+                root.promptReady = false;
                 root.authenticating = false;
                 root.errorText = authenticator.errorMessage;
                 rejectShake.restart();
+                initAuthTimer.restart();
             }
         }
 
@@ -718,28 +753,28 @@ Item {
             CyberDockBtn {
                 labelText: "Sleep"
                 iconType: "sleep"
-                visible: sessionManagement.canSuspend
+                visible: Boolean(sessionManagement.canSuspend)
                 onTriggered: sessionManagement.suspend()
             }
 
             CyberDockBtn {
                 labelText: "Restart"
                 iconType: "restart"
-                visible: sessionManagement.canReboot
+                visible: Boolean(sessionManagement.canReboot)
                 onTriggered: sessionManagement.reboot()
             }
 
             CyberDockBtn {
                 labelText: "Shut Down"
                 iconType: "power"
-                visible: sessionManagement.canPowerOff
+                visible: Boolean(sessionManagement.canPowerOff)
                 onTriggered: sessionManagement.powerOff()
             }
 
             CyberDockBtn {
                 labelText: "Switch User"
                 iconType: "user"
-                visible: sessionManagement.canSwitchUser
+                visible: Boolean(sessionManagement.canSwitchUser)
                 onTriggered: sessionManagement.switchUser()
             }
         }
