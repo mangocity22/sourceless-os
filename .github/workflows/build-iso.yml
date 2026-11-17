@@ -56,9 +56,6 @@ jobs:
           echo "Detected Fedora VERSION_ID=${FEDORA_VER}"
           echo "version=${FEDORA_VER}" >> "$GITHUB_OUTPUT"
 
-          # Eliberam imaginea trasa doar pentru inspectie ca sa pastram spatiul maxim
-          sudo podman rmi --all --force 2>/dev/null || true
-
       # 3. Generare 2-in-1 Live + Installer ISO cu Titanoboa (ublue-os/titanoboa)
       - name: Build 2-in-1 Live ISO (Titanoboa)
         id: build
