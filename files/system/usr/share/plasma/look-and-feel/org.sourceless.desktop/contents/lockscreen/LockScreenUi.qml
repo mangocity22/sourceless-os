@@ -229,6 +229,18 @@ Item {
             root.promptReady = false;
             root.authenticating = false;
             root.errorText = "";
+            Qt.quit();
+        }
+
+        function onUnlockedChanged() {
+            if (authenticator && authenticator.unlocked) {
+                authTimeoutTimer.stop();
+                root.pendingPassword = "";
+                root.promptReady = false;
+                root.authenticating = false;
+                root.errorText = "";
+                Qt.quit();
+            }
         }
 
         function onFailed() {
