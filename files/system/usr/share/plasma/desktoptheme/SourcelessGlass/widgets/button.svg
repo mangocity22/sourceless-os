@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="40" viewBox="0 0 220 40">
+  <defs>
+    <!-- Standard Button Normal -->
+    <g id="btn-normal-tl"><path d="M 0,8 A 8,8 0 0 1 8,0 L 8,8 Z" fill="#ffffff" fill-opacity="0.07" /><path d="M 0,8 A 8,8 0 0 1 8,0 L 8,1 A 7,7 0 0 0 1,8 Z" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-t"><rect x="8" y="0" width="8" height="8" fill="#ffffff" fill-opacity="0.07" /><rect x="8" y="0" width="8" height="1" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-tr"><path d="M 16,0 A 8,8 0 0 1 24,8 L 16,8 Z" fill="#ffffff" fill-opacity="0.07" /><path d="M 16,0 A 8,8 0 0 1 24,8 L 23,8 A 7,7 0 0 0 16,1 Z" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-l"><rect x="0" y="8" width="8" height="8" fill="#ffffff" fill-opacity="0.07" /><rect x="0" y="8" width="1" height="8" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-c"><rect x="8" y="8" width="8" height="8" fill="#ffffff" fill-opacity="0.07" /></g>
+    <g id="btn-normal-r"><rect x="16" y="8" width="8" height="8" fill="#ffffff" fill-opacity="0.07" /><rect x="23" y="8" width="1" height="8" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-bl"><path d="M 8,24 A 8,8 0 0 1 0,16 L 8,16 Z" fill="#ffffff" fill-opacity="0.07" /><path d="M 8,24 A 8,8 0 0 1 0,16 L 1,16 A 7,7 0 0 0 8,23 Z" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-b"><rect x="8" y="16" width="8" height="8" fill="#ffffff" fill-opacity="0.07" /><rect x="8" y="23" width="8" height="1" fill="#ffffff" fill-opacity="0.16" /></g>
+    <g id="btn-normal-br"><path d="M 24,16 A 8,8 0 0 1 16,24 L 16,16 Z" fill="#ffffff" fill-opacity="0.07" /><path d="M 24,16 A 8,8 0 0 1 16,24 L 16,23 A 7,7 0 0 0 23,16 Z" fill="#ffffff" fill-opacity="0.16" /></g>
+
+    <!-- Button Hover / Focus -->
+    <g id="btn-hover-tl"><path d="M 0,8 A 8,8 0 0 1 8,0 L 8,8 Z" fill="#6054F2" fill-opacity="0.22" /><path d="M 0,8 A 8,8 0 0 1 8,0 L 8,1.2 A 6.8,6.8 0 0 0 1.2,8 Z" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-t"><rect x="8" y="0" width="8" height="8" fill="#6054F2" fill-opacity="0.22" /><rect x="8" y="0" width="8" height="1.2" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-tr"><path d="M 16,0 A 8,8 0 0 1 24,8 L 16,8 Z" fill="#6054F2" fill-opacity="0.22" /><path d="M 16,0 A 8,8 0 0 1 24,8 L 22.8,8 A 6.8,6.8 0 0 0 16,1.2 Z" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-l"><rect x="0" y="8" width="8" height="8" fill="#6054F2" fill-opacity="0.22" /><rect x="0" y="8" width="1.2" height="8" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-c"><rect x="8" y="8" width="8" height="8" fill="#6054F2" fill-opacity="0.22" /></g>
+    <g id="btn-hover-r"><rect x="16" y="8" width="8" height="8" fill="#6054F2" fill-opacity="0.22" /><rect x="22.8" y="8" width="1.2" height="8" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-bl"><path d="M 8,24 A 8,8 0 0 1 0,16 L 8,16 Z" fill="#6054F2" fill-opacity="0.22" /><path d="M 8,24 A 8,8 0 0 1 0,16 L 1.2,16 A 6.8,6.8 0 0 0 8,22.8 Z" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-b"><rect x="8" y="16" width="8" height="8" fill="#6054F2" fill-opacity="0.22" /><rect x="8" y="22.8" width="8" height="1.2" fill="#6E62FF" fill-opacity="0.75" /></g>
+    <g id="btn-hover-br"><path d="M 24,16 A 8,8 0 0 1 16,24 L 16,16 Z" fill="#6054F2" fill-opacity="0.22" /><path d="M 24,16 A 8,8 0 0 1 16,24 L 16,22.8 A 6.8,6.8 0 0 0 22.8,16 Z" fill="#6E62FF" fill-opacity="0.75" /></g>
+
+    <!-- ToolButton Hover (soft rounded glass, no hard outer border) -->
+    <g id="tb-hover-tl"><path d="M 2,10 A 8,8 0 0 1 10,2 L 10,10 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-t"><rect x="10" y="2" width="4" height="8" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-tr"><path d="M 14,2 A 8,8 0 0 1 22,10 L 14,10 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-l"><rect x="2" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-c"><rect x="10" y="10" width="4" height="4" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-r"><rect x="14" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-bl"><path d="M 10,22 A 8,8 0 0 1 2,14 L 10,14 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-b"><rect x="10" y="14" width="4" height="8" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-br"><path d="M 22,14 A 8,8 0 0 1 14,22 L 14,14 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+
+    <!-- ToolButton Pressed -->
+    <g id="tb-press-tl"><path d="M 2,10 A 8,8 0 0 1 10,2 L 10,10 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-t"><rect x="10" y="2" width="4" height="8" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-tr"><path d="M 14,2 A 8,8 0 0 1 22,10 L 14,10 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-l"><rect x="2" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-c"><rect x="10" y="10" width="4" height="4" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-r"><rect x="14" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-bl"><path d="M 10,22 A 8,8 0 0 1 2,14 L 10,14 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-b"><rect x="10" y="14" width="4" height="8" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-br"><path d="M 22,14 A 8,8 0 0 1 14,22 L 14,14 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+  </defs>
+
+  <use id="normal-topleft" href="#btn-normal-tl" />
+  <use id="normal-top" href="#btn-normal-t" />
+  <use id="normal-topright" href="#btn-normal-tr" />
+  <use id="normal-left" href="#btn-normal-l" />
+  <use id="normal-center" href="#btn-normal-c" />
+  <use id="normal-right" href="#btn-normal-r" />
+  <use id="normal-bottomleft" href="#btn-normal-bl" />
+  <use id="normal-bottom" href="#btn-normal-b" />
+  <use id="normal-bottomright" href="#btn-normal-br" />
+
+  <use id="hover-topleft" href="#btn-hover-tl" x="30" />
+  <use id="hover-top" href="#btn-hover-t" x="30" />
+  <use id="hover-topright" href="#btn-hover-tr" x="30" />
+  <use id="hover-left" href="#btn-hover-l" x="30" />
+  <use id="hover-center" href="#btn-hover-c" x="30" />
+  <use id="hover-right" href="#btn-hover-r" x="30" />
+  <use id="hover-bottomleft" href="#btn-hover-bl" x="30" />
+  <use id="hover-bottom" href="#btn-hover-b" x="30" />
+  <use id="hover-bottomright" href="#btn-hover-br" x="30" />
+
+  <use id="pressed-topleft" href="#btn-hover-tl" x="60" />
+  <use id="pressed-top" href="#btn-hover-t" x="60" />
+  <use id="pressed-topright" href="#btn-hover-tr" x="60" />
+  <use id="pressed-left" href="#btn-hover-l" x="60" />
+  <use id="pressed-center" href="#btn-hover-c" x="60" />
+  <use id="pressed-right" href="#btn-hover-r" x="60" />
+  <use id="pressed-bottomleft" href="#btn-hover-bl" x="60" />
+  <use id="pressed-bottom" href="#btn-hover-b" x="60" />
+  <use id="pressed-bottomright" href="#btn-hover-br" x="60" />
+
+  <use id="focus-topleft" href="#btn-hover-tl" x="90" />
+  <use id="focus-top" href="#btn-hover-t" x="90" />
+  <use id="focus-topright" href="#btn-hover-tr" x="90" />
+  <use id="focus-left" href="#btn-hover-l" x="90" />
+  <use id="focus-center" href="#btn-hover-c" x="90" />
+  <use id="focus-right" href="#btn-hover-r" x="90" />
+  <use id="focus-bottomleft" href="#btn-hover-bl" x="90" />
+  <use id="focus-bottom" href="#btn-hover-b" x="90" />
+  <use id="focus-bottomright" href="#btn-hover-br" x="90" />
+
+  <use id="toolbutton-hover-topleft" href="#tb-hover-tl" x="120" />
+  <use id="toolbutton-hover-top" href="#tb-hover-t" x="120" />
+  <use id="toolbutton-hover-topright" href="#tb-hover-tr" x="120" />
+  <use id="toolbutton-hover-left" href="#tb-hover-l" x="120" />
+  <use id="toolbutton-hover-center" href="#tb-hover-c" x="120" />
+  <use id="toolbutton-hover-right" href="#tb-hover-r" x="120" />
+  <use id="toolbutton-hover-bottomleft" href="#tb-hover-bl" x="120" />
+  <use id="toolbutton-hover-bottom" href="#tb-hover-b" x="120" />
+  <use id="toolbutton-hover-bottomright" href="#tb-hover-br" x="120" />
+
+  <use id="toolbutton-pressed-topleft" href="#tb-press-tl" x="150" />
+  <use id="toolbutton-pressed-top" href="#tb-press-t" x="150" />
+  <use id="toolbutton-pressed-topright" href="#tb-press-tr" x="150" />
+  <use id="toolbutton-pressed-left" href="#tb-press-l" x="150" />
+  <use id="toolbutton-pressed-center" href="#tb-press-c" x="150" />
+  <use id="toolbutton-pressed-right" href="#tb-press-r" x="150" />
+  <use id="toolbutton-pressed-bottomleft" href="#tb-press-bl" x="150" />
+  <use id="toolbutton-pressed-bottom" href="#tb-press-b" x="150" />
+  <use id="toolbutton-pressed-bottomright" href="#tb-press-br" x="150" />
+
+  <use id="toolbutton-focus-topleft" href="#tb-hover-tl" x="180" />
+  <use id="toolbutton-focus-top" href="#tb-hover-t" x="180" />
+  <use id="toolbutton-focus-topright" href="#tb-hover-tr" x="180" />
+  <use id="toolbutton-focus-left" href="#tb-hover-l" x="180" />
+  <use id="toolbutton-focus-center" href="#tb-hover-c" x="180" />
+  <use id="toolbutton-focus-right" href="#tb-hover-r" x="180" />
+  <use id="toolbutton-focus-bottomleft" href="#tb-hover-bl" x="180" />
+  <use id="toolbutton-focus-bottom" href="#tb-hover-b" x="180" />
+  <use id="toolbutton-focus-bottomright" href="#tb-hover-br" x="180" />
+</svg>
