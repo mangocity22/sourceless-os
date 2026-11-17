@@ -5,10 +5,10 @@
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
-import org.kde.coreaddons as KCoreAddons
-import org.kde.plasma.plasma5support as P5Support
-import org.kde.plasma.private.sessions as Sessions
+import org.kde.coreaddons 1.0 as KCoreAddons
+import org.kde.kirigamiaddons.components 1.0 as KirigamiComponents
+import org.kde.plasma.plasma5support 2.0 as P5Support
+import org.kde.plasma.private.sessions 2.0 as Sessions
 
 Item {
     id: root
@@ -288,26 +288,19 @@ Item {
                 }
             }
 
-            // Floating User Avatar (104x104, centered on top border)
+            // Floating User Avatar centered on top border of cyberCard
             Item {
                 id: avatarRing
-                width: 104
-                height: 104
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: -52
+                anchors.verticalCenter: parent.top
                 z: 10
+                width: 116
+                height: 116
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 52
-                    color: "#090B12"
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 52
+                    radius: 58
                     gradient: Gradient {
-                        orientation: Gradient.Vertical
                         GradientStop { position: 0.0; color: root.cyberLime }
                         GradientStop { position: 1.0; color: root.cyberViolet }
                     }
@@ -315,50 +308,18 @@ Item {
 
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 98
-                    height: 98
-                    radius: 49
-                    color: "#0B0E17"
+                    width: 110
+                    height: 110
+                    radius: 55
+                    color: "#090B12"
+                }
 
-                    Image {
-                        id: avatarImg
-                        anchors.fill: parent
-                        anchors.margins: 2
-                        source: root.resolvedUserAvatar
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        visible: false
-                        onStatusChanged: {
-                            if (status === Image.Error && String(source).indexOf(".face.icon") !== -1) {
-                                source = "file:///var/home/" + (kuser.loginName || "sourceless") + "/.face";
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        id: avatarMask
-                        anchors.fill: parent
-                        anchors.margins: 2
-                        radius: 47
-                        visible: false
-                    }
-
-                    MultiEffect {
-                        anchors.fill: avatarImg
-                        source: avatarImg
-                        maskEnabled: true
-                        maskSource: avatarMask
-                        visible: avatarImg.status === Image.Ready
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        visible: avatarImg.status !== Image.Ready
-                        text: root.resolvedUserName.charAt(0).toUpperCase()
-                        color: root.cyberLime
-                        font.pixelSize: 32
-                        font.bold: true
-                    }
+                KirigamiComponents.Avatar {
+                    anchors.centerIn: parent
+                    width: 104
+                    height: 104
+                    source: root.resolvedUserAvatar
+                    name: root.resolvedUserName
                 }
             }
 
@@ -615,7 +576,7 @@ Item {
             CyberDockBtn {
                 labelText: "Shut Down"
                 iconType: "power"
-                visible: root.allowShutdown && Boolean(sessionManagement.canPowerOff)
+                visible: root.allowShutdown && Boolean(sessionManagement.canShutdown)
                 onTriggered: {
                     countdownTimer.stop();
                     root.haltRequested();

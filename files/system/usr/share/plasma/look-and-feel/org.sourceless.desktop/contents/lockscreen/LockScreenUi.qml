@@ -773,14 +773,26 @@ Item {
                 labelText: "Restart"
                 iconType: "restart"
                 visible: Boolean(sessionManagement.canReboot)
-                onTriggered: sessionManagement.reboot()
+                onTriggered: {
+                    if (typeof sessionManagement.requestReboot === "function") {
+                        sessionManagement.requestReboot(0);
+                    } else if (typeof sessionManagement.reboot === "function") {
+                        sessionManagement.reboot();
+                    }
+                }
             }
 
             CyberDockBtn {
                 labelText: "Shut Down"
                 iconType: "power"
-                visible: Boolean(sessionManagement.canPowerOff)
-                onTriggered: sessionManagement.powerOff()
+                visible: Boolean(sessionManagement.canShutdown)
+                onTriggered: {
+                    if (typeof sessionManagement.requestShutdown === "function") {
+                        sessionManagement.requestShutdown(0);
+                    } else if (typeof sessionManagement.powerOff === "function") {
+                        sessionManagement.powerOff();
+                    }
+                }
             }
 
             CyberDockBtn {
