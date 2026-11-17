@@ -254,12 +254,18 @@ EOF
 chmod 644 /etc/xdg/kscreenlockerrc 2>/dev/null || true
 cp -f /etc/xdg/kscreenlockerrc /etc/skel/.config/kscreenlockerrc 2>/dev/null || true
 
-# Integrate Sourceless Liquid Glass Lock Screen into Plasma 6 Desktop Shell fallback (preserve qmldir/config.xml)
+# Integrate Sourceless Liquid Glass Lock Screen & Logout Screen into Plasma 6 Desktop Shell fallback (preserve qmldir/config.xml)
 SOURCELESS_LOCKSCREEN="/usr/share/plasma/look-and-feel/org.sourceless.desktop/contents/lockscreen"
 SHELL_LOCKSCREEN="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
 if [ -d "$SOURCELESS_LOCKSCREEN" ] && [ -d "$SHELL_LOCKSCREEN" ]; then
     cp -f "$SOURCELESS_LOCKSCREEN/LockScreen.qml" "$SHELL_LOCKSCREEN/LockScreen.qml" 2>/dev/null || true
     cp -f "$SOURCELESS_LOCKSCREEN/LockScreenUi.qml" "$SHELL_LOCKSCREEN/LockScreenUi.qml" 2>/dev/null || true
+fi
+
+SOURCELESS_LOGOUT="/usr/share/plasma/look-and-feel/org.sourceless.desktop/contents/logout"
+SHELL_LOGOUT="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout"
+if [ -f "$SOURCELESS_LOGOUT/Logout.qml" ] && [ -d "$SHELL_LOGOUT" ]; then
+    cp -f "$SOURCELESS_LOGOUT/Logout.qml" "$SHELL_LOGOUT/Logout.qml" 2>/dev/null || true
 fi
 
 # Switch Display Manager from plasmalogin (no custom QML themes) to SDDM (SourcelessGlass Liquid Glass theme)
