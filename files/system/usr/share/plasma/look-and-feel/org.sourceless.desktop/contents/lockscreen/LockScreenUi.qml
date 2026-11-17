@@ -28,6 +28,15 @@ Item {
     property bool capsLockOn: false
     property bool showPassword: false
     property bool authenticating: false
+    property bool pendingSubmit: false
+
+    function normalizeAvatarUrl(val) {
+        if (!val) return "";
+        var s = String(val).trim();
+        if (!s) return "";
+        if (s.indexOf("/") === 0) return "file://" + s;
+        return s;
+    }
 
     readonly property string resolvedUserName: {
         if (typeof kscreenlocker_userName !== "undefined" && kscreenlocker_userName !== "") {
@@ -38,9 +47,11 @@ Item {
 
     readonly property string resolvedUserAvatar: {
         if (typeof kscreenlocker_userImage !== "undefined" && kscreenlocker_userImage !== "") {
-            return kscreenlocker_userImage;
+            return normalizeAvatarUrl(kscreenlocker_userImage);
         }
-        return kuser.faceIconUrl;
+        var u = normalizeAvatarUrl(kuser.faceIconUrl);
+        if (u !== "") return u;
+        return normalizeAvatarUrl(kuser.faceIconPath);
     }
 
     KCoreAddons.KUser {
@@ -81,10 +92,16 @@ Item {
         root.errorText = "";
         root.authenticating = true;
         if (typeof authenticator !== "undefined" && authenticator) {
-            if (typeof authenticator.startAuthenticating === "function") {
-                authenticator.startAuthenticating();
+            if (authenticator.promptForSecret) {
+                authenticator.respond(passwordInput.text);
+            } else {
+                root.pendingSubmit = true;
+                if (typeof authenticator.startAuthenticating === "function") {
+                    authenticator.startAuthenticating();
+                } else {
+                    authenticator.respond(passwordInput.text);
+                }
             }
-            authenticator.respond(passwordInput.text);
         }
     }
 
@@ -99,22 +116,39 @@ Item {
         target: (typeof authenticator !== "undefined") ? authenticator : null
         ignoreUnknownSignals: true
 
+        function onPromptForSecretChanged() {
+            if (authenticator && authenticator.promptForSecret) {
+                if (root.pendingSubmit) {
+                    root.pendingSubmit = false;
+                    authenticator.respond(passwordInput.text);
+                } else {
+                    root.authenticating = false;
+                }
+            }
+        }
+
         function onSucceeded() {
             root.authenticating = false;
+            root.pendingSubmit = false;
             root.errorText = "";
         }
 
         function onFailed() {
             root.authenticating = false;
+            root.pendingSubmit = false;
             root.errorText = "Authentication Failed — Check Credentials";
             passwordInput.selectAll();
             passwordInput.forceActiveFocus();
             rejectShake.restart();
+            if (authenticator && typeof authenticator.startAuthenticating === "function") {
+                authenticator.startAuthenticating();
+            }
         }
 
         function onErrorMessageChanged() {
             if (authenticator && authenticator.errorMessage) {
                 root.authenticating = false;
+                root.pendingSubmit = false;
                 root.errorText = authenticator.errorMessage;
                 rejectShake.restart();
             }
