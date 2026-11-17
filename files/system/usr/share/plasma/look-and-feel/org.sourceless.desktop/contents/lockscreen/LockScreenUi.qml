@@ -28,7 +28,20 @@ Item {
     property bool capsLockOn: false
     property bool showPassword: false
     property bool authenticating: false
-    property bool pendingSubmit: false
+
+    Timer {
+        id: authTimeoutTimer
+        interval: 4000
+        repeat: false
+        onTriggered: {
+            if (root.authenticating) {
+                root.authenticating = false;
+                if (typeof authenticator !== "undefined" && authenticator && typeof authenticator.startAuthenticating === "function") {
+                    authenticator.startAuthenticating();
+                }
+            }
+        }
+    }
 
     function normalizeAvatarUrl(val) {
         if (!val) return "";
@@ -91,17 +104,11 @@ Item {
         }
         root.errorText = "";
         root.authenticating = true;
+        authTimeoutTimer.restart();
         if (typeof authenticator !== "undefined" && authenticator) {
-            if (authenticator.promptForSecret) {
-                authenticator.respond(passwordInput.text);
-            } else {
-                root.pendingSubmit = true;
-                if (typeof authenticator.startAuthenticating === "function") {
-                    authenticator.startAuthenticating();
-                } else {
-                    authenticator.respond(passwordInput.text);
-                }
-            }
+            authenticator.respond(passwordInput.text);
+        } else {
+            root.authenticating = false;
         }
     }
 
@@ -116,26 +123,15 @@ Item {
         target: (typeof authenticator !== "undefined") ? authenticator : null
         ignoreUnknownSignals: true
 
-        function onPromptForSecretChanged() {
-            if (authenticator && authenticator.promptForSecret) {
-                if (root.pendingSubmit) {
-                    root.pendingSubmit = false;
-                    authenticator.respond(passwordInput.text);
-                } else {
-                    root.authenticating = false;
-                }
-            }
-        }
-
         function onSucceeded() {
+            authTimeoutTimer.stop();
             root.authenticating = false;
-            root.pendingSubmit = false;
             root.errorText = "";
         }
 
         function onFailed() {
+            authTimeoutTimer.stop();
             root.authenticating = false;
-            root.pendingSubmit = false;
             root.errorText = "Authentication Failed — Check Credentials";
             passwordInput.selectAll();
             passwordInput.forceActiveFocus();
@@ -147,8 +143,8 @@ Item {
 
         function onErrorMessageChanged() {
             if (authenticator && authenticator.errorMessage) {
+                authTimeoutTimer.stop();
                 root.authenticating = false;
-                root.pendingSubmit = false;
                 root.errorText = authenticator.errorMessage;
                 rejectShake.restart();
             }
