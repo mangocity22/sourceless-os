@@ -22,27 +22,27 @@
     <g id="btn-hover-b"><rect x="8" y="16" width="8" height="8" fill="#6054F2" fill-opacity="0.22" /><rect x="8" y="22.8" width="8" height="1.2" fill="#6E62FF" fill-opacity="0.75" /></g>
     <g id="btn-hover-br"><path d="M 24,16 A 8,8 0 0 1 16,24 L 16,16 Z" fill="#6054F2" fill-opacity="0.22" /><path d="M 24,16 A 8,8 0 0 1 16,24 L 16,22.8 A 6.8,6.8 0 0 0 22.8,16 Z" fill="#6E62FF" fill-opacity="0.75" /></g>
 
-    <!-- ToolButton Hover (soft rounded glass, no hard outer border) -->
-    <g id="tb-hover-tl"><path d="M 2,10 A 8,8 0 0 1 10,2 L 10,10 Z" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-t"><rect x="10" y="2" width="4" height="8" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-tr"><path d="M 14,2 A 8,8 0 0 1 22,10 L 14,10 Z" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-l"><rect x="2" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-c"><rect x="10" y="10" width="4" height="4" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-r"><rect x="14" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-bl"><path d="M 10,22 A 8,8 0 0 1 2,14 L 10,14 Z" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-b"><rect x="10" y="14" width="4" height="8" fill="#ffffff" fill-opacity="0.14" /></g>
-    <g id="tb-hover-br"><path d="M 22,14 A 8,8 0 0 1 14,22 L 14,14 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <!-- ToolButton Hover (circular/pill glass with 4px inset so it stays inside rounded dialogs) -->
+    <g id="tb-hover-tl"><rect x="0" y="0" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 4,12 A 8,8 0 0 1 12,4 L 12,12 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-t"><rect x="12" y="0" width="2" height="4" fill="#000000" fill-opacity="0" /><rect x="12" y="4" width="2" height="8" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-tr"><rect x="14" y="0" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 14,4 A 8,8 0 0 1 22,12 L 14,12 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-l"><rect x="0" y="12" width="4" height="2" fill="#000000" fill-opacity="0" /><rect x="4" y="12" width="8" height="2" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-c"><rect x="12" y="12" width="2" height="2" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-r"><rect x="22" y="12" width="4" height="2" fill="#000000" fill-opacity="0" /><rect x="14" y="12" width="8" height="2" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-bl"><rect x="0" y="14" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 12,22 A 8,8 0 0 1 4,14 L 12,14 Z" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-b"><rect x="12" y="22" width="2" height="4" fill="#000000" fill-opacity="0" /><rect x="12" y="14" width="2" height="8" fill="#ffffff" fill-opacity="0.14" /></g>
+    <g id="tb-hover-br"><rect x="14" y="14" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 22,14 A 8,8 0 0 1 14,22 L 14,14 Z" fill="#ffffff" fill-opacity="0.14" /></g>
 
     <!-- ToolButton Pressed -->
-    <g id="tb-press-tl"><path d="M 2,10 A 8,8 0 0 1 10,2 L 10,10 Z" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-t"><rect x="10" y="2" width="4" height="8" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-tr"><path d="M 14,2 A 8,8 0 0 1 22,10 L 14,10 Z" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-l"><rect x="2" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-c"><rect x="10" y="10" width="4" height="4" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-r"><rect x="14" y="10" width="8" height="4" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-bl"><path d="M 10,22 A 8,8 0 0 1 2,14 L 10,14 Z" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-b"><rect x="10" y="14" width="4" height="8" fill="#ffffff" fill-opacity="0.22" /></g>
-    <g id="tb-press-br"><path d="M 22,14 A 8,8 0 0 1 14,22 L 14,14 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-tl"><rect x="0" y="0" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 4,12 A 8,8 0 0 1 12,4 L 12,12 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-t"><rect x="12" y="0" width="2" height="4" fill="#000000" fill-opacity="0" /><rect x="12" y="4" width="2" height="8" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-tr"><rect x="14" y="0" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 14,4 A 8,8 0 0 1 22,12 L 14,12 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-l"><rect x="0" y="12" width="4" height="2" fill="#000000" fill-opacity="0" /><rect x="4" y="12" width="8" height="2" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-c"><rect x="12" y="12" width="2" height="2" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-r"><rect x="22" y="12" width="4" height="2" fill="#000000" fill-opacity="0" /><rect x="14" y="12" width="8" height="2" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-bl"><rect x="0" y="14" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 12,22 A 8,8 0 0 1 4,14 L 12,14 Z" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-b"><rect x="12" y="22" width="2" height="4" fill="#000000" fill-opacity="0" /><rect x="12" y="14" width="2" height="8" fill="#ffffff" fill-opacity="0.22" /></g>
+    <g id="tb-press-br"><rect x="14" y="14" width="12" height="12" fill="#000000" fill-opacity="0" /><path d="M 22,14 A 8,8 0 0 1 14,22 L 14,14 Z" fill="#ffffff" fill-opacity="0.22" /></g>
   </defs>
 
   <use id="normal-topleft" href="#btn-normal-tl" />
