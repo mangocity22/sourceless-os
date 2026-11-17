@@ -25,19 +25,30 @@ Item {
 
     property string errorText: ""
     property string infoText: ""
+    property string pendingPassword: ""
     property bool capsLockOn: false
     property bool showPassword: false
     property bool authenticating: false
 
     Timer {
         id: authTimeoutTimer
-        interval: 4000
+        interval: 6000
         repeat: false
         onTriggered: {
             if (root.authenticating) {
                 root.authenticating = false;
-                if (typeof authenticator !== "undefined" && authenticator && typeof authenticator.startAuthenticating === "function") {
-                    authenticator.startAuthenticating();
+                root.pendingPassword = "";
+                if (typeof authenticator !== "undefined" && authenticator) {
+                    var hasPrompt = Boolean(authenticator.promptForSecret || authenticator.prompt);
+                    var isBusy = Boolean(authenticator.busy);
+                    root.errorText = authenticator.errorMessage
+                        ? authenticator.errorMessage
+                        : ("Auth timeout (prompt=" + (hasPrompt ? "yes" : "no") + ", busy=" + (isBusy ? "yes" : "no") + ")");
+                    if (typeof authenticator.startAuthenticating === "function") {
+                        authenticator.startAuthenticating();
+                    }
+                } else {
+                    root.errorText = "Authenticator unavailable";
                 }
             }
         }
@@ -98,23 +109,63 @@ Item {
         interval: 1000
     }
 
+    function respondWithPassword(pwd) {
+        try {
+            if (typeof authenticator.respond !== "function") {
+                authTimeoutTimer.stop();
+                root.authenticating = false;
+                root.errorText = "Authenticator respond() unavailable";
+                return;
+            }
+            authenticator.respond(pwd);
+        } catch (e) {
+            authTimeoutTimer.stop();
+            root.authenticating = false;
+            root.errorText = "Auth error: " + e;
+        }
+    }
+
     function submitPassword() {
         if (root.authenticating) {
+            return;
+        }
+        if (typeof authenticator === "undefined" || !authenticator) {
+            root.errorText = "Authenticator unavailable";
             return;
         }
         root.errorText = "";
         root.authenticating = true;
         authTimeoutTimer.restart();
-        if (typeof authenticator !== "undefined" && authenticator) {
-            authenticator.respond(passwordInput.text);
+
+        var hasPrompt = Boolean(authenticator.promptForSecret || authenticator.prompt);
+        if (hasPrompt || authenticator.promptForSecret === undefined) {
+            root.pendingPassword = "";
+            root.respondWithPassword(passwordInput.text);
         } else {
-            root.authenticating = false;
+            root.pendingPassword = passwordInput.text;
+            try {
+                if (typeof authenticator.startAuthenticating === "function") {
+                    authenticator.startAuthenticating();
+                } else {
+                    root.pendingPassword = "";
+                    root.respondWithPassword(passwordInput.text);
+                }
+            } catch (e) {
+                authTimeoutTimer.stop();
+                root.authenticating = false;
+                root.pendingPassword = "";
+                root.errorText = "Auth start error: " + e;
+            }
         }
     }
 
     Component.onCompleted: {
         if (typeof authenticator !== "undefined" && authenticator && typeof authenticator.startAuthenticating === "function") {
-            authenticator.startAuthenticating();
+            try {
+                authenticator.startAuthenticating();
+            } catch (e) {
+                root.errorText = "Auth init error: " + e;
+            }
         }
         Qt.callLater(() => passwordInput.forceActiveFocus());
     }
@@ -123,14 +174,32 @@ Item {
         target: (typeof authenticator !== "undefined") ? authenticator : null
         ignoreUnknownSignals: true
 
+        function onPromptForSecretChanged() {
+            if (authenticator && authenticator.promptForSecret && root.pendingPassword !== "") {
+                var pwd = root.pendingPassword;
+                root.pendingPassword = "";
+                root.respondWithPassword(pwd);
+            }
+        }
+
+        function onPromptChanged() {
+            if (authenticator && authenticator.prompt && root.pendingPassword !== "") {
+                var pwd = root.pendingPassword;
+                root.pendingPassword = "";
+                root.respondWithPassword(pwd);
+            }
+        }
+
         function onSucceeded() {
             authTimeoutTimer.stop();
+            root.pendingPassword = "";
             root.authenticating = false;
             root.errorText = "";
         }
 
         function onFailed() {
             authTimeoutTimer.stop();
+            root.pendingPassword = "";
             root.authenticating = false;
             root.errorText = "Authentication Failed — Check Credentials";
             passwordInput.selectAll();
@@ -144,6 +213,7 @@ Item {
         function onErrorMessageChanged() {
             if (authenticator && authenticator.errorMessage) {
                 authTimeoutTimer.stop();
+                root.pendingPassword = "";
                 root.authenticating = false;
                 root.errorText = authenticator.errorMessage;
                 rejectShake.restart();
