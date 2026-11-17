@@ -287,7 +287,7 @@ Item {
         Rectangle {
             id: cyberCard
             width: parent.width
-            implicitHeight: cardCol.implicitHeight + 56
+            implicitHeight: cardCol.implicitHeight + 96
             radius: 16
             border.width: 0
             gradient: Gradient {
@@ -341,103 +341,108 @@ Item {
                 }
             }
 
-            ColumnLayout {
-                id: cardCol
-                anchors.fill: parent
-                anchors.margins: 28
-                spacing: 18
+            // Floating User Avatar centered on top border of cyberCard
+            RowLayout {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.top
+                z: 5
+                spacing: 16
 
-                // User Avatar + Cyber Gradient Ring + Multi-user Switcher
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 16
+                Rectangle {
+                    visible: !root.manualUserMode && userModel.count > 1
+                    width: 32
+                    height: 32
+                    radius: 8
+                    color: prevUserMouse.containsMouse ? Qt.rgba(0.18, 0.21, 0.32, 0.95) : Qt.rgba(0.08, 0.10, 0.16, 0.90)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.16)
 
-                    Rectangle {
-                        visible: !root.manualUserMode && userModel.count > 1
-                        width: 30
-                        height: 30
-                        radius: 8
-                        color: prevUserMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
-                        border.width: 1
-                        border.color: Qt.rgba(1, 1, 1, 0.12)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "‹"
-                            color: root.textMain
-                            font.pixelSize: 18
-                        }
-
-                        MouseArea {
-                            id: prevUserMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.currentUserIndex = (root.currentUserIndex - 1 + userModel.count) % userModel.count;
-                                passwordInput.forceActiveFocus();
-                            }
-                        }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "‹"
+                        color: root.textMain
+                        font.pixelSize: 18
                     }
 
-                    Item {
-                        width: 88
-                        height: 88
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 44
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: root.cyberLime }
-                                GradientStop { position: 1.0; color: root.cyberViolet }
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: 82
-                            height: 82
-                            radius: 41
-                            color: root.bgObsidian
-                        }
-
-                        KirigamiComponents.Avatar {
-                            anchors.centerIn: parent
-                            width: 78
-                            height: 78
-                            source: root.manualUserMode ? "" : root.currentUserIcon()
-                            name: root.manualUserMode ? (usernameInput.text || "User") : root.currentUserDisplay()
-                        }
-                    }
-
-                    Rectangle {
-                        visible: !root.manualUserMode && userModel.count > 1
-                        width: 30
-                        height: 30
-                        radius: 8
-                        color: nextUserMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
-                        border.width: 1
-                        border.color: Qt.rgba(1, 1, 1, 0.12)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "›"
-                            color: root.textMain
-                            font.pixelSize: 18
-                        }
-
-                        MouseArea {
-                            id: nextUserMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.currentUserIndex = (root.currentUserIndex + 1) % userModel.count;
-                                passwordInput.forceActiveFocus();
-                            }
+                    MouseArea {
+                        id: prevUserMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.currentUserIndex = (root.currentUserIndex - 1 + userModel.count) % userModel.count;
+                            passwordInput.forceActiveFocus();
                         }
                     }
                 }
+
+                Item {
+                    width: 116
+                    height: 116
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 58
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: root.cyberLime }
+                            GradientStop { position: 1.0; color: root.cyberViolet }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 110
+                        height: 110
+                        radius: 55
+                        color: root.bgObsidian
+                    }
+
+                    KirigamiComponents.Avatar {
+                        anchors.centerIn: parent
+                        width: 104
+                        height: 104
+                        source: root.manualUserMode ? "" : root.currentUserIcon()
+                        name: root.manualUserMode ? (usernameInput.text || "User") : root.currentUserDisplay()
+                    }
+                }
+
+                Rectangle {
+                    visible: !root.manualUserMode && userModel.count > 1
+                    width: 32
+                    height: 32
+                    radius: 8
+                    color: nextUserMouse.containsMouse ? Qt.rgba(0.18, 0.21, 0.32, 0.95) : Qt.rgba(0.08, 0.10, 0.16, 0.90)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.16)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "›"
+                        color: root.textMain
+                        font.pixelSize: 18
+                    }
+
+                    MouseArea {
+                        id: nextUserMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.currentUserIndex = (root.currentUserIndex + 1) % userModel.count;
+                            passwordInput.forceActiveFocus();
+                        }
+                    }
+                }
+            }
+
+            ColumnLayout {
+                id: cardCol
+                anchors.fill: parent
+                anchors.leftMargin: 28
+                anchors.rightMargin: 28
+                anchors.bottomMargin: 28
+                anchors.topMargin: 68
+                spacing: 18
 
                 // Identity Header
                 ColumnLayout {

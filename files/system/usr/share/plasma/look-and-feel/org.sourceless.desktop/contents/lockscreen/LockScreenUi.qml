@@ -256,7 +256,7 @@ Item {
         Rectangle {
             id: cyberCard
             width: parent.width
-            implicitHeight: cardCol.implicitHeight + 56
+            implicitHeight: cardCol.implicitHeight + 96
             radius: 16
             border.width: 0
             gradient: Gradient {
@@ -295,43 +295,48 @@ Item {
                 }
             }
 
+            // Floating User Avatar centered on top border of cyberCard
+            Item {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.top
+                z: 5
+                width: 116
+                height: 116
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 58
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: root.cyberLime }
+                        GradientStop { position: 1.0; color: root.cyberViolet }
+                    }
+                }
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 110
+                    height: 110
+                    radius: 55
+                    color: root.bgObsidian
+                }
+
+                KirigamiComponents.Avatar {
+                    anchors.centerIn: parent
+                    width: 104
+                    height: 104
+                    source: root.resolvedUserAvatar
+                    name: root.resolvedUserName
+                }
+            }
+
             ColumnLayout {
                 id: cardCol
                 anchors.fill: parent
-                anchors.margins: 28
+                anchors.leftMargin: 28
+                anchors.rightMargin: 28
+                anchors.bottomMargin: 28
+                anchors.topMargin: 68
                 spacing: 18
-
-                // User Avatar + Cyber Gradient Ring
-                Item {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 88
-                    height: 88
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 44
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: root.cyberLime }
-                            GradientStop { position: 1.0; color: root.cyberViolet }
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 82
-                        height: 82
-                        radius: 41
-                        color: root.bgObsidian
-                    }
-
-                    KirigamiComponents.Avatar {
-                        anchors.centerIn: parent
-                        width: 78
-                        height: 78
-                        source: root.resolvedUserAvatar
-                        name: root.resolvedUserName
-                    }
-                }
 
                 // Identity Header
                 ColumnLayout {
