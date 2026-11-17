@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/Users/Mango/Documents/GitHub/sourceless-os/sourceless-control-center"
+    "cmake.sourceDirectory": "C:/Users/Mango/Documents/GitHub/sourceless-os/sourceless-control-center",
+    "cmake.ignoreCMakeListsMissing": true
 }

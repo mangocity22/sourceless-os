@@ -137,31 +137,6 @@ Item {
         }
     }
 
-    // Subtle Cyber Grid Pattern
-    Canvas {
-        anchors.fill: parent
-        opacity: 0.045
-        onPaint: {
-            var ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            ctx.strokeStyle = "#A7FF52";
-            ctx.lineWidth = 1;
-            var step = 64;
-            for (var x = 0; x < width; x += step) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height);
-                ctx.stroke();
-            }
-            for (var y = 0; y < height; y += step) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
-                ctx.stroke();
-            }
-        }
-    }
-
     // 2. Top Cyber HUD Bar
     Rectangle {
         id: topHud
@@ -283,28 +258,40 @@ Item {
             width: parent.width
             implicitHeight: cardCol.implicitHeight + 56
             radius: 16
-            border.width: 1
-            border.color: Qt.rgba(0.38, 0.33, 0.95, 0.42)
+            border.width: 0
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(0.11, 0.13, 0.21, 0.88) }
                 GradientStop { position: 1.0; color: Qt.rgba(0.05, 0.07, 0.12, 0.94) }
             }
 
-            // Top SourceLess NCH Cyber Gradient Accent Line (#A7FF52 -> #6054F2)
-            Rectangle {
-                anchors.top: parent.top
-                anchors.topMargin: 1
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: 24
-                anchors.rightMargin: 24
-                height: 2
-                radius: 1
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: root.cyberLime }
-                    GradientStop { position: 0.55; color: root.cyberViolet }
-                    GradientStop { position: 1.0; color: "transparent" }
+            // Full SourceLess NCH Cyber Gradient Border (#A7FF52 -> #6E62FF -> #6054F2)
+            Canvas {
+                anchors.fill: parent
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d");
+                    ctx.clearRect(0, 0, width, height);
+                    var grad = ctx.createLinearGradient(0, 0, width, height);
+                    grad.addColorStop(0.0, "#A7FF52");
+                    grad.addColorStop(0.5, "#6E62FF");
+                    grad.addColorStop(1.0, "#6054F2");
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 1.8;
+                    var r = 16;
+                    var x = 1, y = 1, w = width - 2, h = height - 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x + r, y);
+                    ctx.lineTo(x + w - r, y);
+                    ctx.arcTo(x + w, y, x + w, y + r, r);
+                    ctx.lineTo(x + w, y + h - r);
+                    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+                    ctx.lineTo(x + r, y + h);
+                    ctx.arcTo(x, y + h, x, y + h - r, r);
+                    ctx.lineTo(x, y + r);
+                    ctx.arcTo(x, y, x + r, y, r);
+                    ctx.closePath();
+                    ctx.stroke();
                 }
             }
 
