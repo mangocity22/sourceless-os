@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" width="22" height="22">
+  <defs>
+    <style type="text/css" id="current-color-scheme">
+      .ColorScheme-Text { color: #eff0f1; }
+      .ColorScheme-Highlight { color: #A7FF52; }
+    </style>
+  </defs>
+  <g class="ColorScheme-Text" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="3.4"/>
+    <path d="M11 3.2v1.6M11 17.2v1.6M3.2 11h1.6M17.2 11h1.6"/>
+    <path d="M4.5 4.5l13 13"/>
+  </g>
+</svg>

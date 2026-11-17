@@ -2,7 +2,14 @@
 Name=Sourceless Icons
 Comment=Sourceless Custom Icons
 Inherits=breeze-dark,breeze,hicolor
-Directories=places/16,places/22,places/32,places/48,places/64,places/96,scalable/apps
+Directories=places/16,places/22,places/32,places/48,places/64,places/96,scalable/apps,status/22
+
+[status/22]
+Size=22
+Context=Status
+Type=Scalable
+MinSize=16
+MaxSize=256
 
 [places/16]
 Size=16
