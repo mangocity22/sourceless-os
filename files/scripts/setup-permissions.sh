@@ -451,20 +451,25 @@ fi
 # 10. Ensure UEFI Boot Binaries Exist at /boot/efi/EFI for Titanoboa Live ISO
 # -----------------------------------------------------------------------------
 
-if [ ! -d /boot/efi/EFI/fedora ] || [ -z "$(ls -A /boot/efi/EFI/fedora 2>/dev/null)" ]; then
-    echo "[Sourceless] Populating /boot/efi/EFI from /usr/lib/efi for Live ISO..."
-    mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT
-    for efi_dir in /usr/lib/efi/*/EFI/fedora; do
-        if [ -d "$efi_dir" ]; then
-            cp -af "$efi_dir"/* /boot/efi/EFI/fedora/ 2>/dev/null || true
-        fi
-    done
-    for boot_dir in /usr/lib/efi/*/EFI/BOOT; do
-        if [ -d "$boot_dir" ]; then
-            cp -af "$boot_dir"/* /boot/efi/EFI/BOOT/ 2>/dev/null || true
-        fi
-    done
+mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT
+if [ ! -f /boot/efi/EFI/BOOT/BOOTX64.EFI ] || [ ! -f /boot/efi/EFI/fedora/grubx64.efi ]; then
+    echo "[Sourceless] Populating /boot/efi/EFI for Titanoboa Live ISO..."
+    find /usr /boot -maxdepth 6 -type f \( -iname "BOOTX64.EFI" -o -iname "fbx64.efi" \) -exec cp -af {} /boot/efi/EFI/BOOT/ \; 2>/dev/null || true
+    find /usr /boot -maxdepth 6 -type f \( -iname "shimx64.efi" -o -iname "shim.efi" -o -iname "mmx64.efi" -o -iname "grubx64.efi" -o -iname "gcdx64.efi" -o -iname "BOOTX64.CSV" \) -exec cp -af {} /boot/efi/EFI/fedora/ \; 2>/dev/null || true
 fi
+
+if [ ! -f /boot/efi/EFI/BOOT/BOOTX64.EFI ] || [ ! -f /boot/efi/EFI/fedora/grubx64.efi ]; then
+    echo "[Sourceless] Reinstalling shim-x64 and grub2-efi-x64 to populate /boot/efi/EFI..."
+    dnf reinstall -y shim-x64 grub2-efi-x64 grub2-efi-x64-cdboot 2>/dev/null || true
+fi
+
+if [ ! -f /boot/efi/EFI/BOOT/BOOTX64.EFI ] && [ -f /boot/efi/EFI/fedora/shimx64.efi ]; then
+    cp -af /boot/efi/EFI/fedora/shimx64.efi /boot/efi/EFI/BOOT/BOOTX64.EFI
+fi
+if [ ! -f /boot/efi/EFI/BOOT/grubx64.efi ] && [ -f /boot/efi/EFI/fedora/grubx64.efi ]; then
+    cp -af /boot/efi/EFI/fedora/grubx64.efi /boot/efi/EFI/BOOT/grubx64.efi
+fi
+ls -la /boot/efi/EFI/BOOT/ /boot/efi/EFI/fedora/ || true
 
 # -----------------------------------------------------------------------------
 # 11. Rebuild Icon Caches and Desktop Databases
