@@ -482,12 +482,15 @@ if command -v dracut >/dev/null 2>&1; then
         if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
             kver="$(basename "$kver_dir")"
             echo "[Sourceless] Regenerating initramfs for $kver with dmsquash-live..."
-            dracut -v --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img" > /tmp/dracut.log 2>&1 || true
-            if ! lsinitrd -m "$kver_dir/initramfs.img" | grep -q "dmsquash-live"; then
+            dracut -v --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img" > /tmp/dracut.log 2>&1 || {
+                echo "[Sourceless] ERROR: dracut exited non-zero!"
+                tail -n 30 /tmp/dracut.log
+                exit 1
+            }
+            if ! lsinitrd "$kver_dir/initramfs.img" | grep -q "dmsquash-live" && ! lsinitrd -m "$kver_dir/initramfs.img" | grep -q "dmsquash-live"; then
                 echo "[Sourceless] ERROR: dmsquash-live missing from $kver_dir/initramfs.img!"
-                ls -d /usr/lib/dracut/modules.d/*dmsquash* /usr/lib/dracut/modules.d/*live* 2>/dev/null || true
-                grep -rn "omit_dracutmodules\|dmsquash" /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null || true
-                grep -iE "dmsquash|error|warn|omit|skip|fail|not found" /tmp/dracut.log | tail -n 40 || true
+                tail -n 25 /tmp/dracut.log || true
+                lsinitrd -m "$kver_dir/initramfs.img" || true
                 exit 1
             fi
         fi
