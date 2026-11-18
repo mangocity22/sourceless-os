@@ -4,7 +4,7 @@
 		"Authors": [
 			{
 				"Email": "support@sourceless.net",
-				"Name": "Sourceless Launcher"
+				"Name": "SourceLess Launcher"
 			}
 		],
 		"Category": "Application Launchers",
@@ -17,11 +17,11 @@
 		"EnabledByDefault": true,
 		"Icon": "start-here-kde",
 		"Id": "org.sourceless.start",
-		"Name": "Sourceless Launcher",
-		"Name[cs]": "Spouštěč Sourceless",
-		"Name[el]": "Sourceless Launcher",
-		"Name[fi]": "Sourceless-käynnistin",
-		"Name[pl]": "Sourceless Launcher",
+		"Name": "SourceLess Launcher",
+		"Name[cs]": "Spouštěč SourceLess",
+		"Name[el]": "SourceLess Launcher",
+		"Name[fi]": "SourceLess-käynnistin",
+		"Name[pl]": "SourceLess Launcher",
 		"Version": "0.6",
 		"Website": "sourceless.net"
 	},

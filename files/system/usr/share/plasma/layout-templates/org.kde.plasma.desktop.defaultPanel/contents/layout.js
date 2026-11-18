@@ -1,4 +1,4 @@
-// Default floating bottom panel template for Sourceless OS (Plasma 6)
+// Default floating bottom panel template for SourceLess OS (Plasma 6)
 var bar = new Panel("org.kde.panel");
 bar.location = "bottom";
 bar.height = 52;

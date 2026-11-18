@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 # Image metadata and target registry details (published to ghcr.io/<user>/<name>)
 name: sourceless-os
-description: Hardened immutable desktop OS image based on Fedora Kinoite with KDE Plasma 6 and Sourceless security controls.
+description: Hardened immutable desktop OS image (SourceLess OS) with KDE Plasma 6 and built-in security controls.
 
 # Base OCI image and tag used as the starting layer
 base-image: ghcr.io/ublue-os/kinoite-main
@@ -114,6 +114,7 @@ modules:
         - sddm.service
       disabled:
         - fedora-atomic-desktop-appstream-cache-refresh.service
+        - flatpak-add-fedora-repos.service
         - plasmalogin.service
 
   # 6. Execute post-install lockdown, theme cleanup, and native Control Center compilation scripts

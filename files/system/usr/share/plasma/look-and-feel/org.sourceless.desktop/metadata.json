@@ -7,10 +7,10 @@
                 "Name": "Sourceless"
             }
         ],
-        "Description": "Sourceless OS Liquid Glass Global Theme",
+        "Description": "SourceLess OS Liquid Glass Global Theme",
         "Icon": "preferences-desktop-theme",
         "Id": "org.sourceless.desktop",
-        "Name": "Sourceless",
+        "Name": "SourceLess",
         "ServiceTypes": [
             "Plasma/LookAndFeel"
         ],

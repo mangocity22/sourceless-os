@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Sourceless Sandboxed Runner
+Name=SourceLess Sandboxed Runner
 Exec=/usr/bin/sourceless-sandbox %f
 Terminal=false
 NoDisplay=true

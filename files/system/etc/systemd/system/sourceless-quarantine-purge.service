@@ -1,5 +1,5 @@
 [Unit]
-Description=Purge quarantined threats from Sourceless-OS
+Description=Purge quarantined threats from SourceLess OS
 After=local-fs.target
 
 [Service]

@@ -1,5 +1,5 @@
 # =============================================================================
-# Sourceless OS - Official GRUB 2 Theme Configuration
+# SourceLess OS - Official GRUB 2 Theme Configuration
 # =============================================================================
 
 # General settings
@@ -53,5 +53,5 @@ terminal-box: ""
     align = "center"
     color = "#6e7681"
     font = "Unifont Regular 14"
-    text = "Booting Sourceless OS in %d seconds..."
+    text = "Booting SourceLess OS in %d seconds..."
 }

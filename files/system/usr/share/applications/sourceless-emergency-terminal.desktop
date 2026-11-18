@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Emergency Terminal
-Comment=Sourceless OS Offline Support Terminal
+Comment=SourceLess OS Offline Support Terminal
 Exec=/usr/bin/sourceless-emergency-terminal
 Icon=utilities-terminal
 Terminal=false

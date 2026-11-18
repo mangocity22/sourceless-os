@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-emergency-terminal
-# Independent Offline Emergency Terminal Launcher for Sourceless-OS
+# Independent Offline Emergency Terminal Launcher for SourceLess OS
 
 # 1. Compute today's dynamic support authorization key (UTC)
 CURRENT_DATE=$(date -u +%Y-%m-%d)
@@ -8,7 +8,7 @@ SECRET_SALT="SourcelessSecretSalt2026"
 GENERATED_KEY=$(echo -n "${CURRENT_DATE}-${SECRET_SALT}" | sha256sum | head -c 8)
 
 # 2. Prompt technician for key using native KDE dialog
-USER_KEY=$(kdialog --password "Enter Today's Support Authorization Key:" --title "Sourceless OS // Emergency Terminal" 2>/dev/null)
+USER_KEY=$(kdialog --password "Enter Today's Support Authorization Key:" --title "SourceLess OS // Emergency Terminal" 2>/dev/null)
 
 # Exit quietly if user cancelled the prompt or provided an empty string
 if [ $? -ne 0 ] || [ -z "$USER_KEY" ]; then

@@ -13,7 +13,7 @@ ApplicationWindow {
     minimumWidth: 940
     minimumHeight: 640
     visible: true
-    title: "Sourceless Control Center"
+    title: "SourceLess Control Center"
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "transparent"
     background: Item {}
@@ -629,7 +629,7 @@ ApplicationWindow {
 
                             Label {
                                 Layout.fillWidth: true
-                                text: "Sourceless Control Center"
+                                text: "SourceLess Control Center"
                                 color: root.textMuted
                                 font.pixelSize: 12
                                 font.bold: true
@@ -921,7 +921,7 @@ ApplicationWindow {
                                 text: {
                                     if (backend && backend.statusMessage !== "") return backend.statusMessage
                                     if (backend && !backend.overallSecurityOk) return "Status: " + backend.systemIntegrity
-                                    return "Sourceless Lockdown Active"
+                                    return "SourceLess Lockdown Active"
                                 }
                                 color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.textMain
                                 font.pixelSize: 12
@@ -1210,7 +1210,7 @@ ApplicationWindow {
                                     }
 
                                     Label {
-                                        text: backend ? (backend.osName + "  •  " + backend.cpuModel) : "Sourceless OS"
+                                        text: backend ? (backend.osName + "  •  " + backend.cpuModel) : "SourceLess OS"
                                         color: root.textMuted
                                         font.pixelSize: 13
                                         elide: Text.ElideRight
@@ -1402,7 +1402,7 @@ ApplicationWindow {
                                 CyberIcon { iconName: "personalization"; width: 24; height: 24 }
                                 ColumnLayout {
                                     spacing: 2
-                                    Label { text: "Personalize Sourceless"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Personalize SourceLess"; color: root.textMain; font.pixelSize: 14; font.bold: true }
                                     Label { text: "Switch curated system themes and dark wallpapers"; color: root.textMuted; font.pixelSize: 12 }
                                 }
                                 Item { Layout.fillWidth: true }
@@ -2470,7 +2470,7 @@ ApplicationWindow {
                         }
 
                         Label {
-                            text: "Official Sourceless Themes"
+                            text: "Official SourceLess Themes"
                             color: root.textMain
                             font.pixelSize: 16
                             font.bold: true
@@ -2480,7 +2480,7 @@ ApplicationWindow {
                             id: cardThemes
                             sectionKey: "themes"
                             Label {
-                                text: "Choose an official Sourceless system theme. Visual effects and window styling automatically adapt to the selected theme."
+                                text: "Choose an official SourceLess system theme. Visual effects and window styling automatically adapt to the selected theme."
                                 color: root.textMuted
                                 font.pixelSize: 13
                                 wrapMode: Text.WordWrap
@@ -2622,7 +2622,7 @@ ApplicationWindow {
                         }
 
                         Label {
-                            text: "Official Sourceless Wallpapers"
+                            text: "Official SourceLess Wallpapers"
                             color: root.textMain
                             font.pixelSize: 16
                             font.bold: true
@@ -2720,7 +2720,7 @@ ApplicationWindow {
                                 ColumnLayout {
                                     spacing: 2
                                     Label { text: "Reset Taskbar & Desktop Layout"; color: root.textMain; font.pixelSize: 14; font.bold: true }
-                                    Label { text: "Restore the default Sourceless floating dock and start menu configuration"; color: root.textMuted; font.pixelSize: 12 }
+                                    Label { text: "Restore the default SourceLess floating dock and start menu configuration"; color: root.textMuted; font.pixelSize: 12 }
                                 }
                                 Item { Layout.fillWidth: true }
                                 ActionButton {
@@ -3121,7 +3121,7 @@ ApplicationWindow {
                                     Label {
                                         text: (backend && !backend.overallSecurityOk)
                                               ? ("Security Warning: System State Modified (" + backend.securityScore + "%)")
-                                              : ("Sourceless Security Policy is Enforced (" + (backend ? backend.securityScore : 100) + "%)")
+                                              : ("SourceLess Security Policy is Enforced (" + (backend ? backend.securityScore : 100) + "%)")
                                         color: (backend && !backend.overallSecurityOk) ? root.statusRed : root.statusGreen
                                         font.pixelSize: 17
                                         font.bold: true
@@ -3184,7 +3184,7 @@ ApplicationWindow {
                                     font.pixelSize: 13; font.bold: true
                                 }
 
-                                Label { text: "Sourceless Real-Time YARA Shield"; color: root.textMuted; font.pixelSize: 13 }
+                                Label { text: "SourceLess Real-Time YARA Shield"; color: root.textMuted; font.pixelSize: 13 }
                                 Label {
                                     text: backend && backend.shieldActive ? "Active (Monitoring ~/Downloads & Autostart)" : "STOPPED (Unprotected)"
                                     color: backend && backend.shieldActive ? root.statusGreen : root.statusRed
@@ -3881,7 +3881,7 @@ ApplicationWindow {
                             Label {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: "Update the login password for your Sourceless OS user account (" + (backend ? backend.userName : "user") + ")."
+                                text: "Update the login password for your SourceLess OS user account (" + (backend ? backend.userName : "user") + ")."
                                 color: root.textMuted
                                 font.pixelSize: 12
                             }

@@ -41,6 +41,6 @@ if [ $IS_THREAT -eq 1 ]; then
         XDG_RUNTIME_DIR="/run/user/${USER_ID}" \
         DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
         notify-send -u critical -i dialog-warning \
-            "Sourceless-OS Guard" \
+            "SourceLess OS Guard" \
             "Threat Blocked!\nFile: ${BASENAME}\nRule: ${THREAT_NAME}\nMoved to quarantine." 2>/dev/null &
 fi

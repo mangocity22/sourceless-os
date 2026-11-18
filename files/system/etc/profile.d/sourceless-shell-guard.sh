@@ -13,7 +13,7 @@ if [ "$(id -u)" -ge 1000 ]; then
 
             # Display a graphical error under X11/Wayland, or print to stderr otherwise
             if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-                kdialog --error "Access Denied.\n\nInteractive terminal access is strictly disabled on Sourceless-OS." --title "Sourceless Security Policy" 2>/dev/null &
+                kdialog --error "Access Denied.\n\nInteractive terminal access is strictly disabled on SourceLess OS." --title "SourceLess OS Security Policy" 2>/dev/null &
             else
                 echo "[-] Access Denied: Interactive terminal execution is restricted."
             fi

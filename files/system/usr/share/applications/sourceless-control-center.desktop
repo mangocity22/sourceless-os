@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=Sourceless Control Center
-Comment=Configure Sourceless OS
+Name=SourceLess Control Center
+Comment=Configure SourceLess OS
 Exec=/usr/bin/sourceless-control-center
 Icon=sourceless-control-center
 Terminal=false

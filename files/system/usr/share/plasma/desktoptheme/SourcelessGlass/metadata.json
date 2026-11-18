@@ -2,7 +2,7 @@
     "KPackageStructure": "Plasma/Theme",
     "KPlugin": {
         "Id": "SourcelessGlass",
-        "Name": "Sourceless Liquid Glass",
+        "Name": "SourceLess Liquid Glass",
         "Version": "1.0"
     },
     "ContrastEffect": {

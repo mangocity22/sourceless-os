@@ -1,4 +1,4 @@
-# /etc/starship.toml - Sourceless OS Global Shell Prompt
+# /etc/starship.toml - SourceLess OS Global Shell Prompt
 
 # Prompt layout format
 format = """

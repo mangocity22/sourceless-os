@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # =============================================================================
-# Sourceless-OS Build-Time Security and System Branding Setup
+# SourceLess OS Build-Time Security and System Branding Setup
 # =============================================================================
 
 set -uo pipefail
@@ -23,7 +23,7 @@ cat << 'EOF' > /usr/bin/konsole
 if [ -f /tmp/sourceless_support_active ] || [ -f /var/run/sourceless_support_active ]; then
     exec /usr/bin/konsole.real "$@"
 else
-    kdialog --error "Access Denied. Terminal execution is restricted on Sourceless-OS." --title "Security Policy"
+    kdialog --error "Access Denied. Terminal execution is restricted on SourceLess OS." --title "Security Policy"
     exit 1
 fi
 EOF
@@ -110,7 +110,10 @@ sed -i 's/^%wheel\s\+ALL=(ALL)\s\+ALL/# %wheel ALL=(ALL) ALL/' /etc/sudoers 2>/d
 # -----------------------------------------------------------------------------
 
 echo "[Sourceless] Configuring secure Flatpak remotes..."
-flatpak remote-add --system --if-not-exists fedora oci+https://registry.fedoraproject.org 2>/dev/null || true
+flatpak remote-delete --system --force fedora 2>/dev/null || true
+flatpak remote-delete --system --force fedora-testing 2>/dev/null || true
+rm -f /etc/flatpak/remotes.d/fedora*.flatpakrepo /usr/share/flatpak/remotes.d/fedora*.flatpakrepo 2>/dev/null || true
+systemctl mask flatpak-add-fedora-repos.service 2>/dev/null || true
 flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
 flatpak remote-modify --system --subset=verified flathub 2>/dev/null || true
 
@@ -140,28 +143,78 @@ systemctl mask fedora-atomic-desktop-appstream-cache-refresh.service 2>/dev/null
 systemctl enable rustdesk.service 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# 6. Official OS Release Identification (/usr/lib/os-release and /etc/os-release)
+# 6. Official OS Release Identification & Anaconda / Release Rebranding
 # -----------------------------------------------------------------------------
 
-echo "[Sourceless] Patching OS release metadata..."
-for os_target in /usr/lib/os-release /etc/os-release; do
-    if [ -f "$os_target" ] || [ -L "$os_target" ]; then
-        sed -i 's/^NAME=.*/NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Sourceless OS"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^ID=.*/ID=sourceless/' "$os_target" 2>/dev/null || true
-        
-        if grep -q "^ID_LIKE=" "$os_target"; then
-            sed -i 's/^ID_LIKE=.*/ID_LIKE="fedora"/' "$os_target" 2>/dev/null || true
-        else
-            echo 'ID_LIKE="fedora"' >> "$os_target"
-        fi
+echo "[Sourceless] Patching OS release metadata to SourceLess OS..."
+VER_ID="$(grep -m1 '^VERSION_ID=' /usr/lib/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
+[ -z "$VER_ID" ] && VER_ID="43"
 
-        sed -i 's/^HOME_URL=.*/HOME_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^DOCUMENTATION_URL=.*/DOCUMENTATION_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^SUPPORT_URL=.*/SUPPORT_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^BUG_REPORT_URL=.*/BUG_REPORT_URL="https:\/\/sourceless.net"/' "$os_target" 2>/dev/null || true
-        sed -i 's/^LOGO=.*/LOGO=sourceless-logo/' "$os_target" 2>/dev/null || true
-        sed -i 's/^DEFAULT_HOSTNAME=.*/DEFAULT_HOSTNAME=sourceless/' "$os_target" 2>/dev/null || true
+set_os_key() {
+    local file="$1"
+    local key="$2"
+    local val="$3"
+    if grep -q "^${key}=" "$file" 2>/dev/null; then
+        sed -i --follow-symlinks "s|^${key}=.*|${key}=${val}|" "$file" 2>/dev/null || true
+    else
+        echo "${key}=${val}" >> "$file"
+    fi
+}
+
+for os_target in /usr/lib/os-release /etc/os-release; do
+    if [ -f "$os_target" ] && [ ! -L "$os_target" ]; then
+        sed -i '/^REDHAT_BUGZILLA_/d; /^REDHAT_SUPPORT_/d' "$os_target" 2>/dev/null || true
+        set_os_key "$os_target" "NAME" '"SourceLess OS"'
+        set_os_key "$os_target" "PRETTY_NAME" '"SourceLess OS"'
+        set_os_key "$os_target" "VERSION" "\"${VER_ID} (SourceLess OS)\""
+        set_os_key "$os_target" "ID" "sourceless"
+        set_os_key "$os_target" "ID_LIKE" '"fedora"'
+        set_os_key "$os_target" "VARIANT" '"SourceLess OS"'
+        set_os_key "$os_target" "VARIANT_ID" "sourceless"
+        set_os_key "$os_target" "VENDOR_NAME" '"SourceLess"'
+        set_os_key "$os_target" "VENDOR_URL" '"https://sourceless.net"'
+        set_os_key "$os_target" "HOME_URL" '"https://sourceless.net"'
+        set_os_key "$os_target" "DOCUMENTATION_URL" '"https://sourceless.net"'
+        set_os_key "$os_target" "SUPPORT_URL" '"https://sourceless.net"'
+        set_os_key "$os_target" "BUG_REPORT_URL" '"https://sourceless.net"'
+        set_os_key "$os_target" "PRIVACY_POLICY_URL" '"https://sourceless.net"'
+        set_os_key "$os_target" "CPE_NAME" "\"cpe:/o:sourceless:sourceless_os:${VER_ID}\""
+        set_os_key "$os_target" "LOGO" "sourceless-logo"
+        set_os_key "$os_target" "DEFAULT_HOSTNAME" "sourceless"
+        sed -i 's/Fedora/SourceLess OS/g; s/Kinoite/SourceLess OS/g' "$os_target" 2>/dev/null || true
+    fi
+done
+
+for rel_file in /usr/lib/fedora-release /etc/fedora-release /usr/lib/system-release /etc/system-release /usr/lib/redhat-release /etc/redhat-release; do
+    if [ -f "$rel_file" ] && [ ! -L "$rel_file" ]; then
+        echo "SourceLess OS release ${VER_ID}" > "$rel_file"
+    fi
+done
+
+for cpe_file in /usr/lib/system-release-cpe /etc/system-release-cpe; do
+    if [ -f "$cpe_file" ] && [ ! -L "$cpe_file" ]; then
+        echo "cpe:/o:sourceless:sourceless_os:${VER_ID}" > "$cpe_file"
+    fi
+done
+
+for issue_file in /usr/lib/issue /etc/issue; do
+    if [ -f "$issue_file" ] && [ ! -L "$issue_file" ]; then
+        printf 'SourceLess OS \\S\nKernel \\r on an \\m (\\l)\n\n' > "$issue_file"
+    fi
+done
+if [ -f /etc/issue.net ] && [ ! -L /etc/issue.net ]; then
+    echo "SourceLess OS" > /etc/issue.net
+fi
+
+if [ -f /usr/share/applications/liveinst.desktop ]; then
+    sed -i 's/^Name=.*/Name=Install SourceLess OS/; s/^GenericName=.*/GenericName=Install SourceLess OS/; s/^Comment=.*/Comment=Install SourceLess OS to Hard Drive/; s/^Icon=.*/Icon=sourceless-logo/; s/Fedora/SourceLess OS/g' /usr/share/applications/liveinst.desktop 2>/dev/null || true
+fi
+if [ -f /usr/bin/liveinst ]; then
+    sed -i 's/ANACONDA_PRODUCTNAME=.*/ANACONDA_PRODUCTNAME="SourceLess OS"/g; s/Fedora/SourceLess OS/g' /usr/bin/liveinst 2>/dev/null || true
+fi
+for anaconda_conf in /etc/anaconda/profile.d/*.conf; do
+    if [ -f "$anaconda_conf" ]; then
+        sed -i 's/product_name = .*/product_name = SourceLess OS/g; s/Fedora/SourceLess OS/g' "$anaconda_conf" 2>/dev/null || true
     fi
 done
 
@@ -176,6 +229,10 @@ if [ -f /etc/default/grub ]; then
     sed -i 's|^GRUB_THEME=.*|GRUB_THEME="/usr/share/grub/themes/sourceless/theme.txt"|' /etc/default/grub 2>/dev/null || true
     if ! grep -q "^GRUB_THEME=" /etc/default/grub; then
         echo 'GRUB_THEME="/usr/share/grub/themes/sourceless/theme.txt"' >> /etc/default/grub
+    fi
+    sed -i 's|^GRUB_DISTRIBUTOR=.*|GRUB_DISTRIBUTOR="SourceLess OS"|' /etc/default/grub 2>/dev/null || true
+    if ! grep -q "^GRUB_DISTRIBUTOR=" /etc/default/grub; then
+        echo 'GRUB_DISTRIBUTOR="SourceLess OS"' >> /etc/default/grub
     fi
     sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=3/' /etc/default/grub 2>/dev/null || true
     sed -i 's/^GRUB_TERMINAL_OUTPUT=.*/GRUB_TERMINAL_OUTPUT="gfxterm"/' /etc/default/grub 2>/dev/null || true
@@ -200,6 +257,18 @@ if command -v grub2-mkconfig >/dev/null 2>&1; then
         grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg 2>/dev/null || true
     fi
 fi
+
+for bls_file in /boot/loader/entries/*.conf /usr/lib/ostree-boot/loader/entries/*.conf /usr/lib/modules/*/bls.conf; do
+    if [ -f "$bls_file" ]; then
+        sed -i '/^title /s/Fedora Linux/SourceLess OS/g; /^title /s/Fedora/SourceLess OS/g; /^title /s/Sourceless OS/SourceLess OS/g; /^title /s/ (Kinoite)//g' "$bls_file" 2>/dev/null || true
+    fi
+done
+
+for grub_cfg in /boot/grub2/grub.cfg /boot/efi/EFI/fedora/grub.cfg; do
+    if [ -f "$grub_cfg" ]; then
+        sed -i '/menuentry \|submenu \|^set /s/Fedora Linux/SourceLess OS/g; /menuentry \|submenu \|^set /s/Fedora/SourceLess OS/g; /menuentry \|submenu \|^set /s/Sourceless OS/SourceLess OS/g; /menuentry \|submenu \|^set /s/ (Kinoite)//g' "$grub_cfg" 2>/dev/null || true
+    fi
+done
 
 # -----------------------------------------------------------------------------
 # 8. Wallpaper Packaging & Safe Global KDE Enforcement
@@ -439,6 +508,11 @@ if [ ! -f /boot/efi/EFI/BOOT/grubx64.efi ] && [ -f /boot/efi/EFI/fedora/grubx64.
     cp -af /boot/efi/EFI/fedora/grubx64.efi /boot/efi/EFI/BOOT/grubx64.efi
 fi
 ls -la /boot/efi/EFI/BOOT/ /boot/efi/EFI/fedora/ || true
+
+if [ -d /usr/share/plymouth/themes/bgrt ]; then
+    cp -f /usr/share/plymouth/themes/spinner/watermark.png /usr/share/plymouth/themes/bgrt/watermark.png 2>/dev/null || true
+    cp -f /usr/share/plymouth/themes/spinner/sourceless-logo.png /usr/share/plymouth/themes/bgrt/sourceless-logo.png 2>/dev/null || true
+fi
 
 if command -v dracut >/dev/null 2>&1; then
     mkdir -p /var/tmp /tmp /etc/dracut.conf.d

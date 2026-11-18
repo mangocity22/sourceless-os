@@ -1,6 +1,6 @@
-# Sourceless OS &nbsp; [![bluebuild build badge](https://github.com/blue-build/template/actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
+# SourceLess OS &nbsp; [![bluebuild build badge](https://github.com/blue-build/template/actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
 
-**Sourceless OS** is a hardened, immutable desktop Linux image built with [BlueBuild](https://blue-build.org/) on top of Universal Blue's **Fedora Kinoite** (`ghcr.io/ublue-os/kinoite-main`), featuring **KDE Plasma 6 (Wayland)**, custom **SourcelessGlass** theming, kernel/user-space lockdown controls, real-time YARA threat scanning, and a native **Sourceless Control Center**.
+**SourceLess OS** is a hardened, immutable desktop Linux image built with [BlueBuild](https://blue-build.org/) on top of Universal Blue's **Fedora Kinoite** (`ghcr.io/ublue-os/kinoite-main`), featuring **KDE Plasma 6 (Wayland)**, custom **SourcelessGlass** theming, kernel/user-space lockdown controls, real-time YARA threat scanning, and a native **Sourceless Control Center**.
 
 ---
 

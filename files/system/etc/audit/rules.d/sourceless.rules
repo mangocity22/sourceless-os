@@ -1,5 +1,5 @@
 # /etc/audit/rules.d/sourceless.rules
-# Kernel auditd rules for Sourceless OS execution tracking and tamper detection
+# Kernel auditd rules for SourceLess OS execution tracking and tamper detection
 
 # 1. Clear any pre-existing audit rules on daemon startup
 -D

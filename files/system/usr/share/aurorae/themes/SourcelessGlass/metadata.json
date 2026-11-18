@@ -12,9 +12,9 @@
             "aurorae"
         ],
         "EnabledByDefault": true,
-        "Name": "Layan",
-        "Description" : "Layan window decorations",
-        "Id": "Layan",
+        "Name": "SourceLess Glass",
+        "Description" : "SourceLess OS window decorations",
+        "Id": "SourcelessGlass",
         "License": "GPL v3",
         "Version": "1.0",
         "X-KDE-PluginInfo-blur": true,

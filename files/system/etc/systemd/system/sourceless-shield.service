@@ -1,5 +1,5 @@
 [Unit]
-Description=Sourceless-OS Real-Time Downloads Threat Scanner
+Description=SourceLess OS Real-Time Downloads Threat Scanner
 After=local-fs.target network.target
 
 [Service]

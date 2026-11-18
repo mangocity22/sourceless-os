@@ -100,7 +100,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-iso
-          name: "Sourceless OS Live ISO"
+          name: "SourceLess OS Live ISO"
           body: "Automated 2-in-1 Live + Install ISO build. Download all parts (.001, .002...) and extract using 7-Zip or PeaZip."
           files: ${{ runner.temp }}/sourceless-os.7z.*
           make_latest: true

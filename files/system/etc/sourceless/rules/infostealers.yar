@@ -1,5 +1,5 @@
 /*
-   Sourceless-OS Autonomous Threat Signatures
+   SourceLess OS Autonomous Threat Signatures
    Target: Infostealers, Droppers, Cryptominers, Reverse Shells, and Standard Test Files
 */
 

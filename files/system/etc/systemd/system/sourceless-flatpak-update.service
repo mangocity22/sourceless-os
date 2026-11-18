@@ -1,5 +1,5 @@
 [Unit]
-Description=Sourceless-OS Silent Flatpak & Runtime Auto-Updater
+Description=SourceLess OS Silent Flatpak & Runtime Auto-Updater
 After=network-online.target
 Wants=network-online.target
 

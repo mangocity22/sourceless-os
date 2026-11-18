@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Sourceless OS - Default Look-and-Feel Theme Cleanup
+# SourceLess OS - Default Look-and-Feel Theme Cleanup
 # Removes upstream Breeze and Fedora global themes so only org.sourceless.desktop remains
 # =============================================================================
 set -oue pipefail

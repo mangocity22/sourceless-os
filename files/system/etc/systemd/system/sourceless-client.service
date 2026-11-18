@@ -1,5 +1,5 @@
 [Unit]
-Description=Sourceless-OS Client HWID Heartbeat Agent
+Description=SourceLess OS Client HWID Heartbeat Agent
 After=network-online.target
 
 [Service]

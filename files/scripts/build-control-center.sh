@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Sourceless OS - Native C++/Qt6 Control Center Build Script
+# SourceLess OS - Native C++/Qt6 Control Center Build Script
 # Compiles and installs sourceless-control-center into /usr during image build
 # =============================================================================
 set -euo pipefail

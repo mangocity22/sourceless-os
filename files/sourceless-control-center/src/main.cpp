@@ -58,9 +58,9 @@ int main(int argc, char *argv[])
     QQuickWindow::setDefaultAlphaBuffer(true);
     QGuiApplication app(argc, argv);
 
-    app.setOrganizationName(QStringLiteral("Sourceless NCH"));
+    app.setOrganizationName(QStringLiteral("SourceLess NCH"));
     app.setApplicationName(QStringLiteral("SourcelessControlCenter"));
-    app.setApplicationDisplayName(QStringLiteral("Sourceless Control Center"));
+    app.setApplicationDisplayName(QStringLiteral("SourceLess Control Center"));
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/sourceless-control-center.svg")));
 
     const QString startPage = resolveInitialPage(app.arguments());

@@ -3,6 +3,13 @@
 # Configures Live USB sessions or enforces installed home ownership, Plasma layout, and SELinux contexts
 set -euo pipefail
 
+# 0. Ensure OSTree BLS boot entries retain SourceLess OS branding across upgrades
+for bls_file in /boot/loader/entries/*.conf; do
+    if [ -f "$bls_file" ]; then
+        sed -i '/^title /s/Fedora Linux/SourceLess OS/g; /^title /s/Fedora/SourceLess OS/g; /^title /s/Sourceless OS/SourceLess OS/g; /^title /s/ (Kinoite)//g' "$bls_file" 2>/dev/null || true
+    fi
+done
+
 # 1. Handle Live USB session when booted with rd.live.image
 if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
     mkdir -p /var/home /var/roothome /var/lib/sddm /var/tmp /var/log
@@ -11,7 +18,7 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
 
     # Create passwordless liveuser account with wheel access for installer execution
     if ! id liveuser >/dev/null 2>&1; then
-        useradd -m -d /var/home/liveuser -G wheel -s /bin/bash -c "Sourceless Live User" liveuser 2>/dev/null || true
+        useradd -m -d /var/home/liveuser -G wheel -s /bin/bash -c "SourceLess OS Live User" liveuser 2>/dev/null || true
         passwd -d liveuser 2>/dev/null || true
     fi
 
@@ -31,6 +38,7 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
     # Expose Anaconda installer on Desktop and autostart when booted with liveinst
     mkdir -p /var/home/liveuser/Desktop /var/home/liveuser/.config/autostart
     if [ -f /usr/share/applications/liveinst.desktop ]; then
+        sed -i 's/^Name=.*/Name=Install SourceLess OS/; s/^GenericName=.*/GenericName=Install SourceLess OS/; s/^Comment=.*/Comment=Install SourceLess OS to Hard Drive/; s/^Icon=.*/Icon=sourceless-logo/; s/Fedora/SourceLess OS/g' /usr/share/applications/liveinst.desktop 2>/dev/null || true
         cp -f /usr/share/applications/liveinst.desktop /var/home/liveuser/Desktop/liveinst.desktop
         chmod +x /var/home/liveuser/Desktop/liveinst.desktop
         if grep -qw "liveinst" /proc/cmdline 2>/dev/null; then

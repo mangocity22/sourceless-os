@@ -1,5 +1,5 @@
 [Unit]
-Description=Sourceless OS Certificate Verification Authority
+Description=SourceLess OS Certificate Verification Authority
 After=network.target
 
 [Service]

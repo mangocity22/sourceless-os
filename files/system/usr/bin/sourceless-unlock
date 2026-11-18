@@ -15,7 +15,7 @@ SECRET_SALT="SourcelessSecretSalt2026"
 GENERATED_KEY=$(echo -n "${CURRENT_DATE}-${SECRET_SALT}" | sha256sum | head -c 8)
 
 echo "=================================================="
-echo "         Sourceless-OS // SUPPORT GATE            "
+echo "         SourceLess OS // SUPPORT GATE            "
 echo "=================================================="
 echo "WARNING: Accessing this area breaks the security "
 echo "seal and voids the system warranty immediately."

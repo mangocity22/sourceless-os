@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-autoupdate
-# Automated background updater for Sourceless-OS packages & runtimes
+# Automated background updater for SourceLess OS packages & runtimes
 
 # 1. Synchronize metadata and update all system-wide Flatpaks
 /usr/bin/flatpak update -y --noninteractive >/dev/null 2>&1

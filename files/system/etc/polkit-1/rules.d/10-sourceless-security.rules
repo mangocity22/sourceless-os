@@ -1,5 +1,5 @@
 // /etc/polkit-1/rules.d/10-sourceless-security.rules
-// Security enforcement policies for Sourceless-OS
+// Security enforcement policies for SourceLess OS
 
 // Restrict systemd unit management to root execution only
 polkit.addRule(function(action, subject) {

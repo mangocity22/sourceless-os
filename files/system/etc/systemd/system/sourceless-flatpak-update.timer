@@ -1,5 +1,5 @@
 [Unit]
-Description=Periodic trigger for Sourceless-OS Package Updates
+Description=Periodic trigger for SourceLess OS Package Updates
 
 [Timer]
 # Runs 10 minutes after machine startup

@@ -1,5 +1,5 @@
 [Unit]
-Description=Sourceless OS Home Directory Ownership and SELinux Guard
+Description=SourceLess OS Home Directory Ownership and SELinux Guard
 After=local-fs.target
 Before=sddm.service plasmalogin.service display-manager.service
 

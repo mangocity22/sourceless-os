@@ -1,6 +1,6 @@
 #!/bin/bash
 # /usr/bin/sourceless-cert-verify.sh
-# Local PKI initialization and mutual TLS (mTLS) certificate verification server
+# SourceLess OS local PKI initialization and mutual TLS (mTLS) certificate verification server
 
 CERT_DIR="/etc/sourceless/certs"
 PORT=8443
