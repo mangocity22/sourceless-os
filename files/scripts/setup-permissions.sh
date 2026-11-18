@@ -472,12 +472,18 @@ fi
 ls -la /boot/efi/EFI/BOOT/ /boot/efi/EFI/fedora/ || true
 
 if command -v dracut >/dev/null 2>&1; then
-    mkdir -p /var/tmp /tmp
+    mkdir -p /var/tmp /tmp /etc/dracut.conf.d
     for conf in /etc/dracut.conf.d/*.conf /usr/lib/dracut/dracut.conf.d/*.conf; do
         if [ -f "$conf" ] && grep -q "dmsquash-live\|pollcdrom" "$conf" 2>/dev/null; then
             sed -i 's/dmsquash-live-autooverlay//g; s/dmsquash-live//g; s/pollcdrom//g' "$conf" || true
         fi
     done
+    cat << 'EOF' > /etc/dracut.conf.d/99-sourceless-live.conf
+add_dracutmodules+=" dmsquash-live dmsquash-live-autooverlay pollcdrom "
+add_drivers+=" squashfs overlay loop isofs sr_mod cdrom "
+hostonly="no"
+hostonly_cmdline="no"
+EOF
     for kver_dir in /usr/lib/modules/*; do
         if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
             kver="$(basename "$kver_dir")"

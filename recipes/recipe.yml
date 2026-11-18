@@ -123,8 +123,6 @@ modules:
       - clean-default-themes.sh
       - build-control-center.sh
 
-  - type: initramfs
-
   - type: kargs
     kargs:
       - lockdown=integrity
