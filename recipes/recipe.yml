@@ -72,6 +72,9 @@ modules:
         - livesys-scripts
         - anaconda-live
         - anaconda-webui
+        - grub2-efi-x64
+        - grub2-efi-x64-cdboot
+        - shim-x64
 
     remove:
       packages:

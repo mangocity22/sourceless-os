@@ -448,7 +448,26 @@ if [ -f "$LAYOUT_SRC" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 10. Rebuild Icon Caches and Desktop Databases
+# 10. Ensure UEFI Boot Binaries Exist at /boot/efi/EFI for Titanoboa Live ISO
+# -----------------------------------------------------------------------------
+
+if [ ! -d /boot/efi/EFI/fedora ] || [ -z "$(ls -A /boot/efi/EFI/fedora 2>/dev/null)" ]; then
+    echo "[Sourceless] Populating /boot/efi/EFI from /usr/lib/efi for Live ISO..."
+    mkdir -p /boot/efi/EFI/fedora /boot/efi/EFI/BOOT
+    for efi_dir in /usr/lib/efi/*/EFI/fedora; do
+        if [ -d "$efi_dir" ]; then
+            cp -af "$efi_dir"/* /boot/efi/EFI/fedora/ 2>/dev/null || true
+        fi
+    done
+    for boot_dir in /usr/lib/efi/*/EFI/BOOT; do
+        if [ -d "$boot_dir" ]; then
+            cp -af "$boot_dir"/* /boot/efi/EFI/BOOT/ 2>/dev/null || true
+        fi
+    done
+fi
+
+# -----------------------------------------------------------------------------
+# 11. Rebuild Icon Caches and Desktop Databases
 # -----------------------------------------------------------------------------
 
 echo "[Sourceless] Regenerating system icon caches and application metadata..."
