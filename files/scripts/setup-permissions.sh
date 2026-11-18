@@ -471,6 +471,16 @@ if [ ! -f /boot/efi/EFI/BOOT/grubx64.efi ] && [ -f /boot/efi/EFI/fedora/grubx64.
 fi
 ls -la /boot/efi/EFI/BOOT/ /boot/efi/EFI/fedora/ || true
 
+if command -v dracut >/dev/null 2>&1; then
+    for kver_dir in /usr/lib/modules/*; do
+        if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
+            kver="$(basename "$kver_dir")"
+            echo "[Sourceless] Regenerating initramfs for $kver with dmsquash-live..."
+            dracut --no-hostonly --kver "$kver" --force --add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img"
+        fi
+    done
+fi
+
 # -----------------------------------------------------------------------------
 # 11. Rebuild Icon Caches and Desktop Databases
 # -----------------------------------------------------------------------------
