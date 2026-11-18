@@ -26,11 +26,11 @@
 │   │       ├── ControlCenter.qml # Frameless 10-page UI with instant setting search
 │   │       └── icons/            # Embedded SVG icon resources
 │   └── system/                   # Files copied directly onto `/` of the target OS image
-│       ├── etc/                  # System configs: auditd, polkit, sudoers, sysctl, systemd, xdg, skel, YARA rules
+│       ├── etc/                  # System configs: anaconda profile, gtk-3.0/4.0, auditd, polkit, sudoers, sysctl, systemd, xdg, skel, YARA rules
 │       └── usr/
 │           ├── bin/              # Runtime daemons, guards, sandbox wrapper, support dialog & fix-home
 │           ├── lib/              # bootc-image-builder iso.yaml & sourceless-fix-home.service
-│           └── share/            # Desktop entries, GRUB/Plymouth/SDDM/Plasma/Aurorae/Kvantum themes & wallpapers
+│           └── share/            # Desktop entries, installer CSS/JS (`sourceless/installer/`), GRUB/Plymouth/SDDM/Plasma/Aurorae/Kvantum themes & wallpapers
 ├── installer-config.toml         # Anaconda kickstart settings (graphical install, locked root account)
 └── cosign.pub                    # Public key for verifying signed container images
 ```

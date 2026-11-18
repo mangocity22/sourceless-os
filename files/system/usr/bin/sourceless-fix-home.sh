@@ -26,14 +26,24 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
     echo "liveuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-liveuser
     chmod 440 /etc/sudoers.d/99-liveuser
 
-    # Populate skeleton desktop configuration and lock screen theme
+    # Populate skeleton desktop configuration, dark GTK settings, and lock screen theme
     if [ ! -f /var/home/liveuser/.config/plasma-org.kde.plasma.desktop-appletsrc ]; then
         cp -a /etc/skel/. /var/home/liveuser/ 2>/dev/null || true
     fi
-    if [ -f /etc/xdg/kscreenlockerrc ]; then
-        mkdir -p /var/home/liveuser/.config
-        cp -f /etc/xdg/kscreenlockerrc /var/home/liveuser/.config/kscreenlockerrc
-    fi
+    mkdir -p /var/home/liveuser/.config/Kvantum /var/home/liveuser/.config/gtk-3.0 /var/home/liveuser/.config/gtk-4.0
+    cp -f /etc/xdg/kscreenlockerrc /var/home/liveuser/.config/kscreenlockerrc 2>/dev/null || true
+    cp -f /etc/xdg/kdeglobals /var/home/liveuser/.config/kdeglobals 2>/dev/null || true
+    cp -f /etc/xdg/plasmarc /var/home/liveuser/.config/plasmarc 2>/dev/null || true
+    cp -f /etc/xdg/kwinrc /var/home/liveuser/.config/kwinrc 2>/dev/null || true
+    cp -f /etc/xdg/Kvantum/kvantum.kvconfig /var/home/liveuser/.config/Kvantum/kvantum.kvconfig 2>/dev/null || true
+    cp -f /etc/gtk-3.0/settings.ini /var/home/liveuser/.config/gtk-3.0/settings.ini 2>/dev/null || true
+    cp -f /etc/gtk-4.0/settings.ini /var/home/liveuser/.config/gtk-4.0/settings.ini 2>/dev/null || true
+
+    for root_cfg in /root/.config /var/roothome/.config; do
+        mkdir -p "$root_cfg/gtk-3.0" "$root_cfg/gtk-4.0"
+        cp -f /etc/gtk-3.0/settings.ini "$root_cfg/gtk-3.0/settings.ini" 2>/dev/null || true
+        cp -f /etc/gtk-4.0/settings.ini "$root_cfg/gtk-4.0/settings.ini" 2>/dev/null || true
+    done
 
     # Expose Anaconda installer on Desktop and autostart when booted with liveinst
     mkdir -p /var/home/liveuser/Desktop /var/home/liveuser/.config/autostart

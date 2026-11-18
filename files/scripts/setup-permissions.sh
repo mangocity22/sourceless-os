@@ -148,7 +148,7 @@ systemctl enable rustdesk.service 2>/dev/null || true
 
 echo "[Sourceless] Patching OS release metadata to SourceLess OS..."
 VER_ID="$(grep -m1 '^VERSION_ID=' /usr/lib/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
-[ -z "$VER_ID" ] && VER_ID="43"
+[ -z "$VER_ID" ] && VER_ID="45"
 
 set_os_key() {
     local file="$1"
@@ -217,6 +217,100 @@ for anaconda_conf in /etc/anaconda/profile.d/*.conf; do
         sed -i 's/product_name = .*/product_name = SourceLess OS/g; s/Fedora/SourceLess OS/g' "$anaconda_conf" 2>/dev/null || true
     fi
 done
+
+if [ -f /etc/anaconda/anaconda.conf ]; then
+    if grep -q "^profile_id\s*=" /etc/anaconda/anaconda.conf; then
+        sed -i 's/^profile_id\s*=.*/profile_id = sourceless/' /etc/anaconda/anaconda.conf 2>/dev/null || true
+    elif grep -q "^\[Profile\]" /etc/anaconda/anaconda.conf; then
+        sed -i '/^\[Profile\]/a profile_id = sourceless' /etc/anaconda/anaconda.conf 2>/dev/null || true
+    fi
+fi
+
+# Propagate dark GTK3/GTK4 settings to root, roothome, and user skeleton
+for gtk_home in /root/.config /var/roothome/.config /etc/skel/.config; do
+    mkdir -p "$gtk_home/gtk-3.0" "$gtk_home/gtk-4.0"
+    cp -f /etc/gtk-3.0/settings.ini "$gtk_home/gtk-3.0/settings.ini" 2>/dev/null || true
+    cp -f /etc/gtk-4.0/settings.ini "$gtk_home/gtk-4.0/settings.ini" 2>/dev/null || true
+done
+
+# Apply SourceLess OS GTK stylesheet and logo assets for Anaconda & Cockpit branding
+if [ -f /usr/share/sourceless/installer/anaconda-gtk.css ] && [ -d /usr/share/anaconda ]; then
+    cp -f /usr/share/sourceless/installer/anaconda-gtk.css /usr/share/anaconda/anaconda-gtk.css 2>/dev/null || true
+fi
+
+LOGO_SVG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.svg"
+LOGO_PNG="/usr/share/icons/hicolor/scalable/apps/sourceless-logo.png"
+
+if [ -d /usr/share/anaconda/pixmaps ]; then
+    for f in /usr/share/anaconda/pixmaps/*logo* /usr/share/anaconda/pixmaps/*sidebar* /usr/share/anaconda/pixmaps/*fedora*; do
+        if [ -f "$f" ]; then
+            case "$f" in
+                *.svg) [ -f "$LOGO_SVG" ] && cp -f "$LOGO_SVG" "$f" 2>/dev/null || true ;;
+                *.png) [ -f "$LOGO_PNG" ] && cp -f "$LOGO_PNG" "$f" 2>/dev/null || true ;;
+            esac
+        fi
+    done
+fi
+
+for brand_dir in /usr/share/cockpit/branding/*; do
+    if [ -d "$brand_dir" ]; then
+        for f in "$brand_dir"/*.svg "$brand_dir"/*.png; do
+            if [ -f "$f" ]; then
+                case "$f" in
+                    *logo*.svg|*fedora*.svg) [ -f "$LOGO_SVG" ] && cp -f "$LOGO_SVG" "$f" 2>/dev/null || true ;;
+                    *logo*.png|*fedora*.png) [ -f "$LOGO_PNG" ] && cp -f "$LOGO_PNG" "$f" 2>/dev/null || true ;;
+                esac
+            fi
+        done
+    fi
+done
+
+# Theme and rebrand Anaconda WebUI (Fedora 45 Cockpit / PatternFly 5 & 6)
+WEBUI_DIR="/usr/share/cockpit/anaconda-webui"
+if [ -d "$WEBUI_DIR" ]; then
+    echo "[Sourceless] Applying LockScreen-inspired Cyber Dark theme to Anaconda WebUI..."
+    find "$WEBUI_DIR" -type f -name "*.gz" -exec gunzip -f {} + 2>/dev/null || true
+
+    cp -f /usr/share/sourceless/installer/sourceless-webui.css "$WEBUI_DIR/sourceless-webui.css" 2>/dev/null || true
+    cp -f /usr/share/sourceless/installer/sourceless-webui.js "$WEBUI_DIR/sourceless-webui.js" 2>/dev/null || true
+    if [ -f "$LOGO_SVG" ]; then
+        cp -f "$LOGO_SVG" "$WEBUI_DIR/sourceless-logo.svg" 2>/dev/null || true
+        cp -f "$LOGO_SVG" "$WEBUI_DIR/logo.svg" 2>/dev/null || true
+    fi
+
+    find "$WEBUI_DIR" -type f \( -iname "*fedora*.svg" -o -iname "*logo*.svg" \) ! -name "sourceless-logo.svg" ! -name "logo.svg" | while read -r asset; do
+        [ -f "$LOGO_SVG" ] && cp -f "$LOGO_SVG" "$asset" 2>/dev/null || true
+    done
+    find "$WEBUI_DIR" -type f \( -iname "*fedora*.png" -o -iname "*logo*.png" \) | while read -r asset; do
+        [ -f "$LOGO_PNG" ] && cp -f "$LOGO_PNG" "$asset" 2>/dev/null || true
+    done
+
+    if [ -f "$WEBUI_DIR/index.css" ] && [ -f "$WEBUI_DIR/sourceless-webui.css" ]; then
+        cat "$WEBUI_DIR/sourceless-webui.css" >> "$WEBUI_DIR/index.css"
+    fi
+
+    if [ -f "$WEBUI_DIR/index.html" ]; then
+        if ! grep -qE '<html[^>]*class=' "$WEBUI_DIR/index.html"; then
+            sed -i 's/<html/<html class="pf-v5-theme-dark pf-v6-theme-dark"/g' "$WEBUI_DIR/index.html" 2>/dev/null || true
+        else
+            sed -i 's/\(<html[^>]*class=["'\'']\)/\1pf-v5-theme-dark pf-v6-theme-dark /g' "$WEBUI_DIR/index.html" 2>/dev/null || true
+        fi
+        sed -i 's|<title>[^<]*</title>|<title>SourceLess OS Installer</title>|g' "$WEBUI_DIR/index.html" 2>/dev/null || true
+        if ! grep -q "sourceless-webui.css" "$WEBUI_DIR/index.html"; then
+            sed -i 's|</head>|<link rel="stylesheet" href="sourceless-webui.css">\n<script src="sourceless-webui.js" defer></script>\n</head>|g' "$WEBUI_DIR/index.html" 2>/dev/null || true
+        fi
+    fi
+
+    find "$WEBUI_DIR" -type f \( -name "*.js" -o -name "*.json" -o -name "*.html" \) ! -name "sourceless-webui.js" | while read -r webfile; do
+        sed -i 's/Fedora Linux/SourceLess OS/g; s/Fedora Kinoite/SourceLess OS/g; s/Fedora/SourceLess OS/g; s/Kinoite/SourceLess OS/g' "$webfile" 2>/dev/null || true
+    done
+
+    for gz_target in "$WEBUI_DIR/index.html" "$WEBUI_DIR/index.css" "$WEBUI_DIR/index.js" "$WEBUI_DIR"/po.*.js; do
+        if [ -f "$gz_target" ]; then
+            gzip -k -f "$gz_target" 2>/dev/null || true
+        fi
+    done
+fi
 
 chmod 644 /etc/xdg/kcm-about-distrorc 2>/dev/null || true
 

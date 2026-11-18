@@ -1,0 +1,465 @@
+/* =============================================================================
+ * SourceLess OS - Anaconda WebUI Cyber Glass Theme (Fedora 45 / PatternFly 5 & 6)
+ * Modeled after LockScreenUi.qml (#090B12 obsidian, #6054F2 violet, #A7FF52 lime)
+ * ============================================================================= */
+
+:root,
+html,
+body,
+.pf-v5-theme-dark,
+.pf-v6-theme-dark {
+    --sl-bg-obsidian: #090B12;
+    --sl-bg-hud: rgba(9, 11, 18, 0.88);
+    --sl-bg-card: rgba(18, 22, 35, 0.90);
+    --sl-bg-card-elevated: rgba(24, 29, 46, 0.94);
+    --sl-bg-input: rgba(10, 13, 21, 0.92);
+    --sl-cyber-lime: #A7FF52;
+    --sl-cyber-violet: #6054F2;
+    --sl-cyber-violet-hover: #7368F7;
+    --sl-danger: #F2546D;
+    --sl-warning: #F5A623;
+    --sl-text-main: #E8ECFF;
+    --sl-text-muted: #949BC0;
+    --sl-border-subtle: rgba(255, 255, 255, 0.12);
+
+    color-scheme: dark;
+
+    /* PatternFly 5 global dark tokens */
+    --pf-v5-global--BackgroundColor--100: #111420;
+    --pf-v5-global--BackgroundColor--200: #090B12;
+    --pf-v5-global--BackgroundColor--300: #0D111C;
+    --pf-v5-global--BackgroundColor--400: #181C2E;
+    --pf-v5-global--BackgroundColor--light-100: #111420;
+    --pf-v5-global--BackgroundColor--light-200: #0D111C;
+    --pf-v5-global--BackgroundColor--light-300: #090B12;
+    --pf-v5-global--BackgroundColor--dark-100: #090B12;
+    --pf-v5-global--BackgroundColor--dark-200: #0D111C;
+    --pf-v5-global--BackgroundColor--dark-300: #111420;
+    --pf-v5-global--BackgroundColor--dark-400: #181C2E;
+    --pf-v5-global--Color--100: #E8ECFF;
+    --pf-v5-global--Color--200: #949BC0;
+    --pf-v5-global--Color--300: #E8ECFF;
+    --pf-v5-global--Color--400: #949BC0;
+    --pf-v5-global--Color--light-100: #E8ECFF;
+    --pf-v5-global--Color--light-200: #949BC0;
+    --pf-v5-global--Color--dark-100: #E8ECFF;
+    --pf-v5-global--Color--dark-200: #949BC0;
+    --pf-v5-global--BorderColor--100: rgba(255, 255, 255, 0.12);
+    --pf-v5-global--BorderColor--200: rgba(255, 255, 255, 0.16);
+    --pf-v5-global--BorderColor--300: rgba(255, 255, 255, 0.08);
+    --pf-v5-global--primary-color--100: #6054F2;
+    --pf-v5-global--primary-color--200: #7368F7;
+    --pf-v5-global--link--Color: #A7FF52;
+    --pf-v5-global--link--Color--hover: #C2FF85;
+    --pf-v5-global--active-color--100: #6054F2;
+    --pf-v5-global--active-color--400: rgba(96, 84, 242, 0.25);
+    --pf-v5-global--success-color--100: #A7FF52;
+    --pf-v5-global--warning-color--100: #F5A623;
+    --pf-v5-global--danger-color--100: #F2546D;
+    --pf-v5-global--info-color--100: #6054F2;
+
+    /* PatternFly 6 global & semantic dark tokens (Fedora 45 WebUI) */
+    --pf-t--global--background--color--primary--default: #111420;
+    --pf-t--global--background--color--primary--hover: #191E30;
+    --pf-t--global--background--color--primary--clicked: #21273D;
+    --pf-t--global--background--color--secondary--default: #090B12;
+    --pf-t--global--background--color--secondary--hover: #121623;
+    --pf-t--global--background--color--floating--default: #141827;
+    --pf-t--global--background--color--control--default: #0A0D15;
+    --pf-t--global--background--color--action--plain--hover: rgba(96, 84, 242, 0.18);
+    --pf-t--global--background--color--action--plain--clicked: rgba(96, 84, 242, 0.28);
+    --pf-t--global--text--color--regular: #E8ECFF;
+    --pf-t--global--text--color--subtle: #949BC0;
+    --pf-t--global--text--color--placeholder: rgba(148, 155, 192, 0.65);
+    --pf-t--global--text--color--link--default: #A7FF52;
+    --pf-t--global--text--color--link--hover: #C2FF85;
+    --pf-t--global--text--color--brand--default: #A7FF52;
+    --pf-t--global--color--brand--default: #6054F2;
+    --pf-t--global--color--brand--hover: #7368F7;
+    --pf-t--global--color--brand--clicked: #4F44D8;
+    --pf-t--global--border--color--default: rgba(255, 255, 255, 0.12);
+    --pf-t--global--border--color--high-contrast: rgba(255, 255, 255, 0.22);
+    --pf-t--global--border--color--clicked: #6054F2;
+    --pf-t--global--border--color--status--danger--default: #F2546D;
+    --pf-t--global--border--color--status--warning--default: #F5A623;
+    --pf-t--global--border--color--status--success--default: #A7FF52;
+    --pf-v6-global--BackgroundColor--100: #111420;
+    --pf-v6-global--BackgroundColor--200: #090B12;
+    --pf-v6-global--Color--100: #E8ECFF;
+    --pf-v6-global--Color--200: #949BC0;
+}
+
+/* Full-screen obsidian cyber canvas */
+html,
+body {
+    background: radial-gradient(circle at 50% 18%, rgba(96, 84, 242, 0.14) 0%, rgba(9, 11, 18, 0.98) 55%),
+                linear-gradient(180deg, #080A12 0%, #0A0D17 50%, #05080F 100%) !important;
+    background-color: var(--sl-bg-obsidian) !important;
+    color: var(--sl-text-main) !important;
+    min-height: 100vh;
+    margin: 0;
+    font-family: "Inter", "Noto Sans", system-ui, -apple-system, sans-serif !important;
+}
+
+body {
+    padding-top: 52px !important;
+    box-sizing: border-box;
+}
+
+/* Top Cyber HUD Bar (matches LockScreenUi.qml topHud) */
+#sl-cyber-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    background: var(--sl-bg-hud);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    user-select: none;
+}
+
+#sl-cyber-hud .sl-hud-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#sl-cyber-hud .sl-hud-logo {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+#sl-cyber-hud .sl-hud-title {
+    color: var(--sl-text-main);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+}
+
+#sl-cyber-hud .sl-hud-sep {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.14);
+}
+
+#sl-cyber-hud .sl-hud-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sl-cyber-lime);
+    box-shadow: 0 0 10px rgba(167, 255, 82, 0.75);
+}
+
+#sl-cyber-hud .sl-hud-subtitle {
+    color: var(--sl-text-muted);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+}
+
+#sl-cyber-hud .sl-hud-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#sl-cyber-hud .sl-hud-date {
+    color: var(--sl-text-muted);
+    font-size: 12px;
+    letter-spacing: 0.6px;
+}
+
+#sl-cyber-hud .sl-hud-time {
+    color: var(--sl-text-main);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Transparent shell wrappers so the central cyber card floats over obsidian backdrop */
+#app,
+.pf-v5-c-page,
+.pf-v6-c-page,
+.pf-v5-c-page__main,
+.pf-v6-c-page__main,
+.pf-v5-c-page__main-section,
+.pf-v6-c-page__main-section {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v5-c-page__header,
+.pf-v6-c-page__header,
+.pf-v5-c-masthead,
+.pf-v6-c-masthead {
+    background: rgba(10, 13, 21, 0.72) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Hide upstream Fedora logo placeholders inside masthead */
+.pf-v5-c-masthead__brand img[src*="fedora"],
+.pf-v6-c-masthead__brand img[src*="fedora"],
+img[alt*="Fedora" i] {
+    content: url("./logo.svg");
+}
+
+/* Central Cyber Wizard Card (matches LockScreenUi.qml cyberCard) */
+.pf-v5-c-wizard,
+.pf-v6-c-wizard,
+.anaconda-screen-main {
+    position: relative;
+    max-width: 1120px;
+    margin: 24px auto !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, rgba(28, 33, 53, 0.90) 0%, rgba(13, 18, 31, 0.95) 100%) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.72) !important;
+    overflow: hidden;
+    border: 1px solid transparent !important;
+}
+
+.pf-v5-c-wizard::before,
+.pf-v6-c-wizard::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1.5px;
+    background: linear-gradient(135deg, #A7FF52 0%, #6E62FF 50%, #6054F2 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.pf-v5-c-wizard__header,
+.pf-v6-c-wizard__header,
+.pf-v5-c-wizard__nav,
+.pf-v6-c-wizard__nav,
+.pf-v5-c-wizard__main,
+.pf-v6-c-wizard__main,
+.pf-v5-c-wizard__footer,
+.pf-v6-c-wizard__footer {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v5-c-wizard__header,
+.pf-v6-c-wizard__header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.pf-v5-c-wizard__nav,
+.pf-v6-c-wizard__nav {
+    background: rgba(9, 11, 18, 0.55) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.pf-v5-c-wizard__footer,
+.pf-v6-c-wizard__footer {
+    background: rgba(9, 11, 18, 0.65) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 16px 24px !important;
+}
+
+/* Wizard Stepper / Navigation Links */
+.pf-v5-c-wizard__nav-link,
+.pf-v6-c-wizard__nav-link {
+    color: var(--sl-text-muted) !important;
+    border-radius: 8px !important;
+}
+
+.pf-v5-c-wizard__nav-link.pf-m-current,
+.pf-v6-c-wizard__nav-link.pf-m-current,
+.pf-v5-c-wizard__nav-link[aria-current="step"],
+.pf-v6-c-wizard__nav-link[aria-current="step"] {
+    color: var(--sl-text-main) !important;
+    font-weight: 700 !important;
+    background: rgba(96, 84, 242, 0.22) !important;
+}
+
+.pf-v5-c-wizard__nav-link.pf-m-current::before,
+.pf-v6-c-wizard__nav-link.pf-m-current::before {
+    background-color: var(--sl-cyber-lime) !important;
+}
+
+/* Cards, Selection Tiles, and Modals */
+.pf-v5-c-card,
+.pf-v6-c-card,
+.pf-v5-c-tile,
+.pf-v6-c-tile,
+.pf-v5-c-modal-box,
+.pf-v6-c-modal-box,
+.pf-v5-c-menu,
+.pf-v6-c-menu,
+.pf-v5-c-popover__content,
+.pf-v6-c-popover__content {
+    background: rgba(16, 20, 32, 0.88) !important;
+    border: 1px solid var(--sl-border-subtle) !important;
+    border-radius: 12px !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v5-c-card.pf-m-selectable:hover,
+.pf-v6-c-card.pf-m-selectable:hover,
+.pf-v5-c-tile:hover,
+.pf-v6-c-tile:hover {
+    border-color: rgba(115, 104, 247, 0.65) !important;
+    background: rgba(24, 30, 48, 0.92) !important;
+}
+
+.pf-v5-c-card.pf-m-selected,
+.pf-v6-c-card.pf-m-selected,
+.pf-v5-c-tile.pf-m-selected,
+.pf-v6-c-tile.pf-m-selected {
+    border-color: var(--sl-cyber-violet) !important;
+    box-shadow: 0 0 0 1px var(--sl-cyber-violet), 0 0 16px rgba(96, 84, 242, 0.28) !important;
+    background: rgba(96, 84, 242, 0.16) !important;
+}
+
+/* Inputs, Textboxes, and Selects */
+.pf-v5-c-form-control,
+.pf-v6-c-form-control,
+.pf-v5-c-menu-toggle,
+.pf-v6-c-menu-toggle,
+.pf-v5-c-text-input-group,
+.pf-v6-c-text-input-group,
+input[type="text"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+    background-color: var(--sl-bg-input) !important;
+    color: #FFFFFF !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 10px !important;
+}
+
+.pf-v5-c-form-control:focus-within,
+.pf-v6-c-form-control:focus-within,
+.pf-v5-c-menu-toggle:focus,
+.pf-v6-c-menu-toggle:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--sl-cyber-violet) !important;
+    box-shadow: 0 0 0 2px rgba(96, 84, 242, 0.25) !important;
+    outline: none !important;
+}
+
+/* Buttons */
+.pf-v5-c-button,
+.pf-v6-c-button {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.pf-v5-c-button.pf-m-primary,
+.pf-v6-c-button.pf-m-primary {
+    background-color: var(--sl-cyber-violet) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    letter-spacing: 0.4px;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v6-c-button.pf-m-primary:hover {
+    background-color: var(--sl-cyber-violet-hover) !important;
+    box-shadow: 0 0 18px rgba(96, 84, 242, 0.45) !important;
+}
+
+.pf-v5-c-button.pf-m-secondary,
+.pf-v6-c-button.pf-m-secondary {
+    background-color: rgba(10, 13, 21, 0.90) !important;
+    color: var(--sl-text-main) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+
+.pf-v5-c-button.pf-m-secondary:hover,
+.pf-v6-c-button.pf-m-secondary:hover {
+    border-color: var(--sl-cyber-lime) !important;
+    color: var(--sl-cyber-lime) !important;
+}
+
+.pf-v5-c-button.pf-m-danger,
+.pf-v6-c-button.pf-m-danger {
+    background-color: var(--sl-danger) !important;
+    color: #FFFFFF !important;
+}
+
+/* Checkboxes, Radios & Switches */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked,
+.pf-v5-c-switch__input:checked ~ .pf-v5-c-switch__toggle,
+.pf-v6-c-switch__input:checked ~ .pf-v6-c-switch__toggle {
+    background-color: var(--sl-cyber-violet) !important;
+    border-color: var(--sl-cyber-violet) !important;
+}
+
+/* Alerts & Banners */
+.pf-v5-c-alert,
+.pf-v6-c-alert {
+    background: rgba(14, 18, 30, 0.92) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v5-c-alert.pf-m-warning,
+.pf-v6-c-alert.pf-m-warning {
+    border-color: rgba(245, 166, 35, 0.55) !important;
+}
+
+.pf-v5-c-alert.pf-m-danger,
+.pf-v6-c-alert.pf-m-danger {
+    border-color: rgba(242, 84, 109, 0.55) !important;
+}
+
+.pf-v5-c-alert.pf-m-success,
+.pf-v6-c-alert.pf-m-success {
+    border-color: rgba(167, 255, 82, 0.55) !important;
+}
+
+/* Progress Bars */
+.pf-v5-c-progress__bar,
+.pf-v6-c-progress__bar {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 999px !important;
+    overflow: hidden;
+}
+
+.pf-v5-c-progress__indicator,
+.pf-v6-c-progress__indicator {
+    background: linear-gradient(90deg, #6054F2 0%, #A7FF52 100%) !important;
+    border-radius: 999px !important;
+}
+
+/* Custom Dark Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(9, 11, 18, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(148, 155, 192, 0.35);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--sl-cyber-violet);
+}

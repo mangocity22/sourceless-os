@@ -1,0 +1,126 @@
+/* =============================================================================
+ * SourceLess OS - Anaconda GTK3 Fallback & Container Stylesheet
+ * Styles GTK3 Anaconda screens and webui-desktop container in LockScreen obsidian palette
+ * ============================================================================= */
+
+@define-color sl_obsidian #090B12;
+@define-color sl_surface #11131E;
+@define-color sl_header #06080E;
+@define-color sl_input #0A0D15;
+@define-color sl_violet #6054F2;
+@define-color sl_violet_hover #7368F7;
+@define-color sl_lime #A7FF52;
+@define-color sl_danger #F2546D;
+@define-color sl_text_main #E8ECFF;
+@define-color sl_text_muted #949BC0;
+
+window,
+dialog,
+.background {
+    background-color: @sl_obsidian;
+    color: @sl_text_main;
+}
+
+headerbar,
+.titlebar,
+.anaconda-spoke-selector,
+.anaconda-header,
+box.header {
+    background-color: @sl_header;
+    background-image: none;
+    color: @sl_text_main;
+    border-bottom: 1px solid alpha(#ffffff, 0.08);
+    box-shadow: none;
+}
+
+.anaconda-hub-box,
+.anaconda-spoke-box,
+frame > border,
+scrolledwindow,
+stack,
+notebook,
+list,
+treeview.view {
+    background-color: @sl_surface;
+    color: @sl_text_main;
+    border-color: alpha(#ffffff, 0.12);
+}
+
+row:selected,
+treeview.view:selected {
+    background-color: alpha(@sl_violet, 0.35);
+    color: #ffffff;
+}
+
+entry,
+spinbutton,
+combobox button,
+textview text {
+    background-color: @sl_input;
+    color: #ffffff;
+    border: 1px solid alpha(#ffffff, 0.14);
+    border-radius: 8px;
+}
+
+entry:focus,
+combobox button:focus {
+    border-color: @sl_violet;
+}
+
+button {
+    background-color: @sl_input;
+    background-image: none;
+    color: @sl_text_main;
+    border: 1px solid alpha(#ffffff, 0.16);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: bold;
+}
+
+button:hover {
+    border-color: @sl_lime;
+    color: @sl_lime;
+}
+
+button.suggested-action {
+    background-color: @sl_violet;
+    background-image: none;
+    color: #ffffff;
+    border-color: @sl_violet;
+}
+
+button.suggested-action:hover {
+    background-color: @sl_violet_hover;
+    color: #ffffff;
+}
+
+button.destructive-action {
+    background-color: @sl_danger;
+    background-image: none;
+    color: #ffffff;
+    border-color: @sl_danger;
+}
+
+progressbar trough {
+    background-color: alpha(#ffffff, 0.08);
+    border-radius: 999px;
+    min-height: 8px;
+}
+
+progressbar progress {
+    background-image: linear-gradient(to right, @sl_violet, @sl_lime);
+    border-radius: 999px;
+}
+
+label.dim-label {
+    color: @sl_text_muted;
+}
+
+scrollbar slider {
+    background-color: alpha(@sl_text_muted, 0.35);
+    border-radius: 4px;
+}
+
+scrollbar slider:hover {
+    background-color: @sl_violet;
+}
