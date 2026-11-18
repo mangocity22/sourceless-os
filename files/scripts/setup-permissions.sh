@@ -473,13 +473,19 @@ ls -la /boot/efi/EFI/BOOT/ /boot/efi/EFI/fedora/ || true
 
 if command -v dracut >/dev/null 2>&1; then
     mkdir -p /var/tmp /tmp
+    ls -d /usr/lib/dracut/modules.d/*dmsquash* /usr/lib/dracut/modules.d/*pollcdrom* 2>/dev/null || true
     grep -rn "omit_dracutmodules\|dmsquash" /usr/lib/dracut/dracut.conf.d/ /etc/dracut.conf.d/ 2>/dev/null || true
+    for conf in /etc/dracut.conf.d/*.conf /usr/lib/dracut/dracut.conf.d/*.conf; do
+        if [ -f "$conf" ] && grep -q "dmsquash-live\|pollcdrom" "$conf" 2>/dev/null; then
+            sed -i 's/dmsquash-live//g; s/pollcdrom//g' "$conf" || true
+        fi
+    done
     for kver_dir in /usr/lib/modules/*; do
         if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
             kver="$(basename "$kver_dir")"
             echo "[Sourceless] Regenerating initramfs for $kver with dmsquash-live..."
             dracut --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img"
-            if ! lsinitrd "$kver_dir/initramfs.img" | grep -q "dmsquash-live"; then
+            if ! lsinitrd -m "$kver_dir/initramfs.img" | grep -q "dmsquash-live"; then
                 echo "[Sourceless] ERROR: dmsquash-live missing from $kver_dir/initramfs.img!"
                 lsinitrd -m "$kver_dir/initramfs.img" || true
                 exit 1
