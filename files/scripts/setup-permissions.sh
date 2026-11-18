@@ -472,11 +472,16 @@ fi
 ls -la /boot/efi/EFI/BOOT/ /boot/efi/EFI/fedora/ || true
 
 if command -v dracut >/dev/null 2>&1; then
+    mkdir -p /var/tmp /tmp
     for kver_dir in /usr/lib/modules/*; do
         if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
             kver="$(basename "$kver_dir")"
             echo "[Sourceless] Regenerating initramfs for $kver with dmsquash-live..."
-            dracut --no-hostonly --kver "$kver" --force --add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img"
+            dracut --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img"
+            if ! lsinitrd "$kver_dir/initramfs.img" | grep -q "dmsquash-live"; then
+                echo "[Sourceless] ERROR: dmsquash-live missing from $kver_dir/initramfs.img!"
+                exit 1
+            fi
         fi
     done
 fi
