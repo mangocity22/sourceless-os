@@ -1,6 +1,6 @@
-# /etc/starship.toml - Sourceless OS Global Prompt
+# /etc/starship.toml - Sourceless OS Global Shell Prompt
 
-# Formatul liniei de comanda
+# Prompt layout format
 format = """
 $username\
 $hostname\
@@ -10,27 +10,27 @@ $git_status\
 $character
 """
 
-# Utilizatorul (mereu vizibil)
+# Username module (always visible)
 [username]
 show_always = true
 style_user = "bold green"
 style_root = "bold red"
 format = "[$user]($style)"
 
-# Hostname-ul sistemului
+# Hostname module
 [hostname]
 ssh_only = false
 style = "bold blue"
 format = "@[$hostname]($style) in "
 
-# Directorul curent
+# Current working directory module
 [directory]
 truncation_length = 3
 truncation_symbol = "…/"
 style = "bold cyan"
 format = "[$path]($style) "
 
-# Simbolul de prompt
+# Prompt character indicator
 [character]
 success_symbol = "[❯](bold green)"
 error_symbol = "[❯](bold red)"

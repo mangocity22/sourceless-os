@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
+"""PyQt6 confirmation prompt displayed to the desktop user before starting a RustDesk support session."""
+
 import sys
 from PyQt6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtGui import QPixmap, QFont
 from PyQt6.QtCore import Qt
 
+
 class SupportDialog(QDialog):
+    """Modal authorization dialog asking the user to approve or reject a remote support request."""
+
     def __init__(self):
         super().__init__()
 
-        # Bara de titlu KWin clasica (fara text ca sa lase loc logo-ului)
+        # Keep native KWin titlebar clean (blank title reserves space visually for header branding)
         self.setWindowTitle(" ")
         self.setFixedSize(550, 240)
 
-        # Magia CSS: Izolam fundalul DOAR pentru fereastra (QDialog)
-        # Si fortam fundal transparent pentru text (QLabel) ca sa scapam de patratele negre
+        # Scope background color to QDialog and keep QLabel backgrounds transparent to avoid black label boxes
         self.setStyleSheet("""
             QDialog {
                 background-color: #1a1b26;
@@ -51,21 +55,20 @@ class SupportDialog(QDialog):
         main_layout.setContentsMargins(30, 20, 30, 30)
         main_layout.setSpacing(20)
 
-        # --- 1. LOGO LUNG SOURCELESS SUPPORT TEAM (Sus) ---
-        # Spune-le celor de la design sa faca un logo orizontal (ex: 400x50px), cu fundal transparent (PNG)
+        # 1. Top Sourceless Support Team horizontal banner logo
         logo_label = QLabel()
-        logo_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-team.png") # Pune calea corecta aici
+        logo_pixmap = QPixmap("/usr/share/sourceless/Resources/sourceless-team.png")
         if not logo_pixmap.isNull():
             logo_label.setPixmap(logo_pixmap.scaledToHeight(35, Qt.TransformationMode.SmoothTransformation))
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(logo_label)
 
-        # --- 2. ICONITA CHEIE SI TEXTUL (Mijloc) ---
+        # 2. Support key icon and confirmation prompt text
         content_layout = QHBoxLayout()
         content_layout.setSpacing(25)
 
         icon_label = QLabel()
-        icon_pixmap = QPixmap("/usr/share/sourceless/Resources/support-key.svg") # Pune calea corecta aici
+        icon_pixmap = QPixmap("/usr/share/sourceless/Resources/support-key.svg")
         if not icon_pixmap.isNull():
             icon_label.setPixmap(icon_pixmap.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         icon_label.setFixedSize(72, 72)
@@ -92,7 +95,7 @@ class SupportDialog(QDialog):
         content_layout.addLayout(text_layout)
         main_layout.addLayout(content_layout)
 
-        # --- 3. BUTOANELE (Jos) ---
+        # 3. Bottom Yes/No action buttons
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -114,9 +117,10 @@ class SupportDialog(QDialog):
         main_layout.addLayout(btn_layout)
         self.setLayout(main_layout)
 
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     dialog = SupportDialog()
-    
-    # Returneaza 0 pentru Yes, 1 pentru No
+
+    # Exit 0 when approved (Yes), 1 when rejected or closed (No)
     sys.exit(0 if dialog.exec() else 1)

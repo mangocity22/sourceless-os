@@ -1,4 +1,5 @@
-// Restrictioneaza actiunile administrative exclusiv la root
+// /etc/polkit-1/rules.d/00-admin-root-only.rules
+// Restrict all Polkit administrative authentication prompts exclusively to the root account
 polkit.addAdminRule(function(action, subject) {
     return ["unix-user:root"];
 });

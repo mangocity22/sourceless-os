@@ -4,7 +4,7 @@ After=local-fs.target
 
 [Service]
 Type=oneshot
-# Elimină complet fișierele .threat din carantină
+# Permanently delete quarantined .threat files
 ExecStart=/usr/bin/find /var/quarantine/ -type f -name "*.threat" -delete
 
 [Install]

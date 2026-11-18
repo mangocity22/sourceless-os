@@ -5,23 +5,24 @@ Item {
     id: root
     anchors.fill: parent
 
-    // Configurare pentru cele 125 de cadre (000 - 124)
+    // Frame sequence configuration (125 frames: 000 to 124)
     property int totalFrames: 125
     property int currentFrame: 0
 
+    // Zero-pad frame index to 3 digits
     function getFrameName(index) {
         if (index < 10) return "00" + index;
         if (index < 100) return "0" + index;
         return "" + index;
     }
 
-    // Fundal negru absolut
+    // Solid black backdrop
     Rectangle {
         anchors.fill: parent
         color: "#000000"
     }
 
-    // Logo Principal Static - decalat cu 50px mai sus de centrul ecranului
+    // Centered static Sourceless logo (offset 50px above center)
     Image {
         id: mainLogo
         anchors.centerIn: parent
@@ -35,7 +36,7 @@ Item {
         fillMode: Image.PreserveAspectFit
     }
 
-    // Timer animatie (~30 FPS: 33ms per cadru)
+    // ~30 FPS animation timer (33ms per frame)
     Timer {
         interval: 33
         running: true
@@ -45,7 +46,7 @@ Item {
         }
     }
 
-    // Rotița de încărcare redusă la 40x40 px
+    // Animated loading spinner below the main logo
     Image {
         id: loaderSequence
         anchors.top: mainLogo.bottom

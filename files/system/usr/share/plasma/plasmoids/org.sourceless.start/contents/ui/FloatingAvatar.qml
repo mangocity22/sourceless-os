@@ -23,33 +23,35 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components 1.0 as KirigamiComponents
 import org.kde.kcmutils as KCM
 
-PlasmaCore.Dialog { //cosmic background noise is less random than the placement of this dialog
-  id: avatarContainer
+// Floating overlay dialog displaying the user avatar centered above the launcher top border
+PlasmaCore.Dialog {
+    id: avatarContainer
 
-  property int avatarWidth
-  property bool isTop: false
+    property int avatarWidth
+    property bool isTop: false
 
-  type: "Notification"
+    type: "Notification"
 
-  x: root.x + root.width / 2 - width / 2
-  y: root.y - width / 2 //you can't even add 1 without everything breaking wtf
+    // Position dialog centered horizontally over the launcher top edge
+    x: root.x + root.width / 2 - width / 2
+    y: root.y - width / 2
 
-  mainItem:
-  Item {
-   onParentChanged: {
-     //This removes the dialog background
-      if (parent){
-        var popupWindow = Window.window
-        if (typeof popupWindow.backgroundHints !== "undefined"){
-          popupWindow.backgroundHints = PlasmaCore.Types.NoBackground
+    // Remove the default Plasma dialog background frame when the popup window attaches
+    mainItem: Item {
+        onParentChanged: {
+            if (parent) {
+                var popupWindow = Window.window
+                if (typeof popupWindow.backgroundHints !== "undefined") {
+                    popupWindow.backgroundHints = PlasmaCore.Types.NoBackground
+                }
+            }
         }
-      }
     }
-  }
-  UserAvatar {
-    id: avatarFrame
-    anchors.centerIn: parent
-    width: avatarWidth
-    height: avatarWidth
-  }
+
+    UserAvatar {
+        id: avatarFrame
+        anchors.centerIn: parent
+        width: avatarWidth
+        height: avatarWidth
+    }
 }

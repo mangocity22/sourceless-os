@@ -1,57 +1,52 @@
-// Curatam panouri existente daca este cazul
+// Reset existing Plasma panels before applying the Sourceless desktop layout
 var pList = panels();
 for (var i = pList.length - 1; i >= 0; i--) {
     pList[i].remove();
 }
 
-// 1. Capsula flotanta Sourceless (52px)
-var bar = new Panel;
+// 1. Configure image wallpaper plugin on all desktop containments
+var d = desktops();
+for (var i = 0; i < d.length; i++) {
+    d[i].wallpaperPlugin = "org.kde.image";
+}
+
+// 2. Create the floating Sourceless bottom panel (52px)
+var bar = new Panel("org.kde.panel");
 bar.location = "bottom";
 bar.height = 52;
 bar.floating = true;
 bar.hiding = "windowsgobelow";
 
-// 2. Buton Start (Kickoff cu logo Sourceless)
-var kickoff = bar.addWidget("org.kde.plasma.kickoff");
+// Write native Plasma 6 containment keys directly in the root config group
+bar.currentConfigGroup = [];
+bar.writeConfig("thickness", 52);
+bar.writeConfig("floating", 1);
+bar.writeConfig("panelVisibility", 2);
+bar.writeConfig("panelOpacity", 2);
+bar.writeConfig("panelLengthMode", 0);
+
+// 3. Add Sourceless Start Menu launcher
+var kickoff = bar.addWidget("org.sourceless.start");
 kickoff.currentConfigGroup = ["General"];
 kickoff.writeConfig("icon", "sourceless-logo");
 
-// 3. Distantier elastic stanga
+// 4. Left flexible spacer
 bar.addWidget("org.kde.plasma.panelspacer");
 
-// 4. Icons-Only Task Manager centrat
+// 5. Centered Icons-Only Task Manager (KConfig comma-separated launcher list)
 var tasks = bar.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
-tasks.writeConfig("launchers", [
-    "preferred://filemanager",
-    "preferred://browser"
-]);
+tasks.writeConfig("launchers", "preferred://filemanager,preferred://browser");
 
-// 5. Distantier elastic dreapta
+// 6. Right flexible spacer
 bar.addWidget("org.kde.plasma.panelspacer");
 
-// 6. System Tray compact
+// 7. Compact System Tray (KConfig comma-separated item lists)
 var tray = bar.addWidget("org.kde.plasma.systemtray");
 tray.currentConfigGroup = ["General"];
-tray.writeConfig("scaleIconsToFit", false);
-tray.writeConfig("shownItems", [
-    "org.kde.plasma.networkmanagement",
-    "org.kde.plasma.volume"
-]);
-tray.writeConfig("hiddenItems", [
-    "org.kde.plasma.clipboard",
-    "org.kde.plasma.brightness",
-    "org.kde.plasma.devicenotifier",
-    "org.kde.plasma.notifications"
-]);
+tray.writeConfig("scaleIconsToFit", "false");
+tray.writeConfig("shownItems", "org.kde.plasma.networkmanagement,org.kde.plasma.volume");
+tray.writeConfig("hiddenItems", "org.kde.plasma.clipboard,org.kde.plasma.brightness,org.kde.plasma.devicenotifier,org.kde.plasma.notifications");
 
-// 7. Ceas Digital
-var clock = bar.addWidget("org.kde.plasma.digitalclock");
-clock.currentConfigGroup = ["Appearance"];
-clock.writeConfig("autoFontAndSize", false);
-clock.writeConfig("fontSize", 10.5);
-clock.writeConfig("boldText", true);
-clock.writeConfig("showDate", true);
-clock.writeConfig("dateFormat", "shortDate");
-clock.writeConfig("showSeconds", "Never");
-clock.writeConfig("use24hFormat", "2");
+// 8. Add Sourceless digital clock widget
+bar.addWidget("org.sourceless.clock");

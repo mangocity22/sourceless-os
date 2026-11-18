@@ -1,4 +1,3 @@
-
 /***************************************************************************
  *   Copyright (C) 2014-2015 by Eike Hein <hein@kde.org>                   *
  *   Copyright (C) 2021 by Prateek SU <pankajsunal123@gmail.com>           *
@@ -10,7 +9,7 @@
  *                                                                         *
  *   This program is distributed in the hope that it will be useful,       *
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           *
  *   GNU General Public License for more details.                          *
  *                                                                         *
  *   You should have received a copy of the GNU General Public License     *
@@ -32,7 +31,6 @@ import org.kde.plasma.private.kicker 0.1 as Kicker
 
 import org.kde.kirigami 2.20 as Kirigami
 
-
 PlasmoidItem {
     id: kicker
 
@@ -52,11 +50,7 @@ PlasmoidItem {
 
     Plasmoid.icon: Plasmoid.configuration.useCustomButtonImage ? Plasmoid.configuration.customButtonImage : Plasmoid.configuration.icon
 
-
-    // onSystemFavoritesChanged: {
-    //     systemFavorites.favorites = Plasmoid.configuration.favoriteSystemActions;
-    // }
-
+    // Launch KDE menu editor from context menu action
     function action_menuedit() {
         processRunner.runMenuEditor();
     }
@@ -71,12 +65,13 @@ PlasmoidItem {
         MenuRepresentation { }
     }
 
+    // Root application and favorites data model provided by Kicker
     Kicker.RootModel {
         id: rootModel
 
         autoPopulate: false
 
-        appNameFormat: 0// Plasmoid.configuration.appNameFormat
+        appNameFormat: 0
         flat: true
         sorted: true
         showSeparators: false
@@ -84,21 +79,19 @@ PlasmoidItem {
 
         showAllApps: true
         showAllAppsCategorized: false
-        showTopLevelItems: true//!kicker.isDash
-        showRecentApps: true // Plasmoid.configuration.showRecentApps
-        showRecentDocs: true //Plasmoid.configuration.showRecentDocs
+        showTopLevelItems: true
+        showRecentApps: true
+        showRecentDocs: true
         showPowerSession: false
-       // showRecentContacts: true//Plasmoid.configuration.showRecentContacts
-       // recentOrdering: 1 // Plasmoid.configuration.recentOrdering
 
         onRecentOrderingChanged: {
             Plasmoid.configuration.recentOrdering = recentOrdering;
         }
 
         Component.onCompleted: {
-            favoritesModel.initForClient("org.kde.plasma.kicker.favorites.instance-" + Plasmoid.id)
+            favoritesModel.initForClient("org.kde.plasma.kicker.favorites.instance-" + Plasmoid.id);
 
-           // kicker.logListModel("rootmodel", rootModel);
+            // Migrate legacy favorite apps into KActivitiesStats on first initialization
             if (!Plasmoid.configuration.favoritesPortedToKAstats) {
                 if (favoritesModel.count < 1) {
                     favoritesModel.portOldFavorites(Plasmoid.configuration.favoriteApps);
@@ -108,6 +101,7 @@ PlasmoidItem {
         }
     }
 
+    // Persist favorite application changes back to plasmoid configuration
     Connections {
         target: globalFavorites
 
@@ -116,6 +110,7 @@ PlasmoidItem {
         }
     }
 
+    // Persist system action favorite changes back to plasmoid configuration
     Connections {
         target: systemFavorites
 
@@ -124,6 +119,7 @@ PlasmoidItem {
         }
     }
 
+    // Sync configuration changes into active models
     Connections {
         target: Plasmoid.configuration
 
@@ -136,6 +132,7 @@ PlasmoidItem {
         }
     }
 
+    // KRunner search backend model
     Kicker.RunnerModel {
         id: runnerModel
 
@@ -144,21 +141,20 @@ PlasmoidItem {
         mergeResults: true
     }
 
+    // Shared drag-and-drop source holder (workaround for KDE bug 449426)
     readonly property Item dragSource: Item {
-        id: dragSource // BUG 449426
+        id: dragSource
         property Item sourceItem
         Drag.dragType: Drag.Automatic
     }
 
     Kicker.ProcessRunner {
-        id: processRunner;
+        id: processRunner
     }
 
     KSvg.FrameSvgItem {
         id: highlightItemSvg
-
         visible: false
-
         imagePath: "widgets/viewitem"
         prefix: "hover"
     }
@@ -177,12 +173,9 @@ PlasmoidItem {
 
     PlasmaComponents.Label {
         id: toolTipDelegate
-
         width: contentWidth
         height: contentHeight
-
         property Item toolTip
-
         text: (toolTip != null) ? toolTip.text : ""
     }
 
@@ -194,11 +187,12 @@ PlasmoidItem {
         visible: false
     }
 
+    // Clear active drag source reference after drop completes
     function resetDragSource() {
         dragSource = null;
     }
 
-     Plasmoid.contextualActions: [
+    Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: i18n("Edit Applications…")
             icon.name: "kmenuedit"
@@ -208,7 +202,6 @@ PlasmoidItem {
     ]
 
     Component.onCompleted: {
-        //plasmoid.setAction("menuedit", i18n("Edit Applications..."));
         rootModel.refreshed.connect(reset);
     }
 }

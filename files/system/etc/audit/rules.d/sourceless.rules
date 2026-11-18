@@ -1,17 +1,17 @@
 # /etc/audit/rules.d/sourceless.rules
-# Regulile de securitate Kernel pentru Sourceless-OS
+# Kernel auditd rules for Sourceless OS execution tracking and tamper detection
 
-# 1. Ștergem orice reguli vechi la pornire
+# 1. Clear any pre-existing audit rules on daemon startup
 -D
 
-# 2. Setăm dimensiunea buffer-ului
+# 2. Set kernel audit backlog buffer size
 -b 8192
 
-# 3. Înregistrăm absolut orice executare de program (execve) inițiată de utilizatori (UID >= 1000)
+# 3. Record all program executions (execve) initiated by standard users (UID >= 1000)
 -a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=4294967295 -k sourceless_exec
 -a always,exit -F arch=b32 -S execve -F auid>=1000 -F auid!=4294967295 -k sourceless_exec
 
-# 4. Monitorizăm orice tentativă de modificare a fișierelor de securitate Sourceless
+# 4. Monitor write and attribute modifications on critical Sourceless security paths
 -w /etc/sourceless/ -p wa -k sourceless_tamper
 -w /etc/sudoers -p wa -k sourceless_tamper
 -w /etc/sudoers.d/ -p wa -k sourceless_tamper

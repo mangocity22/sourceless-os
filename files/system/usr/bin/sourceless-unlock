@@ -1,19 +1,17 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-unlock
+# Offline root support gate protected by a daily UTC rolling authorization key
 
-# 1. Enforce root execution
+# 1. Enforce root execution via sudo
 if [ "$EUID" -ne 0 ]; then
     echo "[-] Error: This tool must be run with sudo privileges."
     echo "    Please run: sudo sourceless-unlock"
     exit 1
 fi
 
-# 2. Algoritmul de Rolling Password
-# Forțăm data în format UTC
+# 2. Compute today's 8-character rolling authorization key using UTC date
 CURRENT_DATE=$(date -u +%Y-%m-%d)
 SECRET_SALT="SourcelessSecretSalt2026"
-
-# Generăm cheia unică de 8 caractere pentru ziua de azi
 GENERATED_KEY=$(echo -n "${CURRENT_DATE}-${SECRET_SALT}" | sha256sum | head -c 8)
 
 echo "=================================================="
@@ -24,7 +22,7 @@ echo "seal and voids the system warranty immediately."
 echo "=================================================="
 echo ""
 
-# Cerem cheia de securitate tehnicianului
+# 3. Prompt technician for the authorization key and validate input
 read -s -p "Enter Today's Support Authorization Key: " USER_KEY
 echo ""
 
@@ -38,11 +36,11 @@ fi
 echo "[+] Access Granted. Initiating Support Session..."
 logger -t "sourceless-security" -p user.warn "SUPPORT SESSION ACTIVATED VIA ROLLING KEY"
 
-# Creăm fișierul capcană pentru Dashboard
+# 4. Create persistent tamper seal flag reported to the telemetry daemon and Control Center
 mkdir -p /etc/sourceless
 chmod 755 /etc/sourceless
 touch /etc/sourceless/.tamper_detected
 chmod 644 /etc/sourceless/.tamper_detected
 
-# Lansăm shell-ul de root
+# 5. Drop into an interactive root shell
 exec /usr/bin/bash

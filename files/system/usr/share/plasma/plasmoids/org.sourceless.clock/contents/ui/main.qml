@@ -7,10 +7,10 @@ import org.kde.plasma.workspace.calendar as PlasmaCalendar
 PlasmoidItem {
     id: root
 
-    // Folosim enum-ul nativ Plasma 6 ca să nu arunce eroare QML la boot
-    // și NU mai modificăm Plasmoid.containment.backgroundHints!
+    // Use native Plasma 6 NoBackground hint without mutating containment properties
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
 
+    // Compact taskbar representation (time and date stacked vertically)
     compactRepresentation: Item {
         id: compactRoot
         Layout.minimumWidth: timeColumn.implicitWidth + 24
@@ -59,6 +59,7 @@ PlasmoidItem {
         }
     }
 
+    // Popup calendar representation
     fullRepresentation: Item {
         Layout.preferredWidth: 340
         Layout.preferredHeight: 360

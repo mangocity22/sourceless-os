@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Sourceless OS - Default Look-and-Feel Theme Cleanup
+# Removes upstream Breeze and Fedora global themes so only org.sourceless.desktop remains
+# =============================================================================
 set -oue pipefail
 
-echo "=== Curatare Global Themes default (Breeze / Fedora) ==="
+echo "=== Removing upstream default Look-and-Feel packages (Breeze / Fedora) ==="
 
-# Pastram animatia de splash personalizata in tema globala activa org.sourceless.desktop
-if [ -d /usr/share/plasma/look-and-feel/org.kde.breeze.desktop/contents/splash ] && [ -d /usr/share/plasma/look-and-feel/org.sourceless.desktop/contents ]; then
-    rm -rf /usr/share/plasma/look-and-feel/org.sourceless.desktop/contents/splash
-    cp -a /usr/share/plasma/look-and-feel/org.kde.breeze.desktop/contents/splash /usr/share/plasma/look-and-feel/org.sourceless.desktop/contents/splash
-fi
-
-# Stergem pachetele de Look-and-Feel default ca sa dispara complet din System Settings
+# Purge default global themes from /usr/share/plasma/look-and-feel
 rm -rf /usr/share/plasma/look-and-feel/org.kde.breeze*
 rm -rf /usr/share/plasma/look-and-feel/org.fedoraproject*
 
-echo "=== Temele implicite au fost eliminate. A ramas exclusiv org.sourceless.desktop ==="
+echo "=== Default themes removed; org.sourceless.desktop is now exclusive ==="

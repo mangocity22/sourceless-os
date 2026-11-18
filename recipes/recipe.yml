@@ -1,22 +1,22 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-# image will be published to ghcr.io/<user>/<name>
+# Image metadata and target registry details (published to ghcr.io/<user>/<name>)
 name: sourceless-os
-# description will be included in the image's metadata
-description: This is my personal OS image.
+description: Hardened immutable desktop OS image based on Fedora Kinoite with KDE Plasma 6 and Sourceless security controls.
 
-# the base image to build on top of (FROM) and the version tag to use
+# Base OCI image and tag used as the starting layer
 base-image: ghcr.io/ublue-os/kinoite-main
-image-version: latest # latest is also supported if you want new updates ASAP
+image-version: latest
 
-# module configuration, executed in order
-# you can include multiple instances of the same module
+# Build modules executed sequentially in order
 modules:
+  # 1. Overlay custom system configs, scripts, systemd units, themes, and wallpapers onto /
   - type: files
     files:
       - source: system
-        destination: / # copies files/system/* (* means everything inside it) into your image's root folder /
+        destination: /
 
+  # 2. Install security tooling, desktop utilities, Qt6/KF6 build deps, and Live ISO packages; remove unmanaged updaters
   - type: dnf
     repos:
       copr:
@@ -79,50 +79,51 @@ modules:
 
     remove:
       packages:
-        # example: removing firefox (in favor of the flatpak)
-        # "firefox" is the main package, "firefox-langpacks" is a dependency
         - firefox
-        - firefox-langpacks # also remove firefox dependency (not required for all packages, this is a special case)
+        - firefox-langpacks
         - plasma-discover-backends-fwupd
         - fwupd
         - plasma-discover-packagekit
         - plasma-discover-offline-updates
         - PackageKit
 
-
+  # 3. Configure verified Flathub Flatpaks for all users and enable user-scope Flathub remote
   - type: default-flatpaks
     configurations:
-      - notify: true # Send notification after install/uninstall is finished (true/false)
+      - notify: true
         scope: system
-        # If no repo information is specified, Flathub will be used by default
-        install: # system flatpaks we want all users to have and not remove
+        install:
           - org.mozilla.firefox
           - com.github.tchx84.Flatseal
-      - scope: user # Also add Flathub user repo, but no user packages
+      - scope: user
 
-  - type: signing # this sets up the proper policy & signing files for signed images to work fully
+  # 4. Install Cosign container verification policies and keys
+  - type: signing
 
+  # 5. Enable Sourceless security/desktop services and mask conflicting upstream units
   - type: systemd
     system:
       enabled:
-          - auditd.service
-          - sourceless-client.service
-          - sourceless-flatpak-update.timer
-          - sourceless-shield.service
-          - sourceless-quarantine-purge.timer
-          - dev-shm.mount
-          - cups.service
-          - sddm.service
+        - auditd.service
+        - sourceless-client.service
+        - sourceless-flatpak-update.timer
+        - sourceless-shield.service
+        - sourceless-quarantine-purge.timer
+        - dev-shm.mount
+        - cups.service
+        - sddm.service
       disabled:
-          - fedora-atomic-desktop-appstream-cache-refresh.service
-          - plasmalogin.service
+        - fedora-atomic-desktop-appstream-cache-refresh.service
+        - plasmalogin.service
 
+  # 6. Execute post-install lockdown, theme cleanup, and native Control Center compilation scripts
   - type: script
     scripts:
       - setup-permissions.sh
       - clean-default-themes.sh
       - build-control-center.sh
 
+  # 7. Enforce kernel integrity lockdown and quiet graphical boot splash
   - type: kargs
     kargs:
       - lockdown=integrity

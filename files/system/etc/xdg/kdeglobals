@@ -5,7 +5,7 @@ action/run_command=false
 action/system_run_command=false
 action/open_terminal_here=false
 
-[kdeglobals][General]
+[General]
 ColorScheme=SourcelessGlass
 
 [KDE URL Restrictions][$i]

@@ -1,3 +1,9 @@
+[General]
+ColorScheme=SourcelessGlass
+
+[Icons]
+Theme=SourcelessIcons
+
 [KDE]
 LookAndFeelPackage=org.sourceless.desktop
 widgetStyle=kvantum

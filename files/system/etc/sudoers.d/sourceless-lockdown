@@ -1,2 +1,2 @@
-# Permite utilizatorului sourceless sa ruleze DOAR scriptul de deblocare ca root, fara parola
+# Allow the standard sourceless user to execute only the offline support unlock gate as root without a password
 sourceless ALL=(root) NOPASSWD: /usr/bin/sourceless-unlock

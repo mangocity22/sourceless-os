@@ -7,5 +7,5 @@ Type=Application
 Categories=Qt;KDE;System;TerminalEmulator;
 StartupNotify=true
 X-KDE-StartupWMClass=konsole
-# Această linie o ascunde complet din meniul grafic și din căutări:
+# Hide raw Konsole launcher from application menus and search results
 NoDisplay=true

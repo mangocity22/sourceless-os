@@ -18,9 +18,9 @@ while ! pgrep -x plasmashell >/dev/null 2>&1 && (( waited < 30 )); do
 done
 sleep 2
 
-# Apply the BreezeDark theme for security
+# Apply the SourcelessGlass color scheme
 if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
-    plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
+    plasma-apply-colorscheme SourcelessGlass >/dev/null 2>&1 || plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
 fi
 
 # Wait up to 10 seconds for plasmashell to register on DBus

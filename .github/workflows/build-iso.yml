@@ -19,7 +19,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Eliberare agresiva a spatiului pe runner
+      # 1. Reclaim runner disk space before pulling container layers
       - name: Free Disk Space
         run: |
           echo "Free disk space before cleanup:"
@@ -38,7 +38,7 @@ jobs:
           echo "Free disk space after cleanup:"
           df -h /
 
-      # 2. Normalizare nume imagine si detectare automata VERSION_ID (Fedora)
+      # 2. Normalize image reference and detect Fedora VERSION_ID
       - name: Detect Image Metadata
         id: meta
         run: |
@@ -56,7 +56,7 @@ jobs:
           echo "Detected Fedora VERSION_ID=${FEDORA_VER}"
           echo "version=${FEDORA_VER}" >> "$GITHUB_OUTPUT"
 
-      # 3. Generare 2-in-1 Live + Installer ISO cu Titanoboa (ublue-os/titanoboa)
+      # 3. Build 2-in-1 Live + Installer ISO via Titanoboa (ublue-os/titanoboa)
       - name: Build 2-in-1 Live ISO (Titanoboa)
         id: build
         uses: ublue-os/titanoboa@main
@@ -64,7 +64,7 @@ jobs:
           image-ref: ${{ steps.meta.outputs.image }}
           iso-dest: ${{ runner.temp }}/sourceless-os-live.iso
 
-      # 4. Eliberare imagini container inainte de arhivare
+      # 4. Prune container images before archiving to free disk space
       - name: Reclaim Container Storage Before Compression
         run: |
           sudo podman rmi --all --force 2>/dev/null || true
@@ -72,7 +72,7 @@ jobs:
           sudo docker system prune --all --force 2>/dev/null || true
           df -h /
 
-      # 5. Comprimare, split in volume de 1.8GB si curatare ISO original pentru spatiu
+      # 5. Split ISO into 1.8 GB 7-Zip volumes and remove raw ISO
       - name: Split and Compress ISO
         run: |
           if ! command -v 7z >/dev/null 2>&1; then
@@ -88,14 +88,14 @@ jobs:
           rm -f "$ISO_FILE"
           ls -lh sourceless-os.7z.*
 
-      # 6. Curatare release anterior pentru a nu ramane volume vechi
+      # 6. Delete previous latest-iso release and tag to avoid stale volume parts
       - name: Clean Previous Release Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest-iso -y --cleanup-tag 2>/dev/null || true
 
-      # 7. Upload volume pe GitHub Releases
+      # 7. Publish split 7-Zip ISO volumes to GitHub Releases
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:

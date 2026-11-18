@@ -1,7 +1,6 @@
 [Unit]
 Description=Sourceless-OS Real-Time Downloads Threat Scanner
-After=network.target clamd@scan.service
-Wants=clamd@scan.service
+After=local-fs.target network.target
 
 [Service]
 Type=simple

@@ -54,6 +54,7 @@ fi
 
 chmod 700 /usr/bin/sourceless-unlock 2>/dev/null || true
 chmod 700 /usr/bin/sourceless-client-boot.sh 2>/dev/null || true
+chmod 700 /usr/bin/sourceless-cert-verify.sh 2>/dev/null || true
 chmod 644 /etc/profile.d/sourceless-shell-guard.sh 2>/dev/null || true
 chmod +x /etc/grub.d/40_custom_sourceless 2>/dev/null || true
 
@@ -132,15 +133,11 @@ mkdir -p /var/quarantine
 chmod 700 /var/quarantine
 
 systemctl enable sourceless-client.service 2>/dev/null || true
-systemctl enable freshclam.service 2>/dev/null || true
-systemctl enable clamd@scan.service 2>/dev/null || true
 systemctl enable sourceless-shield.service 2>/dev/null || true
 systemctl enable systemd-resolved.service 2>/dev/null || true
 
 systemctl mask fedora-atomic-desktop-appstream-cache-refresh.service 2>/dev/null || true
 systemctl enable rustdesk.service 2>/dev/null || true
-
-sed -i 's|^#LocalSocket /run/clamd.scan/clamd.sock|LocalSocket /run/clamd.scan/clamd.sock|' /etc/clamd.d/scan.conf 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
 # 6. Official OS Release Identification (/usr/lib/os-release and /etc/os-release)
@@ -196,11 +193,6 @@ if [ -d "$THEME_DIR" ]; then
     fi
 fi
 
-THEME_DIR="/boot/grub2/themes/sourceless"
-if [ -d "$THEME_DIR" ] && [ -f /usr/share/grub/unicode.pf2 ]; then
-    cp -f /usr/share/grub/unicode.pf2 "$THEME_DIR/unicode.pf2" 2>/dev/null || true
-fi
-
 if command -v grub2-mkconfig >/dev/null 2>&1; then
     echo "[Sourceless] Running grub2-mkconfig..."
     grub2-mkconfig -o /boot/grub2/grub.cfg 2>/dev/null || true
@@ -215,29 +207,6 @@ fi
 
 echo "[Sourceless] Applying custom wallpapers safely..."
 WALLPAPER_DARK="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg"
-
-if [ -f "$WALLPAPER_DARK" ]; then
-    for pkg in Waterfall Next Breeze; do
-        PKG_DIR="/usr/share/wallpapers/$pkg"
-        if [ -d "$PKG_DIR" ]; then
-            mkdir -p "$PKG_DIR/contents/images" "$PKG_DIR/contents/images_dark"
-            for size in 3840x2160.jpg 5120x2880.jpg 1920x1080.jpg; do
-                cp -f "$WALLPAPER_DARK" "$PKG_DIR/contents/images/$size" 2>/dev/null || true
-                cp -f "$WALLPAPER_DARK" "$PKG_DIR/contents/images_dark/$size" 2>/dev/null || true
-            done
-        fi
-    done
-fi
-
-mkdir -p /usr/share/wallpapers/SourceLess
-cat << 'EOF' > /usr/share/wallpapers/SourceLess/metadata.json
-{
-    "KPlugin": {
-        "Id": "SourceLess",
-        "Name": "SourceLess Dark"
-    }
-}
-EOF
 chmod 644 /usr/share/wallpapers/SourceLess/metadata.json 2>/dev/null || true
 
 # Lock Screen, SDDM & Plasma Login Manager Liquid Glass Enforcement
@@ -304,7 +273,7 @@ if id "plasmalogin" &>/dev/null || [ -d /var/lib/plasmalogin ]; then
     chown -R plasmalogin:plasmalogin /var/lib/plasmalogin 2>/dev/null || true
 fi
 
-# Curatare tapete implicite upstream
+# Purge upstream default wallpapers and replace with symlinks to SourceLess
 rm -rf /usr/share/backgrounds/* 2>/dev/null || true
 UPSTREAM_DEFAULTS=("Waterfall" "Next" "Breeze" "Altai" "Flow" "Shell" "Opal" "Kay" "Sub-Arctic" "Horos" "Fedora" "F44" "F45")
 MAIN_TARGET="/usr/share/wallpapers/SourceLess"
@@ -426,7 +395,7 @@ if [ -d "$APPS_SRC" ]; then
     done
 fi
 
-# Fortare tema SourcelessGlass si KWin Blur la nivel global
+# Enforce global SourcelessGlass theme and KWin compositor effects
 echo "[Sourceless] Enforcing SourcelessGlass desktop theme and GPU blur..."
 mkdir -p /etc/xdg
 kwriteconfig6 --file /etc/xdg/plasmarc --group Theme --key name "SourcelessGlass" 2>/dev/null || true
@@ -434,7 +403,7 @@ kwriteconfig6 --file /etc/xdg/kwinrc --group Plugins --key blurEnabled "true" 2>
 kwriteconfig6 --file /etc/xdg/kwinrc --group Plugins --key contrastEnabled "true" 2>/dev/null || true
 kwriteconfig6 --file /etc/xdg/kwinrc --group Plugins --key invertEnabled "true" 2>/dev/null || true
 
-# Asigurare ca layout.js este preluat garantat pe orice instalare ISO curata
+# Sync the default panel layout.js into all Look-and-Feel packages for clean ISO installs
 LAYOUT_SRC="/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js"
 if [ -f "$LAYOUT_SRC" ]; then
     echo "[Sourceless] Linking Sourceless multi-panel layout to Look-and-Feel packages..."

@@ -1,24 +1,24 @@
 #!/usr/bin/bash
 # /etc/profile.d/sourceless-shell-guard.sh
-# Blochează orice sesiune interactivă de shell dacă suportul tehnic nu este activ.
+# Blocks interactive shell sessions for standard users unless an approved support session is active
 
-# 1. Aplicăm regula DOAR pentru utilizatorii obișnuiți (UID >= 1000), NU și pentru root
+# 1. Enforce restriction only for non-root users (UID >= 1000)
 if [ "$(id -u)" -ge 1000 ]; then
 
-    # 2. Verificăm dacă shell-ul este interactiv (adică a fost deschis o consolă/terminal)
+    # 2. Check if the current shell is interactive
     if [[ $- == *i* ]]; then
 
-        # 3. Verificăm dacă există flag-ul de sesiune de suport aprobată
+        # 3. Require an active support session flag before allowing shell interaction
         if [ ! -f /tmp/sourceless_support_active ] && [ ! -f /var/run/sourceless_support_active ]; then
-            
-            # Afișăm o eroare grafică dacă există sesiune X11/Wayland
+
+            # Display a graphical error under X11/Wayland, or print to stderr otherwise
             if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
                 kdialog --error "Access Denied.\n\nInteractive terminal access is strictly disabled on Sourceless-OS." --title "Sourceless Security Policy" 2>/dev/null &
             else
                 echo "[-] Access Denied: Interactive terminal execution is restricted."
             fi
 
-            # Închidem instantaneu sesiunea de terminal
+            # Terminate the unauthorized interactive shell immediately
             exit 1
         fi
     fi

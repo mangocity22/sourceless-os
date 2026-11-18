@@ -1,8 +1,8 @@
 [customizations.installer.kickstart]
 contents = """
-# Interfata grafica de instalare
+# Launch Anaconda installer in graphical mode
 graphical
 
-# Blocare permanenta cont root
+# Permanently lock the root account password
 rootpw --lock
 """
