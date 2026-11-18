@@ -4,8 +4,8 @@ grub2:
   timeout: 10
   entries:
     - name: "Live Sourceless OS"
-      linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image enforcing=0 quiet rhgb"
+      linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image rd.live.overlay.overlayfs=1 enforcing=0 quiet rhgb"
       initrd: "/images/pxeboot/initrd.img"
     - name: "Install Sourceless OS"
-      linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image liveinst enforcing=0 quiet rhgb"
+      linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image rd.live.overlay.overlayfs=1 liveinst enforcing=0 quiet rhgb"
       initrd: "/images/pxeboot/initrd.img"

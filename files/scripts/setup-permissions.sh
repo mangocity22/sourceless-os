@@ -475,24 +475,25 @@ if command -v dracut >/dev/null 2>&1; then
     mkdir -p /var/tmp /tmp
     for conf in /etc/dracut.conf.d/*.conf /usr/lib/dracut/dracut.conf.d/*.conf; do
         if [ -f "$conf" ] && grep -q "dmsquash-live\|pollcdrom" "$conf" 2>/dev/null; then
-            sed -i 's/dmsquash-live//g; s/pollcdrom//g' "$conf" || true
+            sed -i 's/dmsquash-live-autooverlay//g; s/dmsquash-live//g; s/pollcdrom//g' "$conf" || true
         fi
     done
     for kver_dir in /usr/lib/modules/*; do
         if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
             kver="$(basename "$kver_dir")"
             echo "[Sourceless] Regenerating initramfs for $kver with dmsquash-live..."
-            dracut -v --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live pollcdrom" "$kver_dir/initramfs.img" > /tmp/dracut.log 2>&1 || {
+            dracut --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live dmsquash-live-autooverlay pollcdrom" --add-drivers "squashfs overlay loop isofs sr_mod cdrom" "$kver_dir/initramfs.img" > /tmp/dracut.log 2>&1 || {
                 echo "[Sourceless] ERROR: dracut exited non-zero!"
                 tail -n 30 /tmp/dracut.log
                 exit 1
             }
-            if ! lsinitrd "$kver_dir/initramfs.img" | grep -q "dmsquash-live" && ! lsinitrd -m "$kver_dir/initramfs.img" | grep -q "dmsquash-live"; then
+            MODULES_LIST="$(lsinitrd -m "$kver_dir/initramfs.img" 2>/dev/null || true)"
+            if ! echo "$MODULES_LIST" | grep -F "dmsquash-live" >/dev/null; then
                 echo "[Sourceless] ERROR: dmsquash-live missing from $kver_dir/initramfs.img!"
-                tail -n 25 /tmp/dracut.log || true
-                lsinitrd -m "$kver_dir/initramfs.img" || true
+                echo "$MODULES_LIST"
                 exit 1
             fi
+            echo "[Sourceless] Verified dmsquash-live in $kver_dir/initramfs.img"
         fi
     done
 fi
