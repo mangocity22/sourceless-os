@@ -85,12 +85,31 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
 #!/usr/bin/bash
 /usr/bin/rsync.real "$@"
 rc=$?
-if [ "$rc" -eq 23 ] || [ "$rc" -eq 24 ]; then
-    for arg in "$@"; do
-        case "$arg" in
-            */mnt/sysroot*|/mnt/sysroot*) exit 0 ;;
-        esac
-    done
+is_sysroot=0
+for arg in "$@"; do
+    case "$arg" in
+        */mnt/sysroot*|/mnt/sysroot*) is_sysroot=1; break ;;
+    esac
+done
+if [ "$is_sysroot" -eq 1 ] && { [ "$rc" -eq 0 ] || [ "$rc" -eq 23 ] || [ "$rc" -eq 24 ]; }; then
+    mkdir -p \
+        /mnt/sysroot/var/roothome \
+        /mnt/sysroot/var/home \
+        /mnt/sysroot/var/tmp \
+        /mnt/sysroot/var/log \
+        /mnt/sysroot/var/opt \
+        /mnt/sysroot/var/srv \
+        /mnt/sysroot/var/mnt \
+        /mnt/sysroot/var/usrlocal \
+        /mnt/sysroot/var/lib/sddm \
+        /mnt/sysroot/var/cache 2>/dev/null || true
+    chmod 700 /mnt/sysroot/var/roothome 2>/dev/null || true
+    chmod 1777 /mnt/sysroot/var/tmp 2>/dev/null || true
+    if [ ! -d /mnt/sysroot/root ]; then
+        rm -f /mnt/sysroot/root 2>/dev/null || true
+        ln -s var/roothome /mnt/sysroot/root 2>/dev/null || mkdir -p /mnt/sysroot/root 2>/dev/null || true
+    fi
+    exit 0
 fi
 exit "$rc"
 EOF
@@ -163,6 +182,13 @@ EOF
 else
     # Clean up live-only autologin and sudoers drop-ins on installed systems
     rm -f /etc/sddm.conf.d/99-live-autologin.conf /etc/sudoers.d/99-liveuser 2>/dev/null || true
+
+    # Ensure Atomic /var runtime targets exist with proper permissions and SELinux labels before SDDM starts
+    mkdir -p /var/home /var/roothome /var/lib/sddm /var/tmp /var/log /var/opt /var/srv /var/mnt /var/usrlocal
+    chmod 700 /var/roothome 2>/dev/null || true
+    chmod 1777 /var/tmp 2>/dev/null || true
+    chown -R sddm:sddm /var/lib/sddm 2>/dev/null || true
+    restorecon -RF /var/lib/sddm /var/roothome /etc/sddm.conf.d 2>/dev/null || true
 fi
 
 # 2. First-Boot Windows-style OOBE check (when .oobe_completed marker is absent)
