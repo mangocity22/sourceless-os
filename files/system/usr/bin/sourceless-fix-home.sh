@@ -55,7 +55,7 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         cp -f /etc/gtk-4.0/settings.ini "$root_cfg/gtk-4.0/settings.ini" 2>/dev/null || true
     done
 
-    # Expose Anaconda installer on Desktop in Live session; mask Plasma desktop shell in direct BIOS install mode
+    # Expose Anaconda installer on Desktop in Live session; launch native fullscreen installer on 'liveinst'
     mkdir -p /var/home/liveuser/Desktop /var/home/liveuser/.config/autostart /var/home/liveuser/.config/systemd/user
     if [ -f /usr/share/applications/liveinst.desktop ]; then
         sed -i 's/^Name=.*/Name=Install SourceLess OS/; s/^GenericName=.*/GenericName=Install SourceLess OS/; s/^Comment=.*/Comment=Install SourceLess OS to Hard Drive/; s/^Icon=.*/Icon=sourceless-logo/; s/Fedora/SourceLess OS/g' /usr/share/applications/liveinst.desktop 2>/dev/null || true
@@ -63,20 +63,25 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         chmod +x /var/home/liveuser/Desktop/liveinst.desktop
     fi
 
-    # Prevent KWallet (ksecretd) and DrKonqi crash popups in Live USB sessions
+    # Prevent KWallet (ksecretd) crashes and DrKonqi popups cleanly via exit-0 stubs (never chmod 000)
+    rm -f /var/home/liveuser/.config/systemd/user/plasma-plasmashell.service 2>/dev/null || true
     ln -sf /dev/null /var/home/liveuser/.config/systemd/user/drkonqi-coredump-pickup.service
     ln -sf /dev/null /var/home/liveuser/.config/systemd/user/drkonqi-coredump-launcher.socket
     ln -sf /dev/null /var/home/liveuser/.config/systemd/user/dbus-org.freedesktop.impl.portal.desktop.kwallet.service
-    chmod 000 /usr/bin/ksecretd /usr/bin/drkonqi-coredump-gui /usr/libexec/drkonqi* 2>/dev/null || true
+    for stub_bin in /usr/bin/ksecretd /usr/bin/drkonqi-coredump-gui /usr/libexec/drkonqi; do
+        if [ -f "$stub_bin" ]; then
+            printf '#!/usr/bin/bash\nexit 0\n' > "$stub_bin" 2>/dev/null || true
+            chmod 755 "$stub_bin" 2>/dev/null || true
+        fi
+    done
     rm -f /etc/xdg/autostart/*drkonqi*.desktop 2>/dev/null || true
 
     if grep -qw "liveinst" /proc/cmdline 2>/dev/null; then
-        # Mask plasmashell user service so only KWin + fullscreen WebUI run (no desktop icons or taskbar)
-        ln -sf /dev/null /var/home/liveuser/.config/systemd/user/plasma-plasmashell.service
-
         cat << 'EOF' > /var/home/liveuser/.config/kwinrulesrc
 [1]
 Description=SourceLess Direct Installer Fullscreen
+fullscreen=true
+fullscreenrule=2
 maximizehoriz=true
 maximizehorizrule=2
 maximizevert=true
@@ -93,19 +98,24 @@ count=1
 rules=1
 EOF
 
-        cat << 'EOF' > /var/home/liveuser/.config/autostart/liveinst.desktop
+        # Autostart native liveinst.desktop (no X-KDE-autostart-phase so systemd-xdg-autostart-generator runs it)
+        if [ -f /usr/share/applications/liveinst.desktop ]; then
+            cp -f /usr/share/applications/liveinst.desktop /var/home/liveuser/.config/autostart/liveinst.desktop
+            chmod 644 /var/home/liveuser/.config/autostart/liveinst.desktop
+        fi
+
+        cat << 'EOF' > /var/home/liveuser/.config/autostart/sourceless-installer-watcher.desktop
 [Desktop Entry]
 Type=Application
-Name=SourceLess OS Direct Installer
+Name=SourceLess OS Installer Session Watcher
 Exec=/usr/bin/sourceless-direct-installer-inner
-X-KDE-autostart-phase=1
 NoDisplay=true
 EOF
-        chmod 644 /var/home/liveuser/.config/autostart/liveinst.desktop
+        chmod 644 /var/home/liveuser/.config/autostart/sourceless-installer-watcher.desktop
     else
-        rm -f /var/home/liveuser/.config/systemd/user/plasma-plasmashell.service \
-              /var/home/liveuser/.config/kwinrulesrc \
-              /var/home/liveuser/.config/autostart/liveinst.desktop 2>/dev/null || true
+        rm -f /var/home/liveuser/.config/kwinrulesrc \
+              /var/home/liveuser/.config/autostart/liveinst.desktop \
+              /var/home/liveuser/.config/autostart/sourceless-installer-watcher.desktop 2>/dev/null || true
     fi
 
     chown -R liveuser:liveuser /var/home/liveuser 2>/dev/null || true

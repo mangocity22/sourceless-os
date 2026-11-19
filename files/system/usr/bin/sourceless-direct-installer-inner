@@ -1,61 +1,37 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-direct-installer-inner
-# Launches Anaconda liveinst inside the masked-plasmashell session with boot-loop protection.
+# Monitors native liveinst execution inside the Plasma session and reboots after a completed run.
 set -uo pipefail
 
 export LANG="${LANG:-en_US.UTF-8}"
 
-# Apply dark obsidian root background before the WebUI window maps
-if command -v xsetroot >/dev/null 2>&1; then
-    xsetroot -solid "#090B12" 2>/dev/null || true
-fi
+START_TS=$(date +%s)
 
-# Wait up to 10s for Wayland or XWayland display sockets to initialize
-for _ in {1..50}; do
-    if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then
+# Wait up to 8s for native liveinst.desktop autostart to bring up the installer
+FOUND=0
+for _ in {1..16}; do
+    if pgrep -f "/usr/bin/liveinst|/usr/libexec/anaconda/webui-desktop|/usr/bin/slitherer|/usr/sbin/anaconda|/usr/bin/anaconda" >/dev/null 2>&1; then
+        FOUND=1
         break
     fi
-    sleep 0.2
+    sleep 0.5
 done
 
-run_liveinst_session() {
-    # Invoke liveinst as liveuser first so it captures WAYLAND_DISPLAY and elevates via pkexec
-    /usr/bin/liveinst >/tmp/sourceless-liveinst.log 2>&1 || \
-        sudo env \
-            LANG="${LANG}" \
-            XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
-            WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
-            DISPLAY="${DISPLAY:-}" \
-            DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
-            /usr/bin/liveinst >>/tmp/sourceless-liveinst.log 2>&1 || true
+# Start liveinst as liveuser if systemd/xdg-autostart did not launch it yet
+if [ "$FOUND" -eq 0 ]; then
+    /usr/bin/liveinst >/tmp/sourceless-liveinst.log 2>&1 || true
+fi
 
-    # Keep waiting while any detached installer UI process remains alive
-    while pgrep -f "/usr/libexec/anaconda/webui-desktop|/usr/bin/slitherer|/usr/sbin/anaconda|/usr/bin/anaconda" >/dev/null 2>&1; do
-        sleep 1
-    done
-}
+# Wait while any installer or WebUI process remains active
+while pgrep -f "/usr/bin/liveinst|/usr/libexec/anaconda/webui-desktop|/usr/bin/slitherer|/usr/sbin/anaconda|/usr/bin/anaconda" >/dev/null 2>&1; do
+    sleep 1
+done
 
-START_TS=$(date +%s)
-run_liveinst_session
 ELAPSED=$(( $(date +%s) - START_TS ))
 
-# Never reboot if liveinst exited prematurely (< 15s); retry once first
-if [ "$ELAPSED" -lt 15 ]; then
-    sleep 2
-    RETRY_TS=$(date +%s)
-    run_liveinst_session
-    ELAPSED=$(( $(date +%s) - RETRY_TS ))
+# Only reboot after a genuine interactive installer session (>= 15s) to prevent boot loops
+if [ "$ELAPSED" -ge 15 ]; then
+    sudo /usr/bin/systemctl reboot 2>/dev/null || systemctl reboot 2>/dev/null || true
 fi
 
-if [ "$ELAPSED" -lt 15 ]; then
-    # Fallback to full KDE Plasma shell so the user is never caught in a reboot loop
-    rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/plasma-plasmashell.service" \
-          "${XDG_CONFIG_HOME:-$HOME/.config}/kwinrulesrc" 2>/dev/null || true
-    systemctl --user daemon-reload 2>/dev/null || true
-    systemctl --user unmask plasma-plasmashell.service 2>/dev/null || true
-    systemctl --user start plasma-plasmashell.service 2>/dev/null || true
-    exit 0
-fi
-
-# Interactive installation/exit completed cleanly: reboot into the newly installed system
-sudo /usr/bin/systemctl reboot 2>/dev/null || systemctl reboot 2>/dev/null || true
+exit 0
