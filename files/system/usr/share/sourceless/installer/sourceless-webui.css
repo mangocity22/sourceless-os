@@ -51,7 +51,13 @@ body,
     color-scheme: dark !important;
 }
 
-html,
+html {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 100vh !important;
+    overflow-x: hidden !important;
+}
+
 body {
     background-color: var(--sl-bg-obsidian) !important;
     background-image:
@@ -133,7 +139,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-right: 48px;
+    padding-right: 0;
 }
 
 .sl-hud-clock {
@@ -149,8 +155,7 @@ body {
 }
 
 /* =========================================================
- * Compact Upstream Sub-Header (keep actions menu reachable,
- * remove duplicate gray "SourceLess OS installation" bar)
+ * Remove Upstream Sub-Header Bar ("SourceLess OS installation")
  * ========================================================= */
 .pf-v6-c-page,
 .pf-v5-c-page {
@@ -160,49 +165,20 @@ body {
 .pf-v6-c-page__header,
 .pf-v5-c-page__header,
 .pf-v6-c-masthead,
-.pf-v5-c-masthead {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    min-height: 0 !important;
-    height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-}
-
-.pf-v6-c-masthead__main,
-.pf-v5-c-page__header-brand,
-.anaconda-screen-header-title,
-.pf-v6-c-masthead h1,
-.pf-v6-c-page__header h1,
-.pf-v5-c-page__header h1 {
+.pf-v5-c-masthead,
+.sl-removed-subheader {
     display: none !important;
-}
-
-/* Keep the upstream kebab (⋮) actions toggle floating neatly in top-right HUD area */
-.pf-v6-c-masthead__content,
-.pf-v5-c-page__header-tools {
-    position: fixed !important;
-    top: 8px !important;
-    right: 16px !important;
-    z-index: 10001 !important;
-    margin: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
     padding: 0 !important;
-}
-
-.pf-v6-c-masthead__content button,
-.pf-v5-c-page__header-tools button {
-    background: rgba(18, 22, 35, 0.9) !important;
-    border: 1px solid rgba(148, 155, 192, 0.28) !important;
-    border-radius: var(--sl-radius-sm) !important;
-    color: var(--sl-text-main) !important;
+    margin: 0 !important;
+    overflow: hidden !important;
 }
 
 .pf-v6-c-page__main-section,
 .pf-v5-c-page__main-section {
     background: transparent !important;
-    padding: 24px 28px 36px 28px !important;
+    padding: 18px 24px 24px 24px !important;
 }
 
 /* =========================================================
@@ -230,23 +206,101 @@ body {
     background: transparent !important;
 }
 
-/* Left Stepper Rail */
+/* Left Stepper Rail — clean centered badges & single-line pills */
 .pf-v6-c-wizard__nav,
 .pf-v5-c-wizard__nav {
     background: #0C0F1A !important;
     border-right: 1px solid var(--sl-border-subtle) !important;
-    padding: 26px 16px !important;
-    min-width: 245px !important;
+    padding: 28px 16px !important;
+    width: 274px !important;
+    min-width: 274px !important;
+    max-width: 274px !important;
+}
+
+.pf-v6-c-wizard__nav-list,
+.pf-v5-c-wizard__nav-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+}
+
+.pf-v6-c-wizard__nav-item,
+.pf-v5-c-wizard__nav-item {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
 }
 
 .pf-v6-c-wizard__nav-link,
 .pf-v5-c-wizard__nav-link {
-    border-radius: var(--sl-radius-md) !important;
-    color: var(--sl-text-muted) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    width: 100% !important;
+    min-height: 44px !important;
     padding: 10px 14px !important;
-    margin-bottom: 6px !important;
+    margin: 0 !important;
+    border-radius: var(--sl-radius-md) !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--sl-text-muted) !important;
+    font-size: 0.92rem !important;
     font-weight: 500 !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+    box-shadow: none !important;
     transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.pf-v6-c-wizard__nav-link-main,
+.pf-v5-c-wizard__nav-link-main,
+.pf-v6-c-wizard__nav-link-text,
+.pf-v5-c-wizard__nav-link-text {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    color: inherit !important;
+}
+
+.pf-v6-c-wizard__nav-link::after,
+.pf-v5-c-wizard__nav-link::after {
+    display: none !important;
+}
+
+.pf-v6-c-wizard__nav-link::before,
+.pf-v5-c-wizard__nav-link::before,
+.pf-v6-c-wizard__nav-link.pf-m-disabled::before,
+.pf-v5-c-wizard__nav-link.pf-m-disabled::before {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+    flex-shrink: 0 !important;
+    border-radius: 50% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    background-color: rgba(148, 155, 192, 0.10) !important;
+    border: 1px solid rgba(148, 155, 192, 0.30) !important;
+    color: var(--sl-text-muted) !important;
 }
 
 .pf-v6-c-wizard__nav-link:hover,
@@ -266,6 +320,7 @@ body {
 .pf-v6-c-wizard__nav-link.pf-m-current::before,
 .pf-v5-c-wizard__nav-link.pf-m-current::before {
     background-color: var(--sl-cyber-lime) !important;
+    border-color: var(--sl-cyber-lime) !important;
     color: #090B12 !important;
     font-weight: 800 !important;
 }
@@ -278,7 +333,7 @@ body {
 
 .pf-v6-c-wizard__main-body,
 .pf-v5-c-wizard__main-body {
-    padding: 34px 44px 36px 44px !important;
+    padding: 26px 36px 28px 36px !important;
     color: var(--sl-text-main) !important;
     overflow: visible !important;
 }
@@ -545,8 +600,8 @@ a {
  * Custom Disk Space Allocation Card (Installation Method)
  * ========================================================= */
 #sl-disk-allocation-card {
-    margin-top: 22px;
-    padding: 18px 22px;
+    margin: 10px 0 14px 0;
+    padding: 16px 20px;
     background: #14192A;
     border: 1px solid rgba(115, 104, 247, 0.42);
     border-radius: var(--sl-radius-md);
@@ -692,10 +747,48 @@ a {
     color: var(--sl-text-main);
 }
 
-/* Hidden steps / root UI helpers */
+/* Hidden steps / root UI helpers / seamless account skip mask */
 .sl-hidden-step,
-.sl-hidden-root {
+.sl-hidden-root,
+.sl-replaced-entire-disk {
     display: none !important;
+}
+
+.sl-skipping-accounts > :not(#sl-skip-overlay) {
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+}
+
+#sl-skip-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 260px;
+    text-align: center;
+    color: var(--sl-text-main);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.sl-skip-spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid rgba(115, 104, 247, 0.25);
+    border-top-color: var(--sl-cyber-lime);
+    animation: sl-spin 0.8s linear infinite;
+}
+
+@keyframes sl-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Subtle dark scrollbars */

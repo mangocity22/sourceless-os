@@ -14,7 +14,7 @@
     var HELPER_URL = "http://127.0.0.1:18443";
     var TMP_OOBE_USER = "sourceless-setup";
     var TMP_OOBE_NAME = "SourceLess Setup";
-    var TMP_OOBE_PASS = "Sourceless#Oobe1";
+    var TMP_OOBE_PASS = "K9#mP2!vX7$qR4@w";
 
     var hudClockTimer = null;
     var enhanceRaf = 0;
@@ -25,7 +25,8 @@
     var cachedDiskInfo = null;
     var diskFetchInFlight = false;
     var diskLimitTimer = null;
-    var autoAdvanceLocked = false;
+    var accountsSkipTimer = null;
+    var accountsSkipAttempts = 0;
 
     function applyDarkThemeClasses() {
         var html = document.documentElement;
@@ -149,6 +150,54 @@
         }
     }
 
+    function removeUpstreamSubheader() {
+        var candidates = document.querySelectorAll(
+            "header, .pf-v6-c-page__header, .pf-v5-c-page__header, .pf-v6-c-masthead, .pf-v5-c-masthead, " +
+            ".pf-v6-c-page__main-section, .pf-v5-c-page__main-section, .pf-v6-c-page__main-group, [class*='header' i]"
+        );
+
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (!el || el.id === "sl-cyber-hud") continue;
+            if (el.closest && el.closest("#sl-cyber-hud")) continue;
+            if (el.querySelector && (el.querySelector(".pf-v6-c-wizard, .pf-v5-c-wizard") || el.querySelector("#sl-cyber-hud"))) {
+                continue;
+            }
+            if (el.closest && el.closest(".pf-v6-c-wizard, .pf-v5-c-wizard")) continue;
+
+            var isShellHeader = el.matches(
+                "header, .pf-v6-c-page__header, .pf-v5-c-page__header, .pf-v6-c-masthead, .pf-v5-c-masthead"
+            );
+            var text = (el.textContent || "").trim().replace(/\s+/g, " ");
+            var isTitleBanner = text.length > 0 && text.length < 140 &&
+                /((sourceless os|fedora)\s+(installation|installer)|instalare\s+sourceless)/i.test(text);
+
+            if (isShellHeader || isTitleBanner) {
+                el.classList.add("sl-removed-subheader");
+                var sec = el.closest(".pf-v6-c-page__main-section, .pf-v5-c-page__main-section, .pf-v6-c-page__main-group");
+                if (sec && !sec.querySelector(".pf-v6-c-wizard, .pf-v5-c-wizard") && !sec.querySelector("#sl-cyber-hud")) {
+                    sec.classList.add("sl-removed-subheader");
+                }
+            }
+        }
+
+        // Catch standalone banner headings rendered outside the wizard card
+        var headings = document.querySelectorAll("h1, .pf-v6-c-title, .pf-v5-c-title");
+        for (var h = 0; h < headings.length; h++) {
+            var hd = headings[h];
+            if (hd.closest && (hd.closest(".pf-v6-c-wizard, .pf-v5-c-wizard") || hd.closest("#sl-cyber-hud"))) {
+                continue;
+            }
+            var hTxt = (hd.textContent || "").trim();
+            if (/((sourceless os|fedora)\s+(installation|installer)|instalare\s+sourceless)/i.test(hTxt)) {
+                var box = hd.closest(".pf-v6-c-page__main-section, .pf-v5-c-page__main-section, .pf-v6-c-page__main-group, header, div");
+                if (box && !box.querySelector(".pf-v6-c-wizard, .pf-v5-c-wizard") && !box.querySelector("#sl-cyber-hud")) {
+                    box.classList.add("sl-removed-subheader");
+                }
+            }
+        }
+    }
+
     function getActiveWizardStepKey() {
         var current = document.querySelector(
             ".pf-v6-c-wizard__nav-link.pf-m-current, .pf-v5-c-wizard__nav-link.pf-m-current"
@@ -183,13 +232,26 @@
             }
         }
 
-        // Hide any Root Account section on screen
-        var headings = document.querySelectorAll("h2, h3, h4, .pf-v6-c-form__section-title, legend");
-        for (var j = 0; j < headings.length; j++) {
-            var txt = (headings[j].textContent || "").toLowerCase();
-            if (/\broot\s*(account|password|user)|\bcont\s*root\b/.test(txt)) {
-                var sec = headings[j].closest("section, .pf-v6-c-form__section, .pf-v6-c-card, fieldset");
-                if (sec) sec.classList.add("sl-hidden-root");
+        // Hide any Root Account / Enable Root Access controls on screen
+        var rootCandidates = document.querySelectorAll(
+            "h2, h3, h4, .pf-v6-c-form__section-title, legend, label, .pf-v6-c-check__label, .pf-v5-c-check__label, .pf-v6-c-form__label-text"
+        );
+        for (var j = 0; j < rootCandidates.length; j++) {
+            var node = rootCandidates[j];
+            if (node.closest && node.closest("#sl-cyber-hud")) continue;
+            var txt = (node.textContent || "").toLowerCase();
+            if (/\b(enable\s+root|root\s*(account|access|password|user)|cont\s*root|acces\s*root|ssh\s*root)\b/.test(txt)) {
+                var sec = node.closest(
+                    ".pf-v6-c-check, .pf-v5-c-check, .pf-v6-c-form__group, .pf-v5-c-form__group, " +
+                    ".pf-v6-c-switch, .pf-v6-c-expandable-section, section, .pf-v6-c-form__section, .pf-v6-c-card, fieldset"
+                );
+                if (sec) {
+                    var cbs = sec.querySelectorAll('input[type="checkbox"]');
+                    for (var k = 0; k < cbs.length; k++) {
+                        if (cbs[k].checked) cbs[k].click();
+                    }
+                    sec.classList.add("sl-hidden-root");
+                }
             }
         }
     }
@@ -376,10 +438,19 @@
             });
     }
 
-    function syncDiskCardNumbers(totalGib, allocGib) {
-        var clamped = Math.min(totalGib, Math.max(Math.min(16, totalGib), Math.round(allocGib)));
+    function syncDiskCardNumbers(totalGib, allocGib, modeOverride) {
+        var minGib = Math.min(16, totalGib);
+        var clamped = Math.min(totalGib, Math.max(minGib, Math.round(allocGib)));
         var remaining = Math.max(0, totalGib - clamped);
         var pct = totalGib > 0 ? Math.min(100, Math.round((clamped / totalGib) * 100)) : 100;
+        var mode = modeOverride || (clamped >= totalGib ? "full" : "custom");
+
+        var fullRadio = document.querySelector('#sl-disk-allocation-card input[value="full"]');
+        var customRadio = document.querySelector('#sl-disk-allocation-card input[value="custom"]');
+        if (fullRadio && customRadio) {
+            fullRadio.checked = (mode === "full");
+            customRadio.checked = (mode === "custom");
+        }
 
         var slider = document.getElementById("sl-disk-slider");
         var input = document.getElementById("sl-disk-gib-input");
@@ -393,7 +464,27 @@
         if (allocText) allocText.textContent = clamped + " GiB (" + pct + "%)";
         if (freeText) freeText.textContent = remaining + " GiB";
 
+        var presetBtns = document.querySelectorAll("#sl-disk-allocation-card .sl-preset-btn");
+        for (var b = 0; b < presetBtns.length; b++) {
+            var pVal = parseInt(presetBtns[b].getAttribute("data-pct"), 10);
+            var targetForPreset = pVal === 100 ? totalGib : Math.min(totalGib, Math.max(minGib, Math.round((totalGib * pVal) / 100)));
+            presetBtns[b].classList.toggle("sl-active", clamped === targetForPreset);
+        }
+
         return clamped;
+    }
+
+    function findUseEntireDiskWrapper(mainBody) {
+        var radios = mainBody.querySelectorAll('input[type="radio"]');
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].closest("#sl-disk-allocation-card")) continue;
+            var wrap = radios[i].closest(".pf-v6-c-radio, .pf-v5-c-radio, label, div");
+            var txt = ((wrap && wrap.textContent) || "").toLowerCase();
+            if (/use entire disk|folose[sș]te întregul disc|entire disk/.test(txt)) {
+                return { radio: radios[i], wrap: wrap };
+            }
+        }
+        return null;
     }
 
     function enhanceInstallMethodDiskCard(stepKey) {
@@ -410,12 +501,27 @@
             fetchDiskInfoAndUpdateCard();
         }
 
+        // Wait until React has rendered Destination + "Use entire disk" radio so we replace it in exact slot
+        var entireTarget = findUseEntireDiskWrapper(mainBody);
+        if (!entireTarget || !entireTarget.wrap || !entireTarget.wrap.parentNode) {
+            return;
+        }
+
+        if (!entireTarget.radio.checked) {
+            entireTarget.radio.click();
+        }
+        entireTarget.wrap.classList.add("sl-replaced-entire-disk");
+
         var disk = pickBestDiskInfo(mainBody);
         var totalGib = disk.gib;
         var minGib = Math.min(16, totalGib);
         var initialAlloc = disk.limit && disk.limit < totalGib ? disk.limit : totalGib;
+        var initialMode = disk.limit && disk.limit < totalGib ? "custom" : "full";
 
         if (existing) {
+            if (existing.previousElementSibling !== entireTarget.wrap) {
+                entireTarget.wrap.parentNode.insertBefore(existing, entireTarget.wrap.nextSibling);
+            }
             var badge = document.getElementById("sl-disk-badge");
             if (badge) badge.textContent = disk.name + " (" + totalGib + " GiB)";
             var sliderEl = document.getElementById("sl-disk-slider");
@@ -440,15 +546,15 @@
             "</div>" +
             '<div class="sl-disk-modes">' +
             '  <label class="sl-disk-radio-row">' +
-            '    <input type="radio" name="sl-disk-mode" value="full" ' + (disk.limit ? "" : "checked") + " />" +
+            '    <input type="radio" name="sl-disk-mode" value="full" ' + (initialMode === "full" ? "checked" : "") + " />" +
             '    <span>Use 100% of disk (Full Capacity)</span>' +
             "  </label>" +
             '  <label class="sl-disk-radio-row">' +
-            '    <input type="radio" name="sl-disk-mode" value="custom" ' + (disk.limit ? "checked" : "") + " />" +
+            '    <input type="radio" name="sl-disk-mode" value="custom" ' + (initialMode === "custom" ? "checked" : "") + " />" +
             '    <span>Select custom disk space to use (leave remaining space unallocated)</span>' +
             "  </label>" +
             "</div>" +
-            '<div id="sl-disk-custom-controls" style="display:' + (disk.limit ? "flex" : "none") + '">' +
+            '<div id="sl-disk-custom-controls" style="display:flex">' +
             '  <div class="sl-disk-slider-row">' +
             '    <input id="sl-disk-slider" type="range" min="' + minGib + '" max="' + totalGib + '" step="1" value="' + initialAlloc + '" />' +
             '    <div class="sl-disk-number-wrap">' +
@@ -469,11 +575,10 @@
             "  </div>" +
             "</div>";
 
-        mainBody.appendChild(card);
-        syncDiskCardNumbers(totalGib, initialAlloc);
+        entireTarget.wrap.parentNode.insertBefore(card, entireTarget.wrap.nextSibling);
+        syncDiskCardNumbers(totalGib, initialAlloc, initialMode);
 
         var radios = card.querySelectorAll('input[name="sl-disk-mode"]');
-        var customBox = document.getElementById("sl-disk-custom-controls");
         var slider = document.getElementById("sl-disk-slider");
         var numInput = document.getElementById("sl-disk-gib-input");
 
@@ -482,12 +587,12 @@
                 var currentDisk = pickBestDiskInfo(mainBody);
                 var maxG = currentDisk.gib;
                 if (this.value === "full" && this.checked) {
-                    customBox.style.display = "none";
+                    syncDiskCardNumbers(maxG, maxG, "full");
                     sendDiskLimit(null);
                 } else if (this.value === "custom" && this.checked) {
-                    customBox.style.display = "flex";
-                    var defaultCustom = Math.max(Math.min(16, maxG), Math.round(maxG * 0.5));
-                    var applied = syncDiskCardNumbers(maxG, defaultCustom);
+                    var curVal = parseFloat(slider.value) || maxG;
+                    var defaultCustom = curVal < maxG ? curVal : Math.max(Math.min(16, maxG), Math.round(maxG * 0.5));
+                    var applied = syncDiskCardNumbers(maxG, defaultCustom, "custom");
                     sendDiskLimit(applied >= maxG ? null : applied);
                 }
             });
@@ -495,13 +600,15 @@
 
         slider.addEventListener("input", function () {
             var maxG = pickBestDiskInfo(mainBody).gib;
-            var val = syncDiskCardNumbers(maxG, parseFloat(this.value));
+            var rawVal = parseFloat(this.value);
+            var val = syncDiskCardNumbers(maxG, rawVal, rawVal >= maxG ? "full" : "custom");
             sendDiskLimit(val >= maxG ? null : val);
         });
 
         numInput.addEventListener("change", function () {
             var maxG = pickBestDiskInfo(mainBody).gib;
-            var val = syncDiskCardNumbers(maxG, parseFloat(this.value) || maxG);
+            var rawVal = parseFloat(this.value) || maxG;
+            var val = syncDiskCardNumbers(maxG, rawVal, rawVal >= maxG ? "full" : "custom");
             sendDiskLimit(val >= maxG ? null : val);
         });
 
@@ -511,7 +618,7 @@
                 var pct = parseInt(this.getAttribute("data-pct"), 10) || 100;
                 var maxG = pickBestDiskInfo(mainBody).gib;
                 var target = pct === 100 ? maxG : Math.round((maxG * pct) / 100);
-                var val = syncDiskCardNumbers(maxG, target);
+                var val = syncDiskCardNumbers(maxG, target, pct === 100 ? "full" : "custom");
                 sendDiskLimit(val >= maxG ? null : val);
             });
         }
@@ -553,25 +660,59 @@
         return null;
     }
 
-    function handleCreateAccountAutoSkip(stepKey) {
-        if (stepKey !== "accounts") {
-            autoAdvanceLocked = false;
+    function clearAccountsSkipState() {
+        if (accountsSkipTimer) {
+            window.clearInterval(accountsSkipTimer);
+            accountsSkipTimer = null;
+        }
+        accountsSkipAttempts = 0;
+        var mainBody = document.querySelector(".pf-v6-c-wizard__main-body, .pf-v5-c-wizard__main-body");
+        if (mainBody) mainBody.classList.remove("sl-skipping-accounts");
+        var overlay = document.getElementById("sl-skip-overlay");
+        if (overlay) overlay.remove();
+    }
+
+    function ensureSkipOverlay(mainBody) {
+        if (!mainBody) return;
+        mainBody.classList.add("sl-skipping-accounts");
+        if (!document.getElementById("sl-skip-overlay")) {
+            var ov = document.createElement("div");
+            ov.id = "sl-skip-overlay";
+            ov.innerHTML =
+                '<div class="sl-skip-spinner"></div>' +
+                "<div>Preparing installation summary...</div>";
+            mainBody.insertBefore(ov, mainBody.firstChild);
+        }
+    }
+
+    function performAccountSkipTick() {
+        if (getActiveWizardStepKey() !== "accounts") {
+            clearAccountsSkipState();
             return;
         }
-        if (autoAdvanceLocked) return;
 
-        if (cameFromReviewBack) {
-            var backBtn = findFooterButton("back");
-            if (backBtn && !backBtn.disabled) {
-                autoAdvanceLocked = true;
-                cameFromReviewBack = false;
-                backBtn.click();
+        accountsSkipAttempts += 1;
+        if (accountsSkipAttempts >= 50) {
+            if (accountsSkipTimer) {
+                window.clearInterval(accountsSkipTimer);
+                accountsSkipTimer = null;
             }
             return;
         }
 
         var mainBody = document.querySelector(".pf-v6-c-wizard__main-body, .pf-v5-c-wizard__main-body");
         if (!mainBody) return;
+        ensureSkipOverlay(mainBody);
+        hideAccountStepperAndRoot();
+
+        if (cameFromReviewBack) {
+            var backBtn = findFooterButton("back");
+            if (backBtn && !backBtn.disabled) {
+                cameFromReviewBack = false;
+                backBtn.click();
+            }
+            return;
+        }
 
         var inputs = mainBody.querySelectorAll("input");
         var textInputs = [];
@@ -579,18 +720,19 @@
 
         for (var i = 0; i < inputs.length; i++) {
             var inp = inputs[i];
-            if (inp.closest(".sl-hidden-root")) continue;
             if (inp.type === "checkbox") {
-                var lbl = ((inp.closest("label, .pf-v6-c-check, .pf-v5-c-check") || {}).textContent || "").toLowerCase();
-                if (/root/.test(lbl)) {
+                var lbl = ((inp.closest(".pf-v6-c-check, .pf-v5-c-check, label, .pf-v6-c-form__group, .pf-v5-c-form__group") || {}).textContent || "").toLowerCase();
+                if (/root|skip\s*user|no\s*user|admin|sudo|wheel/.test(lbl)) {
                     setReactCheckboxValue(inp, false);
-                } else if (/require password|skip user/.test(lbl)) {
-                    setReactCheckboxValue(inp, /require password/.test(lbl));
+                } else if (/require\s*password|use\s*password|create\s*(user|account)|parol[aă]/.test(lbl)) {
+                    setReactCheckboxValue(inp, true);
                 }
-            } else if (inp.type === "password") {
-                passInputs.push(inp);
-            } else if (inp.type === "text" || !inp.type) {
-                textInputs.push(inp);
+            } else if (!inp.closest(".sl-hidden-root")) {
+                if (inp.type === "password") {
+                    passInputs.push(inp);
+                } else if (inp.type === "text" || !inp.type) {
+                    textInputs.push(inp);
+                }
             }
         }
 
@@ -607,16 +749,25 @@
             }
         }
 
-        autoAdvanceLocked = true;
-        window.setTimeout(function () {
-            if (getActiveWizardStepKey() !== "accounts") return;
-            var nextBtn = findFooterButton("next");
-            if (nextBtn && !nextBtn.disabled) {
-                nextBtn.click();
-            } else {
-                autoAdvanceLocked = false;
-            }
-        }, 180);
+        var nextBtn = findFooterButton("next");
+        if (nextBtn && !nextBtn.disabled) {
+            nextBtn.click();
+        }
+    }
+
+    function handleCreateAccountAutoSkip(stepKey) {
+        if (stepKey !== "accounts") {
+            clearAccountsSkipState();
+            return;
+        }
+
+        var mainBody = document.querySelector(".pf-v6-c-wizard__main-body, .pf-v5-c-wizard__main-body");
+        if (mainBody) ensureSkipOverlay(mainBody);
+
+        performAccountSkipTick();
+        if (!accountsSkipTimer) {
+            accountsSkipTimer = window.setInterval(performAccountSkipTick, 150);
+        }
     }
 
     /* =========================================================
@@ -628,6 +779,7 @@
         try {
             applyDarkThemeClasses();
             ensureCyberHud();
+            removeUpstreamSubheader();
             requestHelperDefaultsOnce();
 
             var stepKey = getActiveWizardStepKey();
@@ -689,7 +841,7 @@
                 if (
                     target &&
                     target.closest &&
-                    (target.closest("#sl-cyber-hud") || target.closest("#sl-disk-allocation-card"))
+                    (target.closest("#sl-cyber-hud") || target.closest("#sl-disk-allocation-card") || target.closest("#sl-skip-overlay"))
                 ) {
                     continue;
                 }
