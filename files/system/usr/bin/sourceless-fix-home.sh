@@ -42,6 +42,7 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
     cp -f /etc/xdg/Kvantum/kvantum.kvconfig /var/home/liveuser/.config/Kvantum/kvantum.kvconfig 2>/dev/null || true
     cp -f /etc/gtk-3.0/settings.ini /var/home/liveuser/.config/gtk-3.0/settings.ini 2>/dev/null || true
     cp -f /etc/gtk-4.0/settings.ini /var/home/liveuser/.config/gtk-4.0/settings.ini 2>/dev/null || true
+    cp -f /etc/xdg/kwalletrc /var/home/liveuser/.config/kwalletrc 2>/dev/null || true
 
     # Ensure Starship prompt initialization for live terminal sessions
     if [ -f /var/home/liveuser/.bashrc ] && ! grep -q "starship init bash" /var/home/liveuser/.bashrc 2>/dev/null; then
@@ -62,6 +63,13 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         chmod +x /var/home/liveuser/Desktop/liveinst.desktop
     fi
 
+    # Prevent KWallet (ksecretd) and DrKonqi crash popups in Live USB sessions
+    ln -sf /dev/null /var/home/liveuser/.config/systemd/user/drkonqi-coredump-pickup.service
+    ln -sf /dev/null /var/home/liveuser/.config/systemd/user/drkonqi-coredump-launcher.socket
+    ln -sf /dev/null /var/home/liveuser/.config/systemd/user/dbus-org.freedesktop.impl.portal.desktop.kwallet.service
+    chmod 000 /usr/bin/ksecretd /usr/bin/drkonqi-coredump-gui /usr/libexec/drkonqi* 2>/dev/null || true
+    rm -f /etc/xdg/autostart/*drkonqi*.desktop 2>/dev/null || true
+
     if grep -qw "liveinst" /proc/cmdline 2>/dev/null; then
         # Mask plasmashell user service so only KWin + fullscreen WebUI run (no desktop icons or taskbar)
         ln -sf /dev/null /var/home/liveuser/.config/systemd/user/plasma-plasmashell.service
@@ -76,7 +84,9 @@ maximizevertrule=2
 noborder=true
 noborderrule=2
 types=1
-wmclassmatch=0
+wmclass=slitherer|anaconda|webui|liveinst
+wmclasscomplete=false
+wmclassmatch=3
 
 [General]
 count=1

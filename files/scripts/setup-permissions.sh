@@ -80,6 +80,8 @@ chmod 755 /etc/xdg/plasma-workspace/env/sourceless-vm-cursor.sh 2>/dev/null || t
 # -----------------------------------------------------------------------------
 
 systemctl --global mask kdeconnectd.service 2>/dev/null || true
+systemctl --global mask drkonqi-coredump-pickup.service drkonqi-coredump-launcher.socket 2>/dev/null || true
+rm -f /etc/xdg/autostart/*drkonqi*.desktop 2>/dev/null || true
 
 if id "sourceless" &>/dev/null; then
     gpasswd -d sourceless wheel 2>/dev/null || true
