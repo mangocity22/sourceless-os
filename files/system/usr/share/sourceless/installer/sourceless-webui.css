@@ -176,9 +176,12 @@ body {
 }
 
 .pf-v6-c-page__main-section,
-.pf-v5-c-page__main-section {
+.pf-v5-c-page__main-section,
+.pf-v6-c-page__main-body {
     background: transparent !important;
-    padding: 18px 24px 24px 24px !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 24px 32px 28px 32px !important;
 }
 
 /* =========================================================
@@ -186,8 +189,10 @@ body {
  * ========================================================= */
 .pf-v6-c-wizard,
 .pf-v5-c-wizard {
-    max-width: 1040px !important;
-    margin: 12px auto 28px auto !important;
+    width: min(1160px, calc(100vw - 64px)) !important;
+    max-width: 1160px !important;
+    min-height: min(680px, calc(100vh - 104px)) !important;
+    margin: 10px auto 20px auto !important;
     border-radius: var(--sl-radius-lg) !important;
     background:
         linear-gradient(var(--sl-bg-card), var(--sl-bg-card)) padding-box,
@@ -211,17 +216,17 @@ body {
 .pf-v5-c-wizard__nav {
     background: #0C0F1A !important;
     border-right: 1px solid var(--sl-border-subtle) !important;
-    padding: 28px 16px !important;
-    width: 274px !important;
-    min-width: 274px !important;
-    max-width: 274px !important;
+    padding: 36px 20px !important;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
 }
 
 .pf-v6-c-wizard__nav-list,
 .pf-v5-c-wizard__nav-list {
     display: flex !important;
     flex-direction: column !important;
-    gap: 8px !important;
+    gap: 12px !important;
     margin: 0 !important;
     padding: 0 !important;
     list-style: none !important;
@@ -239,10 +244,10 @@ body {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    gap: 12px !important;
+    gap: 14px !important;
     width: 100% !important;
-    min-height: 44px !important;
-    padding: 10px 14px !important;
+    min-height: 46px !important;
+    padding: 11px 16px !important;
     margin: 0 !important;
     border-radius: var(--sl-radius-md) !important;
     border: 1px solid transparent !important;
@@ -333,9 +338,38 @@ body {
 
 .pf-v6-c-wizard__main-body,
 .pf-v5-c-wizard__main-body {
-    padding: 26px 36px 28px 36px !important;
+    padding: 38px 48px 36px 48px !important;
     color: var(--sl-text-main) !important;
     overflow: visible !important;
+}
+
+.pf-v6-c-wizard__main-body .pf-v6-c-form,
+.pf-v5-c-wizard__main-body .pf-v5-c-form {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+    max-width: 680px !important;
+}
+
+.pf-v6-c-wizard__main-body .pf-v6-c-form__section,
+.pf-v5-c-wizard__main-body .pf-v5-c-form__section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 18px !important;
+    margin-bottom: 22px !important;
+}
+
+.pf-v6-c-wizard__main-body .pf-v6-c-form__group,
+.pf-v5-c-wizard__main-body .pf-v5-c-form__group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    grid-template-columns: none !important;
+}
+
+.pf-v6-c-wizard__main-body .pf-v6-c-description-list,
+.pf-v5-c-wizard__main-body .pf-v5-c-description-list {
+    gap: 18px !important;
 }
 
 .pf-v6-c-wizard__main-body h1,
@@ -368,7 +402,7 @@ body {
 .sl-welcome-page .pf-v5-c-form {
     display: flex !important;
     flex-direction: column !important;
-    gap: 20px !important;
+    gap: 26px !important;
     max-width: 560px !important;
 }
 
@@ -401,7 +435,7 @@ body {
 .sl-lang-host {
     position: relative !important;
     width: 100% !important;
-    max-width: 480px !important;
+    max-width: 520px !important;
 }
 
 .sl-lang-trigger {
@@ -564,7 +598,15 @@ a {
 .pf-v5-c-wizard__footer {
     background: #0C0F1A !important;
     border-top: 1px solid var(--sl-border-subtle) !important;
-    padding: 16px 28px !important;
+    padding: 20px 48px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+}
+
+.pf-v6-c-wizard__footer .pf-v6-c-action-list,
+.pf-v5-c-wizard__footer .pf-v5-c-action-list {
+    gap: 14px !important;
 }
 
 .pf-v6-c-tile,
@@ -600,8 +642,9 @@ a {
  * Custom Disk Space Allocation Card (Installation Method)
  * ========================================================= */
 #sl-disk-allocation-card {
-    margin: 10px 0 14px 0;
-    padding: 16px 20px;
+    margin: 14px 0 20px 0;
+    padding: 20px 24px;
+    max-width: 680px;
     background: #14192A;
     border: 1px solid rgba(115, 104, 247, 0.42);
     border-radius: var(--sl-radius-md);

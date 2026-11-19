@@ -232,7 +232,7 @@
             }
         }
 
-        // Hide any Root Account / Enable Root Access controls on screen
+        // Hide any Root Account / Enable Root Access controls on screen without hiding outer user form wrappers
         var rootCandidates = document.querySelectorAll(
             "h2, h3, h4, .pf-v6-c-form__section-title, legend, label, .pf-v6-c-check__label, .pf-v5-c-check__label, .pf-v6-c-form__label-text"
         );
@@ -242,8 +242,7 @@
             var txt = (node.textContent || "").toLowerCase();
             if (/\b(enable\s+root|root\s*(account|access|password|user)|cont\s*root|acces\s*root|ssh\s*root)\b/.test(txt)) {
                 var sec = node.closest(
-                    ".pf-v6-c-check, .pf-v5-c-check, .pf-v6-c-form__group, .pf-v5-c-form__group, " +
-                    ".pf-v6-c-switch, .pf-v6-c-expandable-section, section, .pf-v6-c-form__section, .pf-v6-c-card, fieldset"
+                    ".pf-v6-c-check, .pf-v5-c-check, .pf-v6-c-switch, .pf-v6-c-form__group, .pf-v5-c-form__group"
                 );
                 if (sec) {
                     var cbs = sec.querySelectorAll('input[type="checkbox"]');
@@ -693,10 +692,7 @@
 
         accountsSkipAttempts += 1;
         if (accountsSkipAttempts >= 50) {
-            if (accountsSkipTimer) {
-                window.clearInterval(accountsSkipTimer);
-                accountsSkipTimer = null;
-            }
+            clearAccountsSkipState();
             return;
         }
 
@@ -721,10 +717,10 @@
         for (var i = 0; i < inputs.length; i++) {
             var inp = inputs[i];
             if (inp.type === "checkbox") {
-                var lbl = ((inp.closest(".pf-v6-c-check, .pf-v5-c-check, label, .pf-v6-c-form__group, .pf-v5-c-form__group") || {}).textContent || "").toLowerCase();
-                if (/root|skip\s*user|no\s*user|admin|sudo|wheel/.test(lbl)) {
+                var lbl = ((inp.closest(".pf-v6-c-check, .pf-v5-c-check, .pf-v6-c-switch, label, .pf-v6-c-form__group, .pf-v5-c-form__group") || {}).textContent || "").toLowerCase();
+                if (/\b(enable\s+root|root\s*(account|access|password)|skip|don't\s+create|do\s+not\s+create|nu\s+crea)\b/.test(lbl)) {
                     setReactCheckboxValue(inp, false);
-                } else if (/require\s*password|use\s*password|create\s*(user|account)|parol[aă]/.test(lbl)) {
+                } else if (/(require\s*password|use\s*password|create\s*(a\s+)?(local\s+)?(user|account)|add\s+admin|make.*admin|administrat|wheel|parol[aă])/.test(lbl)) {
                     setReactCheckboxValue(inp, true);
                 }
             } else if (!inp.closest(".sl-hidden-root")) {
