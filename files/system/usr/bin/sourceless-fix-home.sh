@@ -54,21 +54,48 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         cp -f /etc/gtk-4.0/settings.ini "$root_cfg/gtk-4.0/settings.ini" 2>/dev/null || true
     done
 
-    # Expose Anaconda installer on Desktop in Live session; direct BIOS install mode uses dedicated kiosk session
-    mkdir -p /var/home/liveuser/Desktop /var/home/liveuser/.config/autostart
-    rm -f /var/home/liveuser/.config/autostart/liveinst.desktop 2>/dev/null || true
+    # Expose Anaconda installer on Desktop in Live session; mask Plasma desktop shell in direct BIOS install mode
+    mkdir -p /var/home/liveuser/Desktop /var/home/liveuser/.config/autostart /var/home/liveuser/.config/systemd/user
     if [ -f /usr/share/applications/liveinst.desktop ]; then
         sed -i 's/^Name=.*/Name=Install SourceLess OS/; s/^GenericName=.*/GenericName=Install SourceLess OS/; s/^Comment=.*/Comment=Install SourceLess OS to Hard Drive/; s/^Icon=.*/Icon=sourceless-logo/; s/Fedora/SourceLess OS/g' /usr/share/applications/liveinst.desktop 2>/dev/null || true
         cp -f /usr/share/applications/liveinst.desktop /var/home/liveuser/Desktop/liveinst.desktop
         chmod +x /var/home/liveuser/Desktop/liveinst.desktop
     fi
 
-    # Determine SDDM autologin session: standalone fullscreen installer for 'liveinst', full KDE Plasma desktop otherwise
-    if grep -qw "liveinst" /proc/cmdline 2>/dev/null && [ -f /usr/share/wayland-sessions/sourceless-installer.desktop ]; then
-        LIVE_SESSION="sourceless-installer"
+    if grep -qw "liveinst" /proc/cmdline 2>/dev/null; then
+        # Mask plasmashell user service so only KWin + fullscreen WebUI run (no desktop icons or taskbar)
+        ln -sf /dev/null /var/home/liveuser/.config/systemd/user/plasma-plasmashell.service
+
+        cat << 'EOF' > /var/home/liveuser/.config/kwinrulesrc
+[1]
+Description=SourceLess Direct Installer Fullscreen
+maximizehoriz=true
+maximizehorizrule=2
+maximizevert=true
+maximizevertrule=2
+noborder=true
+noborderrule=2
+types=1
+wmclassmatch=0
+
+[General]
+count=1
+rules=1
+EOF
+
+        cat << 'EOF' > /var/home/liveuser/.config/autostart/liveinst.desktop
+[Desktop Entry]
+Type=Application
+Name=SourceLess OS Direct Installer
+Exec=/usr/bin/sourceless-direct-installer-inner
+X-KDE-autostart-phase=1
+NoDisplay=true
+EOF
+        chmod 644 /var/home/liveuser/.config/autostart/liveinst.desktop
     else
-        LIVE_SESSION="plasma"
-        rm -f /var/home/liveuser/.config/kwinrulesrc 2>/dev/null || true
+        rm -f /var/home/liveuser/.config/systemd/user/plasma-plasmashell.service \
+              /var/home/liveuser/.config/kwinrulesrc \
+              /var/home/liveuser/.config/autostart/liveinst.desktop 2>/dev/null || true
     fi
 
     chown -R liveuser:liveuser /var/home/liveuser 2>/dev/null || true
@@ -83,12 +110,12 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         fi
     fi
 
-    # Configure SDDM autologin for the chosen Live or Direct Installer session
+    # Configure SDDM autologin using Plasma Wayland session (handles bus, Polkit, and XWayland cleanly)
     mkdir -p /etc/sddm.conf.d
-    cat << EOF > /etc/sddm.conf.d/99-live-autologin.conf
+    cat << 'EOF' > /etc/sddm.conf.d/99-live-autologin.conf
 [Autologin]
 User=liveuser
-Session=${LIVE_SESSION}
+Session=plasma
 Relogin=false
 EOF
     exit 0

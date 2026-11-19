@@ -1,6 +1,13 @@
 // /etc/polkit-1/rules.d/10-sourceless-security.rules
 // Security enforcement policies for SourceLess OS
 
+// Allow the temporary Live USB user to elevate liveinst and run locale/unit setup during installation
+polkit.addRule(function(action, subject) {
+    if (subject.user === "liveuser") {
+        return polkit.Result.YES;
+    }
+});
+
 // Restrict systemd unit management to root execution only
 polkit.addRule(function(action, subject) {
     if (action.id.indexOf("org.freedesktop.systemd1.manage-units") === 0) {
