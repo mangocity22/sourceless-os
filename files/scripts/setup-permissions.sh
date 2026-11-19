@@ -72,7 +72,7 @@ chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
 chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-support-dialog.py 2>/dev/null || true
-chmod 755 /usr/bin/sourceless-installer-helper.py /usr/bin/sourceless-oobe.py /usr/bin/sourceless-oobe-apply 2>/dev/null || true
+chmod 755 /usr/bin/sourceless-installer-helper.py /usr/bin/sourceless-oobe.py /usr/bin/sourceless-oobe-apply /usr/bin/sourceless-direct-installer /usr/bin/sourceless-direct-installer-inner 2>/dev/null || true
 chmod 755 /etc/xdg/plasma-workspace/env/sourceless-vm-cursor.sh 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
@@ -662,7 +662,7 @@ if command -v dracut >/dev/null 2>&1; then
     done
     cat << 'EOF' > /etc/dracut.conf.d/99-sourceless-live.conf
 add_dracutmodules+=" dmsquash-live dmsquash-live-autooverlay pollcdrom "
-add_drivers+=" squashfs overlay loop isofs sr_mod cdrom "
+add_drivers+=" squashfs overlay loop isofs sr_mod cdrom btrfs ext4 xfs vfat nvme "
 hostonly="no"
 hostonly_cmdline="no"
 EOF
@@ -670,7 +670,7 @@ EOF
         if [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ]; then
             kver="$(basename "$kver_dir")"
             echo "[Sourceless] Regenerating initramfs for $kver with dmsquash-live..."
-            dracut --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live dmsquash-live-autooverlay pollcdrom" --add-drivers "squashfs overlay loop isofs sr_mod cdrom" "$kver_dir/initramfs.img" > /tmp/dracut.log 2>&1 || {
+            dracut --no-hostonly --no-hostonly-cmdline --kver "$kver" --force --force-add "dmsquash-live dmsquash-live-autooverlay pollcdrom" --add-drivers "squashfs overlay loop isofs sr_mod cdrom btrfs ext4 xfs vfat nvme" "$kver_dir/initramfs.img" > /tmp/dracut.log 2>&1 || {
                 echo "[Sourceless] ERROR: dracut exited non-zero!"
                 tail -n 30 /tmp/dracut.log
                 exit 1
@@ -682,6 +682,13 @@ EOF
                 exit 1
             fi
             echo "[Sourceless] Verified dmsquash-live in $kver_dir/initramfs.img"
+
+            # Populate /boot with kernel and initramfs for LiveOS rsync installs and grub2-mkconfig
+            mkdir -p /boot
+            cp -f "$kver_dir/vmlinuz" "/boot/vmlinuz-${kver}" 2>/dev/null || true
+            cp -f "$kver_dir/initramfs.img" "/boot/initramfs-${kver}.img" 2>/dev/null || true
+            [ -f "$kver_dir/System.map" ] && cp -f "$kver_dir/System.map" "/boot/System.map-${kver}" 2>/dev/null || true
+            [ -f "$kver_dir/config" ] && cp -f "$kver_dir/config" "/boot/config-${kver}" 2>/dev/null || true
         fi
     done
 fi

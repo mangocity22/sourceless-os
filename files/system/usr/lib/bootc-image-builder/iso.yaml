@@ -3,9 +3,9 @@ grub2:
   default: 0
   timeout: 10
   entries:
-    - name: "Live SourceLess OS"
-      linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image rd.live.overlay.overlayfs=1 enforcing=0 quiet rhgb"
-      initrd: "/images/pxeboot/initrd.img"
     - name: "Install SourceLess OS"
       linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image rd.live.overlay.overlayfs=1 liveinst enforcing=0 quiet rhgb"
+      initrd: "/images/pxeboot/initrd.img"
+    - name: "Live SourceLess OS"
+      linux: "/images/pxeboot/vmlinuz root=live:CDLABEL=SOURCELESS_OS rd.live.image rd.live.overlay.overlayfs=1 enforcing=0 quiet rhgb"
       initrd: "/images/pxeboot/initrd.img"

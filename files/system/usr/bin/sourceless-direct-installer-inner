@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-direct-installer-inner
+# Runs Anaconda liveinst directly inside the borderless kiosk session and reboots on exit.
+set -uo pipefail
+
+export LANG="${LANG:-en_US.UTF-8}"
+
+# Apply dark obsidian background before the WebUI window maps
+if command -v xsetroot >/dev/null 2>&1; then
+    xsetroot -solid "#090B12" 2>/dev/null || true
+fi
+
+# Give kwin_wayland / XWayland a moment to publish display sockets
+for _ in {1..30}; do
+    if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then
+        break
+    fi
+    sleep 0.2
+done
+
+# Execute Anaconda installer directly (kiosk-fullscreen via kwinrulesrc)
+sudo -E /usr/bin/liveinst || /usr/bin/liveinst || true
+
+# Reboot automatically when the standalone BIOS installer session ends
+sudo /usr/bin/systemctl reboot 2>/dev/null || systemctl reboot 2>/dev/null || true

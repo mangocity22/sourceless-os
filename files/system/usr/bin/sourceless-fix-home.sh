@@ -54,15 +54,21 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         cp -f /etc/gtk-4.0/settings.ini "$root_cfg/gtk-4.0/settings.ini" 2>/dev/null || true
     done
 
-    # Expose Anaconda installer on Desktop and autostart when booted with liveinst
+    # Expose Anaconda installer on Desktop in Live session; direct BIOS install mode uses dedicated kiosk session
     mkdir -p /var/home/liveuser/Desktop /var/home/liveuser/.config/autostart
+    rm -f /var/home/liveuser/.config/autostart/liveinst.desktop 2>/dev/null || true
     if [ -f /usr/share/applications/liveinst.desktop ]; then
         sed -i 's/^Name=.*/Name=Install SourceLess OS/; s/^GenericName=.*/GenericName=Install SourceLess OS/; s/^Comment=.*/Comment=Install SourceLess OS to Hard Drive/; s/^Icon=.*/Icon=sourceless-logo/; s/Fedora/SourceLess OS/g' /usr/share/applications/liveinst.desktop 2>/dev/null || true
         cp -f /usr/share/applications/liveinst.desktop /var/home/liveuser/Desktop/liveinst.desktop
         chmod +x /var/home/liveuser/Desktop/liveinst.desktop
-        if grep -qw "liveinst" /proc/cmdline 2>/dev/null; then
-            cp -f /usr/share/applications/liveinst.desktop /var/home/liveuser/.config/autostart/liveinst.desktop
-        fi
+    fi
+
+    # Determine SDDM autologin session: standalone fullscreen installer for 'liveinst', full KDE Plasma desktop otherwise
+    if grep -qw "liveinst" /proc/cmdline 2>/dev/null && [ -f /usr/share/wayland-sessions/sourceless-installer.desktop ]; then
+        LIVE_SESSION="sourceless-installer"
+    else
+        LIVE_SESSION="plasma"
+        rm -f /var/home/liveuser/.config/kwinrulesrc 2>/dev/null || true
     fi
 
     chown -R liveuser:liveuser /var/home/liveuser 2>/dev/null || true
@@ -77,12 +83,12 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         fi
     fi
 
-    # Configure SDDM autologin for the live session
+    # Configure SDDM autologin for the chosen Live or Direct Installer session
     mkdir -p /etc/sddm.conf.d
-    cat << 'EOF' > /etc/sddm.conf.d/99-live-autologin.conf
+    cat << EOF > /etc/sddm.conf.d/99-live-autologin.conf
 [Autologin]
 User=liveuser
-Session=plasma
+Session=${LIVE_SESSION}
 Relogin=false
 EOF
     exit 0

@@ -1,0 +1,43 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-direct-installer
+# Standalone Wayland kiosk compositor session for direct BIOS/GRUB installation without KDE Plasma Desktop.
+set -uo pipefail
+
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=KDE
+export QT_QPA_PLATFORM=wayland
+export LANG="${LANG:-en_US.UTF-8}"
+
+USER_CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+mkdir -p "$USER_CFG"
+
+# Enforce borderless fullscreen rules on normal application windows while allowing centered dialogs
+cat << 'EOF' > "${USER_CFG}/kwinrulesrc"
+[1]
+Description=SourceLess Direct Installer Fullscreen
+fullscreen=true
+fullscreenrule=2
+maximizehoriz=true
+maximizehorizrule=2
+maximizevert=true
+maximizevertrule=2
+noborder=true
+noborderrule=2
+types=1
+wmclassmatch=0
+
+[General]
+count=1
+rules=1
+EOF
+
+# Disable compositor blur & shadows on minimal installer session
+if [ -f /etc/xdg/kwinrc ]; then
+    cp -f /etc/xdg/kwinrc "${USER_CFG}/kwinrc" 2>/dev/null || true
+fi
+
+if command -v dbus-run-session >/dev/null 2>&1; then
+    exec dbus-run-session -- /usr/bin/kwin_wayland --xwayland --exit-with-session="/usr/bin/sourceless-direct-installer-inner"
+else
+    exec /usr/bin/kwin_wayland --xwayland --exit-with-session="/usr/bin/sourceless-direct-installer-inner"
+fi
