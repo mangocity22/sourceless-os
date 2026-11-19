@@ -76,6 +76,27 @@ if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
     done
     rm -f /etc/xdg/autostart/*drkonqi*.desktop 2>/dev/null || true
 
+    # Live-RAM guard for upstream Anaconda RHBZ#2412427 (non-fatal rsync exit 23/24 on container xattrs -> /mnt/sysroot)
+    if [ -x /usr/bin/rsync ] && [ ! -f /usr/bin/rsync.real ]; then
+        mv -f /usr/bin/rsync /usr/bin/rsync.real 2>/dev/null || true
+    fi
+    if [ -x /usr/bin/rsync.real ]; then
+        cat << 'EOF' > /usr/bin/rsync
+#!/usr/bin/bash
+/usr/bin/rsync.real "$@"
+rc=$?
+if [ "$rc" -eq 23 ] || [ "$rc" -eq 24 ]; then
+    for arg in "$@"; do
+        case "$arg" in
+            */mnt/sysroot*|/mnt/sysroot*) exit 0 ;;
+        esac
+    done
+fi
+exit "$rc"
+EOF
+        chmod 755 /usr/bin/rsync 2>/dev/null || true
+    fi
+
     if grep -qw "liveinst" /proc/cmdline 2>/dev/null; then
         cat << 'EOF' > /var/home/liveuser/.config/kwinrulesrc
 [1]
