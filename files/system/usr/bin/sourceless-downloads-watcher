@@ -1,14 +1,36 @@
 #!/usr/bin/bash
 # /usr/bin/sourceless-downloads-watcher
 
-DOWNLOADS_DIR="/var/home/sourceless/Downloads"
-AUTOSTART_DIR="/var/home/sourceless/.config/autostart"
+# Wait briefly on installed systems if First-Boot OOBE has not yet provisioned a user workspace
+if ! grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
+    while [ ! -f /etc/sourceless/.oobe_completed ]; do
+        sleep 5
+    done
+fi
 
-mkdir -p "$DOWNLOADS_DIR" "$AUTOSTART_DIR"
-chown -R sourceless:sourceless "$DOWNLOADS_DIR" 2>/dev/null || true
+WATCH_DIRS=()
+for HOME_DIR in /var/home/*; do
+    [ -d "$HOME_DIR" ] || continue
+    USER_NAME="$(basename "$HOME_DIR")"
+    case "$USER_NAME" in
+        sourceless-setup|lost+found) continue ;;
+    esac
+    id "$USER_NAME" >/dev/null 2>&1 || continue
 
-# Monitor Downloads and Autostart simultaneously
-inotifywait -m -e close_write,moved_to --format "%w%f" "$DOWNLOADS_DIR" "$AUTOSTART_DIR" | while read -r FILE; do
+    DL_DIR="${HOME_DIR}/Downloads"
+    AS_DIR="${HOME_DIR}/.config/autostart"
+    mkdir -p "$DL_DIR" "$AS_DIR"
+    PRIMARY_GRP="$(id -gn "$USER_NAME" 2>/dev/null || echo "$USER_NAME")"
+    chown -R "${USER_NAME}:${PRIMARY_GRP}" "$DL_DIR" 2>/dev/null || true
+    WATCH_DIRS+=("$DL_DIR" "$AS_DIR")
+done
+
+if [ "${#WATCH_DIRS[@]}" -eq 0 ]; then
+    exit 0
+fi
+
+# Monitor Downloads and Autostart directories simultaneously across user workspaces
+inotifywait -m -e close_write,moved_to --format "%w%f" "${WATCH_DIRS[@]}" | while read -r FILE; do
     case "$FILE" in
         *.crdownload|*.part|*.tmp|*.downloading) continue ;;
     esac

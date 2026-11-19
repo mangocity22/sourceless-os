@@ -33,11 +33,20 @@ if [ $IS_THREAT -eq 1 ]; then
     mv "$TARGET" "$DEST"
     chmod 000 "$DEST"
 
-    # Route desktop alert to the active KDE Wayland session
-    USER_ID=$(id -u sourceless 2>/dev/null || echo "1000")
+    # Route desktop alert to the owning user's active KDE Wayland session
+    TARGET_USER=""
+    if [[ "$TARGET" =~ ^/var/home/([^/]+)/ ]]; then
+        TARGET_USER="${BASH_REMATCH[1]}"
+    fi
+    if [ -z "$TARGET_USER" ] || ! id "$TARGET_USER" >/dev/null 2>&1; then
+        TARGET_USER=$(loginctl list-sessions --no-legend 2>/dev/null | awk 'NR==1 {print $3}')
+    fi
+    TARGET_USER="${TARGET_USER:-sourceless}"
+
+    USER_ID=$(id -u "$TARGET_USER" 2>/dev/null || echo "1000")
     USER_BUS="unix:path=/run/user/${USER_ID}/bus"
 
-    sudo -u sourceless \
+    sudo -u "$TARGET_USER" \
         XDG_RUNTIME_DIR="/run/user/${USER_ID}" \
         DBUS_SESSION_BUS_ADDRESS="$USER_BUS" \
         notify-send -u critical -i dialog-warning \

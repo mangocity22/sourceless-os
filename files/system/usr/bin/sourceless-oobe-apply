@@ -1,0 +1,106 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-oobe-apply
+# Root provisioning helper invoked by sourceless-oobe.py on first boot.
+set -euo pipefail
+
+FULLNAME=""
+USERNAME=""
+HOSTNAME_VAL="sourceless-pc"
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --fullname)
+            FULLNAME="${2:-}"
+            shift 2
+            ;;
+        --username)
+            USERNAME="${2:-}"
+            shift 2
+            ;;
+        --hostname)
+            HOSTNAME_VAL="${2:-sourceless-pc}"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+IFS= read -r NEW_PASS || true
+
+if [ -z "$FULLNAME" ] || [ -z "$USERNAME" ] || [ -z "$NEW_PASS" ]; then
+    echo "Missing required account fields." >&2
+    exit 1
+fi
+
+if ! echo "$USERNAME" | grep -Eq '^[a-z_][a-z0-9_-]{0,31}$'; then
+    echo "Invalid username format." >&2
+    exit 1
+fi
+
+case "$USERNAME" in
+    root|liveuser|sourceless-setup|daemon|bin|sys|adm|wheel|nobody|sddm)
+        echo "Reserved username not permitted." >&2
+        exit 1
+        ;;
+esac
+
+if ! echo "$HOSTNAME_VAL" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'; then
+    echo "Invalid hostname format." >&2
+    exit 1
+fi
+
+# Create standard non-privileged user (in group 'users', no wheel/sudo access)
+if ! id "$USERNAME" >/dev/null 2>&1; then
+    useradd -m -d "/var/home/${USERNAME}" -G users -s /bin/bash -c "$FULLNAME" "$USERNAME"
+fi
+
+printf '%s:%s\n' "$USERNAME" "$NEW_PASS" | chpasswd
+hostnamectl set-hostname "$HOSTNAME_VAL" 2>/dev/null || echo "$HOSTNAME_VAL" > /etc/hostname
+
+USER_HOME="/var/home/${USERNAME}"
+mkdir -p "${USER_HOME}/.config/Kvantum"
+cp -a /etc/skel/. "${USER_HOME}/" 2>/dev/null || true
+
+for xdg_file in kscreenlockerrc kdeglobals plasmarc kwinrc; do
+    if [ -f "/etc/xdg/${xdg_file}" ]; then
+        cp -f "/etc/xdg/${xdg_file}" "${USER_HOME}/.config/${xdg_file}"
+    fi
+done
+
+if [ -f /etc/xdg/Kvantum/kvantum.kvconfig ]; then
+    cp -f /etc/xdg/Kvantum/kvantum.kvconfig "${USER_HOME}/.config/Kvantum/kvantum.kvconfig"
+fi
+
+if ! grep -q "starship init bash" "${USER_HOME}/.bashrc" 2>/dev/null; then
+    echo 'eval "$(starship init bash)"' >> "${USER_HOME}/.bashrc"
+fi
+
+PRIMARY_GRP=$(id -gn "$USERNAME" 2>/dev/null || echo "$USERNAME")
+chown -R "${USERNAME}:${PRIMARY_GRP}" "$USER_HOME"
+chmod 700 "$USER_HOME"
+chmod 755 "${USER_HOME}/.config" 2>/dev/null || true
+
+mkdir -p "${USER_HOME}/.config/autostart"
+chown root:root "${USER_HOME}/.config/autostart" 2>/dev/null || true
+chmod 555 "${USER_HOME}/.config/autostart" 2>/dev/null || true
+restorecon -RF "$USER_HOME" 2>/dev/null || true
+
+# Mark first-boot OOBE as finished and remove OOBE autologin drop-in
+mkdir -p /etc/sourceless
+touch /etc/sourceless/.oobe_completed
+rm -f /etc/sddm.conf.d/99-oobe-autologin.conf 2>/dev/null || true
+rm -f /var/home/sourceless-setup/.config/autostart/sourceless-oobe.desktop 2>/dev/null || true
+
+# Hand off cleanly outside the active user session cgroup: restart SDDM and remove staging user
+FINISH_CMD="sleep 1.2 && systemctl restart sddm.service && sleep 2 && userdel -r sourceless-setup 2>/dev/null || true"
+if command -v systemd-run >/dev/null 2>&1; then
+    systemd-run --no-block --unit=sourceless-oobe-finish /usr/bin/bash -c "$FINISH_CMD" >/dev/null 2>&1 || \
+        nohup /usr/bin/bash -c "$FINISH_CMD" >/dev/null 2>&1 &
+else
+    nohup /usr/bin/bash -c "$FINISH_CMD" >/dev/null 2>&1 &
+fi
+
+exit 0

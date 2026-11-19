@@ -1,5 +1,9 @@
 [customizations.installer.kickstart]
 contents = """
+# Default installer language and US keyboard layout
+lang en_US.UTF-8
+keyboard --xlayouts='us'
+
 # Launch Anaconda installer in graphical mode
 graphical
 

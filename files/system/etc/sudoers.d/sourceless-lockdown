@@ -1,2 +1,7 @@
-# Allow the standard sourceless user to execute only the offline support unlock gate as root without a password
+# Allow the offline support unlock gate for the legacy sourceless user and OOBE-created standard users
 sourceless ALL=(root) NOPASSWD: /usr/bin/sourceless-unlock
+%users ALL=(root) NOPASSWD: /usr/bin/sourceless-unlock
+
+# Allow the temporary First-Boot OOBE staging account to invoke only the account provisioning helper
+Defaults:sourceless-setup !requiretty
+sourceless-setup ALL=(root) NOPASSWD: /usr/bin/sourceless-oobe-apply

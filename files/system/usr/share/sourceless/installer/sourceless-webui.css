@@ -1,7 +1,7 @@
-/* =============================================================================
- * SourceLess OS - Anaconda WebUI Cyber Glass Theme (Fedora 45 / PatternFly 5 & 6)
- * Modeled after LockScreenUi.qml (#090B12 obsidian, #6054F2 violet, #A7FF52 lime)
- * ============================================================================= */
+/*
+ * SourceLess OS — Anaconda WebUI Theme (Fedora 45 / Cockpit PatternFly 5 & 6)
+ * Full cyber-dark glassmorphism design inspired by LockScreenUi.qml.
+ */
 
 :root,
 html,
@@ -9,104 +9,65 @@ body,
 .pf-v5-theme-dark,
 .pf-v6-theme-dark {
     --sl-bg-obsidian: #090B12;
-    --sl-bg-hud: rgba(9, 11, 18, 0.88);
-    --sl-bg-card: rgba(18, 22, 35, 0.90);
-    --sl-bg-card-elevated: rgba(24, 29, 46, 0.94);
-    --sl-bg-input: rgba(10, 13, 21, 0.92);
+    --sl-bg-hud: rgba(13, 16, 27, 0.86);
+    --sl-bg-card: rgba(17, 21, 36, 0.90);
+    --sl-bg-panel: #161B2E;
+    --sl-bg-input: #0A0D16;
     --sl-cyber-lime: #A7FF52;
+    --sl-cyber-lime-dim: rgba(167, 255, 82, 0.16);
     --sl-cyber-violet: #6054F2;
     --sl-cyber-violet-hover: #7368F7;
+    --sl-cyber-violet-dim: rgba(96, 84, 242, 0.20);
     --sl-danger: #F2546D;
     --sl-warning: #F5A623;
     --sl-text-main: #E8ECFF;
     --sl-text-muted: #949BC0;
-    --sl-border-subtle: rgba(255, 255, 255, 0.12);
+    --sl-border-subtle: rgba(148, 155, 192, 0.22);
+    --sl-border-glow: rgba(115, 104, 247, 0.45);
+    --sl-radius-lg: 18px;
+    --sl-radius-md: 12px;
+    --sl-radius-sm: 8px;
 
-    color-scheme: dark;
+    /* PatternFly 6 tokens */
+    --pf-t--global--background--color--primary--default: #111524;
+    --pf-t--global--background--color--secondary--default: #0D101B;
+    --pf-t--global--text--color--regular: #E8ECFF;
+    --pf-t--global--text--color--subtle: #949BC0;
+    --pf-t--global--color--brand--default: #6054F2;
+    --pf-t--global--color--brand--hover: #7368F7;
+    --pf-t--global--border--color--default: rgba(148, 155, 192, 0.24);
+    --pf-t--global--border--color--high-contrast: rgba(167, 255, 82, 0.45);
 
-    /* PatternFly 5 global dark tokens */
-    --pf-v5-global--BackgroundColor--100: #111420;
+    /* PatternFly 5 fallback tokens */
+    --pf-v5-global--BackgroundColor--100: #111524;
     --pf-v5-global--BackgroundColor--200: #090B12;
-    --pf-v5-global--BackgroundColor--300: #0D111C;
-    --pf-v5-global--BackgroundColor--400: #181C2E;
-    --pf-v5-global--BackgroundColor--light-100: #111420;
-    --pf-v5-global--BackgroundColor--light-200: #0D111C;
-    --pf-v5-global--BackgroundColor--light-300: #090B12;
-    --pf-v5-global--BackgroundColor--dark-100: #090B12;
-    --pf-v5-global--BackgroundColor--dark-200: #0D111C;
-    --pf-v5-global--BackgroundColor--dark-300: #111420;
-    --pf-v5-global--BackgroundColor--dark-400: #181C2E;
     --pf-v5-global--Color--100: #E8ECFF;
     --pf-v5-global--Color--200: #949BC0;
-    --pf-v5-global--Color--300: #E8ECFF;
-    --pf-v5-global--Color--400: #949BC0;
-    --pf-v5-global--Color--light-100: #E8ECFF;
-    --pf-v5-global--Color--light-200: #949BC0;
-    --pf-v5-global--Color--dark-100: #E8ECFF;
-    --pf-v5-global--Color--dark-200: #949BC0;
-    --pf-v5-global--BorderColor--100: rgba(255, 255, 255, 0.12);
-    --pf-v5-global--BorderColor--200: rgba(255, 255, 255, 0.16);
-    --pf-v5-global--BorderColor--300: rgba(255, 255, 255, 0.08);
     --pf-v5-global--primary-color--100: #6054F2;
     --pf-v5-global--primary-color--200: #7368F7;
     --pf-v5-global--link--Color: #A7FF52;
-    --pf-v5-global--link--Color--hover: #C2FF85;
-    --pf-v5-global--active-color--100: #6054F2;
-    --pf-v5-global--active-color--400: rgba(96, 84, 242, 0.25);
-    --pf-v5-global--success-color--100: #A7FF52;
-    --pf-v5-global--warning-color--100: #F5A623;
-    --pf-v5-global--danger-color--100: #F2546D;
-    --pf-v5-global--info-color--100: #6054F2;
+    --pf-v5-global--BorderColor--100: rgba(148, 155, 192, 0.22);
 
-    /* PatternFly 6 global & semantic dark tokens (Fedora 45 WebUI) */
-    --pf-t--global--background--color--primary--default: #111420;
-    --pf-t--global--background--color--primary--hover: #191E30;
-    --pf-t--global--background--color--primary--clicked: #21273D;
-    --pf-t--global--background--color--secondary--default: #090B12;
-    --pf-t--global--background--color--secondary--hover: #121623;
-    --pf-t--global--background--color--floating--default: #141827;
-    --pf-t--global--background--color--control--default: #0A0D15;
-    --pf-t--global--background--color--action--plain--hover: rgba(96, 84, 242, 0.18);
-    --pf-t--global--background--color--action--plain--clicked: rgba(96, 84, 242, 0.28);
-    --pf-t--global--text--color--regular: #E8ECFF;
-    --pf-t--global--text--color--subtle: #949BC0;
-    --pf-t--global--text--color--placeholder: rgba(148, 155, 192, 0.65);
-    --pf-t--global--text--color--link--default: #A7FF52;
-    --pf-t--global--text--color--link--hover: #C2FF85;
-    --pf-t--global--text--color--brand--default: #A7FF52;
-    --pf-t--global--color--brand--default: #6054F2;
-    --pf-t--global--color--brand--hover: #7368F7;
-    --pf-t--global--color--brand--clicked: #4F44D8;
-    --pf-t--global--border--color--default: rgba(255, 255, 255, 0.12);
-    --pf-t--global--border--color--high-contrast: rgba(255, 255, 255, 0.22);
-    --pf-t--global--border--color--clicked: #6054F2;
-    --pf-t--global--border--color--status--danger--default: #F2546D;
-    --pf-t--global--border--color--status--warning--default: #F5A623;
-    --pf-t--global--border--color--status--success--default: #A7FF52;
-    --pf-v6-global--BackgroundColor--100: #111420;
-    --pf-v6-global--BackgroundColor--200: #090B12;
-    --pf-v6-global--Color--100: #E8ECFF;
-    --pf-v6-global--Color--200: #949BC0;
+    color-scheme: dark !important;
 }
 
-/* Full-screen obsidian cyber canvas */
 html,
 body {
-    background: radial-gradient(circle at 50% 18%, rgba(96, 84, 242, 0.14) 0%, rgba(9, 11, 18, 0.98) 55%),
-                linear-gradient(180deg, #080A12 0%, #0A0D17 50%, #05080F 100%) !important;
     background-color: var(--sl-bg-obsidian) !important;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(96, 84, 242, 0.16) 0%, transparent 65%),
+        radial-gradient(ellipse 65% 45% at 85% 95%, rgba(167, 255, 82, 0.08) 0%, transparent 60%) !important;
     color: var(--sl-text-main) !important;
-    min-height: 100vh;
-    margin: 0;
-    font-family: "Inter", "Noto Sans", system-ui, -apple-system, sans-serif !important;
-}
-
-body {
+    font-family: "Inter", "Noto Sans", "Segoe UI", sans-serif !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
     padding-top: 52px !important;
-    box-sizing: border-box;
+    overflow-x: hidden !important;
 }
 
-/* Top Cyber HUD Bar (matches LockScreenUi.qml topHud) */
+/* =========================================================
+ * Top Cyber HUD Bar (#sl-cyber-hud) — LockScreen Glassmorphism
+ * ========================================================= */
 #sl-cyber-hud {
     position: fixed;
     top: 0;
@@ -114,352 +75,644 @@ body {
     right: 0;
     height: 52px;
     z-index: 9999;
+    background: var(--sl-bg-hud);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(115, 104, 247, 0.35);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 28px;
-    background: var(--sl-bg-hud);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    padding: 0 22px;
     user-select: none;
 }
 
-#sl-cyber-hud .sl-hud-left {
+.sl-hud-left {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-#sl-cyber-hud .sl-hud-logo {
-    width: 22px;
-    height: 22px;
+.sl-hud-logo {
+    width: 24px;
+    height: 24px;
     object-fit: contain;
 }
 
-#sl-cyber-hud .sl-hud-title {
+.sl-hud-brand {
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: 2px;
     color: var(--sl-text-main);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 1.8px;
+    text-transform: uppercase;
 }
 
-#sl-cyber-hud .sl-hud-sep {
+.sl-hud-divider {
     width: 1px;
     height: 16px;
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(148, 155, 192, 0.3);
 }
 
-#sl-cyber-hud .sl-hud-dot {
+.sl-hud-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--sl-cyber-lime);
+    box-shadow: 0 0 8px var(--sl-cyber-lime);
+}
+
+.sl-hud-subtitle {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1.8px;
+    color: var(--sl-text-muted);
+    text-transform: uppercase;
+}
+
+.sl-hud-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: 48px;
+}
+
+.sl-hud-clock {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--sl-text-main);
+    font-variant-numeric: tabular-nums;
+}
+
+.sl-hud-date {
+    font-size: 0.78rem;
+    color: var(--sl-text-muted);
+}
+
+/* =========================================================
+ * Compact Upstream Sub-Header (keep actions menu reachable,
+ * remove duplicate gray "SourceLess OS installation" bar)
+ * ========================================================= */
+.pf-v6-c-page,
+.pf-v5-c-page {
+    background: transparent !important;
+}
+
+.pf-v6-c-page__header,
+.pf-v5-c-page__header,
+.pf-v6-c-masthead,
+.pf-v5-c-masthead {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+}
+
+.pf-v6-c-masthead__main,
+.pf-v5-c-page__header-brand,
+.anaconda-screen-header-title,
+.pf-v6-c-masthead h1,
+.pf-v6-c-page__header h1,
+.pf-v5-c-page__header h1 {
+    display: none !important;
+}
+
+/* Keep the upstream kebab (⋮) actions toggle floating neatly in top-right HUD area */
+.pf-v6-c-masthead__content,
+.pf-v5-c-page__header-tools {
+    position: fixed !important;
+    top: 8px !important;
+    right: 16px !important;
+    z-index: 10001 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.pf-v6-c-masthead__content button,
+.pf-v5-c-page__header-tools button {
+    background: rgba(18, 22, 35, 0.9) !important;
+    border: 1px solid rgba(148, 155, 192, 0.28) !important;
+    border-radius: var(--sl-radius-sm) !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v6-c-page__main-section,
+.pf-v5-c-page__main-section {
+    background: transparent !important;
+    padding: 24px 28px 36px 28px !important;
+}
+
+/* =========================================================
+ * Central Cyber Wizard Card (LockScreen Gradient Outline)
+ * ========================================================= */
+.pf-v6-c-wizard,
+.pf-v5-c-wizard {
+    max-width: 1040px !important;
+    margin: 12px auto 28px auto !important;
+    border-radius: var(--sl-radius-lg) !important;
+    background:
+        linear-gradient(var(--sl-bg-card), var(--sl-bg-card)) padding-box,
+        linear-gradient(135deg, rgba(167, 255, 82, 0.55) 0%, rgba(110, 98, 255, 0.5) 55%, rgba(96, 84, 242, 0.7) 100%) border-box !important;
+    border: 1.5px solid transparent !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 22px 54px rgba(0, 0, 0, 0.68), 0 0 32px rgba(96, 84, 242, 0.14) !important;
+    overflow: hidden !important;
+}
+
+.pf-v6-c-wizard__outer-wrap,
+.pf-v5-c-wizard__outer-wrap,
+.pf-v6-c-wizard__inner-wrap,
+.pf-v5-c-wizard__inner-wrap {
+    background: transparent !important;
+}
+
+/* Left Stepper Rail */
+.pf-v6-c-wizard__nav,
+.pf-v5-c-wizard__nav {
+    background: #0C0F1A !important;
+    border-right: 1px solid var(--sl-border-subtle) !important;
+    padding: 26px 16px !important;
+    min-width: 245px !important;
+}
+
+.pf-v6-c-wizard__nav-link,
+.pf-v5-c-wizard__nav-link {
+    border-radius: var(--sl-radius-md) !important;
+    color: var(--sl-text-muted) !important;
+    padding: 10px 14px !important;
+    margin-bottom: 6px !important;
+    font-weight: 500 !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.pf-v6-c-wizard__nav-link:hover,
+.pf-v5-c-wizard__nav-link:hover {
+    background: rgba(115, 104, 247, 0.14) !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v6-c-wizard__nav-link.pf-m-current,
+.pf-v5-c-wizard__nav-link.pf-m-current {
+    background: linear-gradient(90deg, rgba(96, 84, 242, 0.34), rgba(96, 84, 242, 0.12)) !important;
+    border: 1px solid rgba(115, 104, 247, 0.5) !important;
+    color: var(--sl-text-main) !important;
+    font-weight: 700 !important;
+}
+
+.pf-v6-c-wizard__nav-link.pf-m-current::before,
+.pf-v5-c-wizard__nav-link.pf-m-current::before {
+    background-color: var(--sl-cyber-lime) !important;
+    color: #090B12 !important;
+    font-weight: 800 !important;
+}
+
+/* Wizard Main Body — generous spacing so titles never feel cramped */
+.pf-v6-c-wizard__main,
+.pf-v5-c-wizard__main {
+    background: transparent !important;
+}
+
+.pf-v6-c-wizard__main-body,
+.pf-v5-c-wizard__main-body {
+    padding: 34px 44px 36px 44px !important;
+    color: var(--sl-text-main) !important;
+    overflow: visible !important;
+}
+
+.pf-v6-c-wizard__main-body h1,
+.pf-v6-c-wizard__main-body h2,
+.pf-v5-c-wizard__main-body h1,
+.pf-v5-c-wizard__main-body h2,
+.pf-v6-c-title,
+.pf-v5-c-title {
+    color: var(--sl-text-main) !important;
+    font-weight: 700 !important;
+    line-height: 1.35 !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+}
+
+.pf-v6-c-wizard__main-body > div > h1:first-child,
+.pf-v6-c-wizard__main-body > div > h2:first-child,
+.pf-v5-c-wizard__main-body > div > h1:first-child,
+.pf-v5-c-wizard__main-body > div > h2:first-child,
+.pf-v6-c-wizard__main-body .pf-v6-c-title.pf-m-2xl,
+.pf-v6-c-wizard__main-body .pf-v6-c-title.pf-m-xl {
+    font-size: 1.48rem !important;
+    margin-bottom: 22px !important;
+    padding-bottom: 14px !important;
+    border-bottom: 1px solid rgba(167, 255, 82, 0.18) !important;
+}
+
+/* Vertical, balanced Welcome page form stacking */
+.sl-welcome-page .pf-v6-c-form,
+.sl-welcome-page .pf-v5-c-form {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+    max-width: 560px !important;
+}
+
+.sl-welcome-page .pf-v6-c-form__group,
+.sl-welcome-page .pf-v5-c-form__group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    grid-template-columns: none !important;
+}
+
+.sl-welcome-page .pf-v6-c-form__group-label,
+.sl-welcome-page .pf-v5-c-form__group-label {
+    padding: 0 !important;
+    text-align: left !important;
+}
+
+.pf-v6-c-form__label-text,
+.pf-v5-c-form__label-text {
+    color: var(--sl-text-main) !important;
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+}
+
+/* =========================================================
+ * Collapsible Language Dropdown (Welcome Screen)
+ * Controlled cleanly via .sl-lang-host & .sl-lang-open class
+ * without moving React-owned DOM elements.
+ * ========================================================= */
+.sl-lang-host {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 480px !important;
+}
+
+.sl-lang-trigger {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    background: var(--sl-bg-input);
+    border: 1.5px solid rgba(115, 104, 247, 0.45);
+    border-radius: var(--sl-radius-md);
+    color: var(--sl-text-main);
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sl-lang-trigger:hover {
+    border-color: var(--sl-cyber-lime);
+    background: #101524;
+}
+
+.sl-lang-trigger-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sl-lang-badge {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: var(--sl-cyber-lime);
-    box-shadow: 0 0 10px rgba(167, 255, 82, 0.75);
+    flex-shrink: 0;
 }
 
-#sl-cyber-hud .sl-hud-subtitle {
-    color: var(--sl-text-muted);
-    font-size: 11px;
-    letter-spacing: 1.2px;
+.sl-lang-chevron {
+    color: var(--sl-cyber-lime);
+    font-size: 0.85rem;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
 }
 
-#sl-cyber-hud .sl-hud-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.sl-lang-host.sl-lang-open .sl-lang-chevron {
+    transform: rotate(180deg);
 }
 
-#sl-cyber-hud .sl-hud-date {
-    color: var(--sl-text-muted);
-    font-size: 12px;
-    letter-spacing: 0.6px;
+/* Hide PatternFly's inline open language menu + search box when collapsed */
+.sl-lang-host:not(.sl-lang-open) > :not(.sl-lang-trigger) {
+    display: none !important;
 }
 
-#sl-cyber-hud .sl-hud-time {
-    color: var(--sl-text-main);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-    font-variant-numeric: tabular-nums;
+/* When expanded, render a sleek floating/elevated dropdown panel */
+.sl-lang-host.sl-lang-open > .pf-v6-c-menu,
+.sl-lang-host.sl-lang-open > .pf-v5-c-menu,
+.sl-lang-host.sl-lang-open > [class*="c-menu"] {
+    position: relative !important;
+    margin-top: 8px !important;
+    background: #0E1220 !important;
+    border: 1.5px solid var(--sl-border-glow) !important;
+    border-radius: var(--sl-radius-md) !important;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.75) !important;
+    max-height: 270px !important;
+    overflow-y: auto !important;
+    z-index: 400 !important;
 }
 
-/* Transparent shell wrappers so the central cyber card floats over obsidian backdrop */
-#app,
-.pf-v5-c-page,
-.pf-v6-c-page,
-.pf-v5-c-page__main,
-.pf-v6-c-page__main,
-.pf-v5-c-page__main-section,
-.pf-v6-c-page__main-section {
-    background: transparent !important;
-    background-color: transparent !important;
-    color: var(--sl-text-main) !important;
-}
-
-.pf-v5-c-page__header,
-.pf-v6-c-page__header,
-.pf-v5-c-masthead,
-.pf-v6-c-masthead {
-    background: rgba(10, 13, 21, 0.72) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Hide upstream Fedora logo placeholders inside masthead */
-.pf-v5-c-masthead__brand img[src*="fedora"],
-.pf-v6-c-masthead__brand img[src*="fedora"],
-img[alt*="Fedora" i] {
-    content: url("./logo.svg");
-}
-
-/* Central Cyber Wizard Card (matches LockScreenUi.qml cyberCard) */
-.pf-v5-c-wizard,
-.pf-v6-c-wizard,
-.anaconda-screen-main {
-    position: relative;
-    max-width: 1120px;
-    margin: 24px auto !important;
-    border-radius: 16px !important;
-    background: linear-gradient(180deg, rgba(28, 33, 53, 0.90) 0%, rgba(13, 18, 31, 0.95) 100%) !important;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.72) !important;
-    overflow: hidden;
-    border: 1px solid transparent !important;
-}
-
-.pf-v5-c-wizard::before,
-.pf-v6-c-wizard::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 16px;
-    padding: 1.5px;
-    background: linear-gradient(135deg, #A7FF52 0%, #6E62FF 50%, #6054F2 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 20;
-}
-
-.pf-v5-c-wizard__header,
-.pf-v6-c-wizard__header,
-.pf-v5-c-wizard__nav,
-.pf-v6-c-wizard__nav,
-.pf-v5-c-wizard__main,
-.pf-v6-c-wizard__main,
-.pf-v5-c-wizard__footer,
-.pf-v6-c-wizard__footer {
-    background: transparent !important;
-    background-color: transparent !important;
-    color: var(--sl-text-main) !important;
-}
-
-.pf-v5-c-wizard__header,
-.pf-v6-c-wizard__header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.pf-v5-c-wizard__nav,
-.pf-v6-c-wizard__nav {
-    background: rgba(9, 11, 18, 0.55) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.pf-v5-c-wizard__footer,
-.pf-v6-c-wizard__footer {
-    background: rgba(9, 11, 18, 0.65) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-    padding: 16px 24px !important;
-}
-
-/* Wizard Stepper / Navigation Links */
-.pf-v5-c-wizard__nav-link,
-.pf-v6-c-wizard__nav-link {
-    color: var(--sl-text-muted) !important;
-    border-radius: 8px !important;
-}
-
-.pf-v5-c-wizard__nav-link.pf-m-current,
-.pf-v6-c-wizard__nav-link.pf-m-current,
-.pf-v5-c-wizard__nav-link[aria-current="step"],
-.pf-v6-c-wizard__nav-link[aria-current="step"] {
-    color: var(--sl-text-main) !important;
-    font-weight: 700 !important;
-    background: rgba(96, 84, 242, 0.22) !important;
-}
-
-.pf-v5-c-wizard__nav-link.pf-m-current::before,
-.pf-v6-c-wizard__nav-link.pf-m-current::before {
-    background-color: var(--sl-cyber-lime) !important;
-}
-
-/* Cards, Selection Tiles, and Modals */
-.pf-v5-c-card,
-.pf-v6-c-card,
-.pf-v5-c-tile,
-.pf-v6-c-tile,
-.pf-v5-c-modal-box,
-.pf-v6-c-modal-box,
-.pf-v5-c-menu,
-.pf-v6-c-menu,
-.pf-v5-c-popover__content,
-.pf-v6-c-popover__content {
-    background: rgba(16, 20, 32, 0.88) !important;
-    border: 1px solid var(--sl-border-subtle) !important;
-    border-radius: 12px !important;
-    color: var(--sl-text-main) !important;
-}
-
-.pf-v5-c-card.pf-m-selectable:hover,
-.pf-v6-c-card.pf-m-selectable:hover,
-.pf-v5-c-tile:hover,
-.pf-v6-c-tile:hover {
-    border-color: rgba(115, 104, 247, 0.65) !important;
-    background: rgba(24, 30, 48, 0.92) !important;
-}
-
-.pf-v5-c-card.pf-m-selected,
-.pf-v6-c-card.pf-m-selected,
-.pf-v5-c-tile.pf-m-selected,
-.pf-v6-c-tile.pf-m-selected {
-    border-color: var(--sl-cyber-violet) !important;
-    box-shadow: 0 0 0 1px var(--sl-cyber-violet), 0 0 16px rgba(96, 84, 242, 0.28) !important;
-    background: rgba(96, 84, 242, 0.16) !important;
-}
-
-/* Inputs, Textboxes, and Selects */
-.pf-v5-c-form-control,
+/* =========================================================
+ * Inputs, Menus, Tiles, Buttons, Alerts, Progress
+ * ========================================================= */
 .pf-v6-c-form-control,
-.pf-v5-c-menu-toggle,
-.pf-v6-c-menu-toggle,
-.pf-v5-c-text-input-group,
 .pf-v6-c-text-input-group,
+.pf-v5-c-form-control,
+.pf-v5-c-text-input-group {
+    background-color: var(--sl-bg-input) !important;
+    border: 1px solid var(--sl-border-subtle) !important;
+    border-radius: var(--sl-radius-sm) !important;
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v6-c-form-control input,
+.pf-v6-c-text-input-group input,
+.pf-v5-c-form-control input,
 input[type="text"],
 input[type="password"],
 input[type="search"],
-select,
-textarea {
-    background-color: var(--sl-bg-input) !important;
-    color: #FFFFFF !important;
-    border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
-    border-radius: 10px !important;
-}
-
-.pf-v5-c-form-control:focus-within,
-.pf-v6-c-form-control:focus-within,
-.pf-v5-c-menu-toggle:focus,
-.pf-v6-c-menu-toggle:focus,
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--sl-cyber-violet) !important;
-    box-shadow: 0 0 0 2px rgba(96, 84, 242, 0.25) !important;
-    outline: none !important;
-}
-
-/* Buttons */
-.pf-v5-c-button,
-.pf-v6-c-button {
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.pf-v5-c-button.pf-m-primary,
-.pf-v6-c-button.pf-m-primary {
-    background-color: var(--sl-cyber-violet) !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    letter-spacing: 0.4px;
-}
-
-.pf-v5-c-button.pf-m-primary:hover,
-.pf-v6-c-button.pf-m-primary:hover {
-    background-color: var(--sl-cyber-violet-hover) !important;
-    box-shadow: 0 0 18px rgba(96, 84, 242, 0.45) !important;
-}
-
-.pf-v5-c-button.pf-m-secondary,
-.pf-v6-c-button.pf-m-secondary {
-    background-color: rgba(10, 13, 21, 0.90) !important;
+input[type="number"],
+select {
+    background-color: transparent !important;
     color: var(--sl-text-main) !important;
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
 }
 
-.pf-v5-c-button.pf-m-secondary:hover,
-.pf-v6-c-button.pf-m-secondary:hover {
-    border-color: var(--sl-cyber-lime) !important;
+.pf-v6-c-menu,
+.pf-v5-c-menu,
+.pf-v6-c-select__menu,
+.pf-v5-c-select__menu {
+    background: #0F1322 !important;
+    border: 1px solid var(--sl-border-glow) !important;
+    border-radius: var(--sl-radius-md) !important;
+}
+
+.pf-v6-c-menu__item,
+.pf-v5-c-menu__item {
+    color: var(--sl-text-main) !important;
+}
+
+.pf-v6-c-menu__item:hover,
+.pf-v5-c-menu__item:hover {
+    background: rgba(96, 84, 242, 0.22) !important;
+}
+
+.pf-v6-c-menu__item.pf-m-selected,
+.pf-v5-c-menu__item.pf-m-selected,
+.pf-v6-c-menu__item[aria-current="true"] {
+    background: rgba(96, 84, 242, 0.34) !important;
+    border-left: 3px solid var(--sl-cyber-lime) !important;
+}
+
+.pf-v6-c-button.pf-m-primary,
+.pf-v5-c-button.pf-m-primary {
+    background: var(--sl-cyber-violet) !important;
+    border: 1px solid rgba(167, 255, 82, 0.25) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: var(--sl-radius-sm) !important;
+    padding: 8px 20px !important;
+}
+
+.pf-v6-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:hover {
+    background: var(--sl-cyber-violet-hover) !important;
+}
+
+.pf-v6-c-button.pf-m-primary:disabled,
+.pf-v5-c-button.pf-m-primary:disabled {
+    opacity: 0.45 !important;
+}
+
+.pf-v6-c-button.pf-m-secondary,
+.pf-v5-c-button.pf-m-secondary {
+    background: rgba(18, 22, 35, 0.9) !important;
+    border: 1px solid rgba(148, 155, 192, 0.35) !important;
+    color: var(--sl-text-main) !important;
+    border-radius: var(--sl-radius-sm) !important;
+}
+
+.pf-v6-c-button.pf-m-link,
+.pf-v5-c-button.pf-m-link,
+a {
     color: var(--sl-cyber-lime) !important;
 }
 
-.pf-v5-c-button.pf-m-danger,
-.pf-v6-c-button.pf-m-danger {
-    background-color: var(--sl-danger) !important;
-    color: #FFFFFF !important;
+.pf-v6-c-wizard__footer,
+.pf-v5-c-wizard__footer {
+    background: #0C0F1A !important;
+    border-top: 1px solid var(--sl-border-subtle) !important;
+    padding: 16px 28px !important;
 }
 
-/* Checkboxes, Radios & Switches */
-input[type="checkbox"]:checked,
-input[type="radio"]:checked,
-.pf-v5-c-switch__input:checked ~ .pf-v5-c-switch__toggle,
-.pf-v6-c-switch__input:checked ~ .pf-v6-c-switch__toggle {
-    background-color: var(--sl-cyber-violet) !important;
-    border-color: var(--sl-cyber-violet) !important;
-}
-
-/* Alerts & Banners */
-.pf-v5-c-alert,
-.pf-v6-c-alert {
-    background: rgba(14, 18, 30, 0.92) !important;
-    border-radius: 10px !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+.pf-v6-c-tile,
+.pf-v5-c-tile,
+.pf-v6-c-card,
+.pf-v5-c-card {
+    background: var(--sl-bg-panel) !important;
+    border: 1px solid var(--sl-border-subtle) !important;
+    border-radius: var(--sl-radius-md) !important;
     color: var(--sl-text-main) !important;
 }
 
-.pf-v5-c-alert.pf-m-warning,
-.pf-v6-c-alert.pf-m-warning {
-    border-color: rgba(245, 166, 35, 0.55) !important;
+.pf-v6-c-tile.pf-m-selected,
+.pf-v5-c-tile.pf-m-selected {
+    border-color: var(--sl-cyber-lime) !important;
+    background: rgba(96, 84, 242, 0.22) !important;
 }
 
-.pf-v5-c-alert.pf-m-danger,
-.pf-v6-c-alert.pf-m-danger {
-    border-color: rgba(242, 84, 109, 0.55) !important;
+.pf-v6-c-progress__indicator,
+.pf-v5-c-progress__indicator {
+    background: linear-gradient(90deg, var(--sl-cyber-violet), var(--sl-cyber-lime)) !important;
 }
 
-.pf-v5-c-alert.pf-m-success,
-.pf-v6-c-alert.pf-m-success {
-    border-color: rgba(167, 255, 82, 0.55) !important;
+.pf-v6-c-modal-box,
+.pf-v5-c-modal-box {
+    background: var(--sl-bg-card) !important;
+    border: 1px solid var(--sl-border-glow) !important;
+    border-radius: var(--sl-radius-lg) !important;
+    color: var(--sl-text-main) !important;
 }
 
-/* Progress Bars */
-.pf-v5-c-progress__bar,
-.pf-v6-c-progress__bar {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    border-radius: 999px !important;
+/* =========================================================
+ * Custom Disk Space Allocation Card (Installation Method)
+ * ========================================================= */
+#sl-disk-allocation-card {
+    margin-top: 22px;
+    padding: 18px 22px;
+    background: #14192A;
+    border: 1px solid rgba(115, 104, 247, 0.42);
+    border-radius: var(--sl-radius-md);
+}
+
+.sl-disk-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.sl-disk-title {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--sl-text-main);
+}
+
+.sl-disk-badge {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--sl-cyber-lime);
+    background: var(--sl-cyber-lime-dim);
+    border: 1px solid rgba(167, 255, 82, 0.35);
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+
+.sl-disk-modes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sl-disk-radio-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: var(--sl-text-main);
+}
+
+.sl-disk-radio-row input[type="radio"] {
+    accent-color: var(--sl-cyber-lime);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+#sl-disk-custom-controls {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(148, 155, 192, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sl-disk-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+#sl-disk-slider {
+    flex: 1;
+    accent-color: var(--sl-cyber-lime);
+    cursor: pointer;
+}
+
+.sl-disk-number-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--sl-bg-input);
+    border: 1px solid var(--sl-border-subtle);
+    border-radius: var(--sl-radius-sm);
+    padding: 4px 10px;
+}
+
+#sl-disk-gib-input {
+    width: 68px;
+    border: none;
+    outline: none;
+    text-align: right;
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--sl-text-main);
+}
+
+.sl-disk-presets {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sl-preset-btn {
+    background: rgba(96, 84, 242, 0.18);
+    border: 1px solid rgba(115, 104, 247, 0.4);
+    border-radius: var(--sl-radius-sm);
+    color: var(--sl-text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 5px 12px;
+    cursor: pointer;
+}
+
+.sl-preset-btn:hover,
+.sl-preset-btn.sl-active {
+    background: var(--sl-cyber-violet);
+    border-color: var(--sl-cyber-lime);
+    color: #FFFFFF;
+}
+
+.sl-disk-bar {
+    height: 10px;
+    width: 100%;
+    background: rgba(148, 155, 192, 0.16);
+    border-radius: 999px;
     overflow: hidden;
 }
 
-.pf-v5-c-progress__indicator,
-.pf-v6-c-progress__indicator {
-    background: linear-gradient(90deg, #6054F2 0%, #A7FF52 100%) !important;
-    border-radius: 999px !important;
+.sl-disk-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sl-cyber-violet), var(--sl-cyber-lime));
+    border-radius: 999px;
+    transition: width 0.15s ease;
 }
 
-/* Custom Dark Scrollbars */
+.sl-disk-summary {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: var(--sl-text-muted);
+}
+
+.sl-disk-summary strong {
+    color: var(--sl-text-main);
+}
+
+/* Hidden steps / root UI helpers */
+.sl-hidden-step,
+.sl-hidden-root {
+    display: none !important;
+}
+
+/* Subtle dark scrollbars */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(9, 11, 18, 0.8);
+    background: var(--sl-bg-obsidian);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(148, 155, 192, 0.35);
+    background: rgba(115, 104, 247, 0.45);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--sl-cyber-violet);
+    background: var(--sl-cyber-lime);
 }

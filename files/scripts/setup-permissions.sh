@@ -72,6 +72,7 @@ chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
 chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-support-dialog.py 2>/dev/null || true
+chmod 755 /usr/bin/sourceless-installer-helper.py /usr/bin/sourceless-oobe.py /usr/bin/sourceless-oobe-apply 2>/dev/null || true
 chmod 755 /etc/xdg/plasma-workspace/env/sourceless-vm-cursor.sh 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
@@ -311,6 +312,50 @@ if [ -d "$WEBUI_DIR" ]; then
         fi
     done
 fi
+
+# Enforce English (US) as system default locale
+printf 'LANG="en_US.UTF-8"\n' > /etc/locale.conf
+chmod 644 /etc/locale.conf 2>/dev/null || true
+
+# Inject optional custom disk allocation ceiling into Blivet for Installation method slider
+for blivet_py in /usr/lib/python3.*/site-packages/blivet/blivet.py; do
+    if [ -f "$blivet_py" ] && ! grep -q "SOURCELESS_DISK_LIMIT_HOOK" "$blivet_py"; then
+        cat << 'EOF' >> "$blivet_py"
+
+# --- SOURCELESS_DISK_LIMIT_HOOK ---
+try:
+    import inspect as _sl_inspect
+    import os as _sl_os
+    from blivet.devices import PartitionDevice as _sl_PartitionDevice
+    from blivet.size import Size as _sl_Size
+
+    _sl_orig_new_partition = Blivet.new_partition
+    _sl_pd_params = _sl_inspect.signature(_sl_PartitionDevice.__init__).parameters
+    _sl_np_params = _sl_inspect.signature(_sl_orig_new_partition).parameters
+    _sl_max_kw = "max_size" if ("max_size" in _sl_np_params or "max_size" in _sl_pd_params) else "maxsize"
+
+    def _sl_capped_new_partition(self, *args, **kwargs):
+        limit_file = "/run/anaconda/sourceless_max_disk_gib"
+        if kwargs.get("grow") and _sl_os.path.exists(limit_file):
+            try:
+                with open(limit_file, "r", encoding="utf-8") as _fh:
+                    limit_gib = float(_fh.read().strip())
+                if limit_gib >= 16:
+                    target_gib = max(12.0, limit_gib - 2.0)
+                    cap = _sl_Size(f"{int(target_gib * 1024)} MiB")
+                    cur_max = kwargs.get(_sl_max_kw)
+                    if cur_max is None or cur_max > cap:
+                        kwargs[_sl_max_kw] = cap
+            except Exception:
+                pass
+        return _sl_orig_new_partition(self, *args, **kwargs)
+
+    Blivet.new_partition = _sl_capped_new_partition
+except Exception:
+    pass
+EOF
+    fi
+done
 
 chmod 644 /etc/xdg/kcm-about-distrorc 2>/dev/null || true
 
