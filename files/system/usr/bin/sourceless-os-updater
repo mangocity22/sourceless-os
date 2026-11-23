@@ -20,6 +20,10 @@ UPDATE_REPO="ghcr.io/mangocity22/sourceless-os"
 UPDATE_CHANNEL="stable"
 AUTO_STAGE="true"
 
+log_msg() {
+    echo "[SourceLess Update] $*"
+}
+
 load_config() {
     if [ -f "$CONF_FILE" ]; then
         # shellcheck disable=SC1090
@@ -112,7 +116,48 @@ except Exception:
 PYEOF
 }
 
+stage_via_skopeo() {
+    local pinned_ref="$1"
+    local oci_dir="${CACHE_DIR}/oci-blobs"
+    rm -rf "$oci_dir"
+    mkdir -p "$oci_dir"
+    if ! skopeo copy --quiet "docker://${pinned_ref}" "dir:${oci_dir}" >/dev/null 2>&1; then
+        rm -rf "$oci_dir"
+        return 1
+    fi
+    if ! python3 - "${oci_dir}/manifest.json" "$oci_dir" "$STAGING_TMP" << 'PYEOF'
+import json, os, subprocess, sys
+manifest_path, oci_dir, dest_dir = sys.argv[1:4]
+with open(manifest_path, "r", encoding="utf-8") as fh:
+    manifest = json.load(fh)
+for layer in manifest.get("layers", []):
+    digest = layer.get("digest", "")
+    blob_name = digest.split(":", 1)[-1]
+    blob_path = os.path.join(oci_dir, blob_name)
+    if not os.path.isfile(blob_path):
+        raise FileNotFoundError(blob_path)
+    subprocess.run(
+        ["tar", "-xpf", blob_path, "--numeric-owner", "-C", dest_dir],
+        check=True,
+    )
+PYEOF
+    then
+        rm -rf "$oci_dir"
+        return 1
+    fi
+    rm -rf "$oci_dir"
+    return 0
+}
+
 cmd_check_and_stage() {
+    local force_update=0
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --force|-f) force_update=1 ;;
+        esac
+        shift
+    done
+
     if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
         exit 0
     fi
@@ -121,25 +166,31 @@ cmd_check_and_stage() {
     mkdir -p "$STATE_DIR" "$CACHE_DIR"
 
     exec 9>"$LOCK_FILE"
-    flock -n 9 || exit 0
+    flock -n 9 || {
+        log_msg "Another update check/download is already in progress."
+        exit 0
+    }
 
     local current_ver
     current_ver="$(get_version)"
     local target_ref="docker://${UPDATE_REPO}:${UPDATE_CHANNEL}"
 
-    if [ -f "$PENDING_FILE" ] && [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ]; then
+    if [ "$force_update" -eq 0 ] && [ -f "$PENDING_FILE" ] && [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ]; then
         local staged_digest
         staged_digest="$(tr -d '\r\n' < "$PENDING_FILE")"
+        log_msg "Update (${staged_digest:0:19}) is already staged and ready to install on next restart/shut down."
         write_state "pending_restart" "Restart or Shut Down required to finish updating" \
             "Verified update (${staged_digest:0:19}) is staged and will install automatically on next restart or shut down." 100 "$staged_digest"
         exit 0
     fi
 
+    log_msg "Checking ${UPDATE_REPO}:${UPDATE_CHANNEL}..."
     write_state "checking" "Checking for SourceLess OS updates..." \
         "Contacting signed ${UPDATE_CHANNEL} channel..." 10 ""
 
     local inspect_json
     if ! inspect_json="$(skopeo inspect "$target_ref" 2>/dev/null)"; then
+        log_msg "Unable to reach ${target_ref}."
         write_state "error" "Unable to check for updates right now" \
             "Could not reach ${UPDATE_REPO}:${UPDATE_CHANNEL}. Your system will retry automatically." 0 ""
         exit 0
@@ -150,17 +201,19 @@ cmd_check_and_stage() {
     remote_created="$(printf '%s' "$inspect_json" | jq -r '.Created // empty')"
 
     if [ -z "$remote_digest" ]; then
+        log_msg "Remote manifest returned an empty digest."
         write_state "error" "Update metadata unavailable" \
             "Remote manifest did not return a valid image digest." 0 ""
         exit 0
     fi
 
-    if [ ! -f "$INSTALLED_FILE" ]; then
+    if [ "$force_update" -eq 0 ] && [ ! -f "$INSTALLED_FILE" ]; then
         local local_epoch=0 remote_epoch=0
         [ -f "$EPOCH_FILE" ] && local_epoch="$(tr -d '\r\n' < "$EPOCH_FILE")"
         remote_epoch="$(iso_to_epoch "$remote_created")"
         if [ "${local_epoch:-0}" -gt 0 ] && [ "${remote_epoch:-0}" -gt 0 ] && [ "$remote_epoch" -le $((local_epoch + 600)) ]; then
             printf '%s\n' "$remote_digest" > "$INSTALLED_FILE"
+            log_msg "System (${current_ver}) matches remote ${UPDATE_CHANNEL} build."
             write_state "up_to_date" "You're up to date" \
                 "SourceLess OS (${current_ver}) on ${UPDATE_CHANNEL} channel is up to date." 100 ""
             exit 0
@@ -170,67 +223,67 @@ cmd_check_and_stage() {
     local installed_digest=""
     [ -f "$INSTALLED_FILE" ] && installed_digest="$(tr -d '\r\n' < "$INSTALLED_FILE")"
 
-    if [ "$remote_digest" = "$installed_digest" ]; then
+    if [ "$force_update" -eq 0 ] && [ "$remote_digest" = "$installed_digest" ]; then
+        log_msg "Already up to date (${installed_digest:0:19})."
         write_state "up_to_date" "You're up to date" \
             "SourceLess OS (${current_ver}) on ${UPDATE_CHANNEL} channel is up to date." 100 ""
         exit 0
     fi
 
-    if [ "${AUTO_STAGE}" != "true" ]; then
+    if [ "$force_update" -eq 0 ] && [ "${AUTO_STAGE}" != "true" ]; then
+        log_msg "Update available (${remote_digest:0:19})."
         write_state "available" "SourceLess OS update available" \
             "Verified update ${remote_digest:0:19} is ready to download." 0 "$remote_digest"
         exit 0
     fi
 
     local pinned_ref="${UPDATE_REPO}@${remote_digest}"
+    log_msg "Downloading & verifying ${remote_digest:0:19} from ${UPDATE_CHANNEL}..."
     write_state "downloading" "Downloading SourceLess OS update..." \
         "Verifying Cosign signature and pulling ${remote_digest:0:19} in the background..." 25 "$remote_digest"
 
     if command -v cosign >/dev/null 2>&1 && [ -f "$COSIGN_PUB" ]; then
         if ! cosign verify --key "$COSIGN_PUB" "$pinned_ref" >/dev/null 2>&1; then
+            log_msg "ERROR: Cosign signature verification failed for ${remote_digest:0:19}."
             write_state "error" "Update signature verification failed" \
                 "Rejected ${remote_digest:0:19} because its Cosign signature could not be verified." 0 ""
             exit 1
         fi
     fi
 
-    if ! podman pull --quiet "$pinned_ref" >/dev/null 2>&1; then
-        write_state "error" "Update download interrupted" \
-            "Failed to pull ${pinned_ref}. Download will retry automatically." 0 ""
-        exit 1
-    fi
-
-    write_state "downloading" "Staging SourceLess OS update..." \
-        "Preparing verified system rootfs for next restart or shut down..." 70 "$remote_digest"
-
     rm -rf "$STAGING_TMP"
     mkdir -p "$STAGING_TMP"
-    local cid=""
-    cid="$(podman create "$pinned_ref" 2>/dev/null || true)"
-    if [ -z "$cid" ]; then
-        rm -rf "$STAGING_TMP"
+    local staged_ok=0
+
+    if command -v podman >/dev/null 2>&1 && podman pull --quiet "$pinned_ref" >/dev/null 2>&1; then
+        log_msg "Staging update rootfs via podman..."
+        write_state "downloading" "Staging SourceLess OS update..." \
+            "Preparing verified system rootfs for next restart or shut down..." 70 "$remote_digest"
+        local cid=""
+        cid="$(podman create "$pinned_ref" 2>/dev/null || true)"
+        if [ -n "$cid" ] && podman export "$cid" | tar -x --numeric-owner -C "$STAGING_TMP" 2>/dev/null; then
+            staged_ok=1
+        fi
+        [ -n "$cid" ] && podman rm -f "$cid" >/dev/null 2>&1 || true
         podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
-        write_state "error" "Failed to stage update container" \
-            "Could not create temporary staging container." 0 ""
-        exit 1
     fi
 
-    if ! podman export "$cid" | tar -x -C "$STAGING_TMP" 2>/dev/null; then
-        podman rm -f "$cid" >/dev/null 2>&1 || true
-        podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
+    if [ "$staged_ok" -eq 0 ]; then
+        log_msg "Podman unavailable or failed; falling back to skopeo OCI extraction..."
         rm -rf "$STAGING_TMP"
-        write_state "error" "Failed to extract staged update" \
-            "Could not extract root filesystem payload." 0 ""
-        exit 1
+        mkdir -p "$STAGING_TMP"
+        write_state "downloading" "Staging SourceLess OS update..." \
+            "Extracting verified OCI layers via skopeo..." 70 "$remote_digest"
+        if stage_via_skopeo "$pinned_ref"; then
+            staged_ok=1
+        fi
     fi
 
-    podman rm -f "$cid" >/dev/null 2>&1 || true
-    podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
-
-    if [ ! -x "${STAGING_TMP}/usr/lib/systemd/systemd" ]; then
+    if [ "$staged_ok" -eq 0 ] || [ ! -x "${STAGING_TMP}/usr/lib/systemd/systemd" ]; then
         rm -rf "$STAGING_TMP"
+        log_msg "ERROR: Failed to stage update payload."
         write_state "error" "Staged update failed integrity check" \
-            "Missing systemd binary inside staged payload." 0 ""
+            "Failed to download or verify staged root filesystem." 0 ""
         exit 1
     fi
 
@@ -238,6 +291,7 @@ cmd_check_and_stage() {
     mv "$STAGING_TMP" "$STAGING_DIR"
     printf '%s\n' "$remote_digest" > "$PENDING_FILE"
 
+    log_msg "Update staged (${remote_digest:0:19}). It will install automatically on next restart or shut down."
     write_state "pending_restart" "Restart or Shut Down required to finish updating" \
         "Verified update (${remote_digest:0:19}) downloaded. It will install automatically on next restart or shut down." 100 "$remote_digest"
 
@@ -380,7 +434,12 @@ cmd_status() {
 
 case "${1:-status}" in
     check-and-stage|check)
-        cmd_check_and_stage
+        shift || true
+        cmd_check_and_stage "$@"
+        ;;
+    upgrade|update)
+        shift || true
+        cmd_check_and_stage --force "$@"
         ;;
     apply-on-shutdown)
         cmd_apply_on_shutdown
@@ -392,7 +451,7 @@ case "${1:-status}" in
         cmd_status
         ;;
     *)
-        echo "Usage: $0 {check-and-stage|check|apply-on-shutdown|set-channel <stable|testing>|status}" >&2
+        echo "Usage: $0 {check-and-stage|check|upgrade|apply-on-shutdown|set-channel <stable|testing>|status}" >&2
         exit 1
         ;;
 esac

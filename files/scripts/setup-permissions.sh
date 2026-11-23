@@ -30,6 +30,27 @@ EOF
 
 chmod +x /usr/bin/konsole
 
+# Compatibility wrapper so `rpm-ostree upgrade` works seamlessly on direct Btrfs ISO installs
+if [ -f /usr/bin/rpm-ostree ] && [ ! -f /usr/bin/rpm-ostree.real ]; then
+    mv /usr/bin/rpm-ostree /usr/bin/rpm-ostree.real
+    cat << 'EOF' > /usr/bin/rpm-ostree
+#!/usr/bin/bash
+if [ ! -f /run/ostree-booted ] && [ -x /usr/bin/sourceless-os-updater ]; then
+    case "${1:-}" in
+        upgrade|update)
+            shift
+            exec sudo /usr/bin/sourceless-os-updater upgrade "$@"
+            ;;
+        status)
+            exec /usr/bin/sourceless-os-updater status
+            ;;
+    esac
+fi
+exec /usr/bin/rpm-ostree.real "$@"
+EOF
+    chmod 755 /usr/bin/rpm-ostree
+fi
+
 # Unhide native Konsole desktop launcher and mask Flatpak
 KONSOLE_DESKTOP="/usr/share/applications/org.kde.konsole.desktop"
 if [ -f "$KONSOLE_DESKTOP" ]; then
