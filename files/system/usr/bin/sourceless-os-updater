@@ -121,7 +121,8 @@ stage_via_skopeo() {
     local oci_dir="${CACHE_DIR}/oci-blobs"
     rm -rf "$oci_dir"
     mkdir -p "$oci_dir"
-    if ! skopeo copy --quiet "docker://${pinned_ref}" "dir:${oci_dir}" >/dev/null 2>&1; then
+    if ! skopeo copy --quiet "docker://${pinned_ref}" "dir:${oci_dir}" >/dev/null 2>&1 && \
+       ! skopeo copy --no-creds --quiet "docker://${pinned_ref}" "dir:${oci_dir}" >/dev/null 2>&1; then
         rm -rf "$oci_dir"
         return 1
     fi
@@ -188,9 +189,40 @@ cmd_check_and_stage() {
     write_state "checking" "Checking for SourceLess OS updates..." \
         "Contacting signed ${UPDATE_CHANNEL} channel..." 10 ""
 
-    local inspect_json
-    if ! inspect_json="$(skopeo inspect "$target_ref" 2>/dev/null)"; then
-        log_msg "Unable to reach ${target_ref}."
+    local inspect_json="" inspect_err="" err_tmp=""
+    err_tmp="$(mktemp /tmp/sl-inspect.XXXXXX)"
+    if ! inspect_json="$(skopeo inspect "$target_ref" 2>"$err_tmp")"; then
+        inspect_err="$(cat "$err_tmp" 2>/dev/null || true)"
+        if ! inspect_json="$(skopeo inspect --no-creds "$target_ref" 2>"$err_tmp")"; then
+            inspect_err="$(cat "$err_tmp" 2>/dev/null || true)"
+            inspect_json=""
+        fi
+    fi
+
+    if [ -z "$inspect_json" ] && echo "$inspect_err" | grep -qiE "manifest unknown|name unknown"; then
+        if [ "$force_update" -eq 1 ]; then
+            for fb_tag in testing latest; do
+                local fb_ref="docker://${UPDATE_REPO}:${fb_tag}"
+                if inspect_json="$(skopeo inspect "$fb_ref" 2>/dev/null)" || inspect_json="$(skopeo inspect --no-creds "$fb_ref" 2>/dev/null)"; then
+                    log_msg "Channel ${UPDATE_CHANNEL} has no published release yet; falling back to :${fb_tag} for manual upgrade."
+                    target_ref="$fb_ref"
+                    break
+                else
+                    inspect_json=""
+                fi
+            done
+        else
+            rm -f "$err_tmp"
+            log_msg "No promoted release on ${UPDATE_CHANNEL} yet; treating current build (${current_ver}) as up to date."
+            write_state "up_to_date" "You're up to date" \
+                "SourceLess OS (${current_ver}) is on the latest approved ${UPDATE_CHANNEL} release." 100 ""
+            exit 0
+        fi
+    fi
+    rm -f "$err_tmp"
+
+    if [ -z "$inspect_json" ]; then
+        log_msg "Unable to reach ${target_ref}. ${inspect_err}"
         write_state "error" "Unable to check for updates right now" \
             "Could not reach ${UPDATE_REPO}:${UPDATE_CHANNEL}. Your system will retry automatically." 0 ""
         exit 0
@@ -255,7 +287,7 @@ cmd_check_and_stage() {
     mkdir -p "$STAGING_TMP"
     local staged_ok=0
 
-    if command -v podman >/dev/null 2>&1 && podman pull --quiet "$pinned_ref" >/dev/null 2>&1; then
+    if command -v podman >/dev/null 2>&1 && { podman pull --quiet "$pinned_ref" >/dev/null 2>&1 || podman pull --authfile=/dev/null --quiet "$pinned_ref" >/dev/null 2>&1; }; then
         log_msg "Staging update rootfs via podman..."
         write_state "downloading" "Staging SourceLess OS update..." \
             "Preparing verified system rootfs for next restart or shut down..." 70 "$remote_digest"
