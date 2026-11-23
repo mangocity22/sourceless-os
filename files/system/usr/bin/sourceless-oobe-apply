@@ -93,6 +93,7 @@ mkdir -p /etc/sourceless
 touch /etc/sourceless/.oobe_completed
 rm -f /etc/sddm.conf.d/99-oobe-autologin.conf 2>/dev/null || true
 rm -f /var/home/sourceless-setup/.config/autostart/sourceless-oobe.desktop 2>/dev/null || true
+restorecon -RF /etc/sourceless /etc/sddm.conf.d /etc/passwd /etc/shadow /etc/group 2>/dev/null || true
 
 # Hand off cleanly outside the active user session cgroup: restart SDDM and remove staging user
 FINISH_CMD="sleep 1.2 && systemctl restart sddm.service && sleep 2 && userdel -r sourceless-setup 2>/dev/null || true"

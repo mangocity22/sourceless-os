@@ -118,6 +118,15 @@ if [ "$is_sysroot" -eq 1 ] && { [ "$rc" -eq 0 ] || [ "$rc" -eq 23 ] || [ "$rc" -
             cp -f "$kver_dir/initramfs.img" "/mnt/sysroot/boot/initramfs-${kver}.img" 2>/dev/null || true
         fi
     done
+    FC="/mnt/sysroot/etc/selinux/targeted/contexts/files/file_contexts"
+    if [ -f "$FC" ]; then
+        if [ -x /mnt/sysroot/usr/sbin/setfiles ]; then
+            chroot /mnt/sysroot /usr/sbin/setfiles -F -e /proc -e /sys -e /dev -e /run -e /tmp -e /boot/efi /etc/selinux/targeted/contexts/files/file_contexts / >/dev/null 2>&1 || \
+                setfiles -F -r /mnt/sysroot -e /mnt/sysroot/proc -e /mnt/sysroot/sys -e /mnt/sysroot/dev -e /mnt/sysroot/run -e /mnt/sysroot/tmp -e /mnt/sysroot/boot/efi "$FC" /mnt/sysroot >/dev/null 2>&1 || true
+        elif command -v setfiles >/dev/null 2>&1; then
+            setfiles -F -r /mnt/sysroot -e /mnt/sysroot/proc -e /mnt/sysroot/sys -e /mnt/sysroot/dev -e /mnt/sysroot/run -e /mnt/sysroot/tmp -e /mnt/sysroot/boot/efi "$FC" /mnt/sysroot >/dev/null 2>&1 || true
+        fi
+    fi
     exit 0
 fi
 exit "$rc"
@@ -191,6 +200,9 @@ EOF
 else
     # Clean up live-only autologin and sudoers drop-ins on installed systems
     rm -f /etc/sddm.conf.d/99-live-autologin.conf /etc/sudoers.d/99-liveuser 2>/dev/null || true
+    if id liveuser >/dev/null 2>&1; then
+        userdel -r liveuser 2>/dev/null || true
+    fi
 
     # Ensure Atomic /var runtime targets exist with proper permissions and SELinux labels before SDDM starts
     mkdir -p /var/home /var/roothome /var/lib/sddm /var/tmp /var/log /var/opt /var/srv /var/mnt /var/usrlocal
@@ -227,20 +239,23 @@ if [ ! -f /etc/sourceless/.oobe_completed ]; then
         fi
 
         OOBE_HOME="/var/home/sourceless-setup"
-        mkdir -p "${OOBE_HOME}/.config/autostart" "${OOBE_HOME}/.config/Kvantum"
+        mkdir -p "${OOBE_HOME}/.config/autostart" "${OOBE_HOME}/.config/Kvantum" "${OOBE_HOME}/.config/systemd/user"
         cp -a /etc/skel/. "${OOBE_HOME}/" 2>/dev/null || true
         cp -f /etc/xdg/kscreenlockerrc "${OOBE_HOME}/.config/kscreenlockerrc" 2>/dev/null || true
         cp -f /etc/xdg/kdeglobals "${OOBE_HOME}/.config/kdeglobals" 2>/dev/null || true
         cp -f /etc/xdg/plasmarc "${OOBE_HOME}/.config/plasmarc" 2>/dev/null || true
         cp -f /etc/xdg/kwinrc "${OOBE_HOME}/.config/kwinrc" 2>/dev/null || true
         cp -f /etc/xdg/Kvantum/kvantum.kvconfig "${OOBE_HOME}/.config/Kvantum/kvantum.kvconfig" 2>/dev/null || true
+        cp -f /etc/xdg/kwalletrc "${OOBE_HOME}/.config/kwalletrc" 2>/dev/null || true
+        ln -sf /dev/null "${OOBE_HOME}/.config/systemd/user/drkonqi-coredump-pickup.service"
+        ln -sf /dev/null "${OOBE_HOME}/.config/systemd/user/drkonqi-coredump-launcher.socket"
+        ln -sf /dev/null "${OOBE_HOME}/.config/systemd/user/dbus-org.freedesktop.impl.portal.desktop.kwallet.service"
 
         cat << 'EOF' > "${OOBE_HOME}/.config/autostart/sourceless-oobe.desktop"
 [Desktop Entry]
 Type=Application
 Name=SourceLess OS First-Boot Setup
 Exec=/usr/bin/python3 /usr/bin/sourceless-oobe.py
-X-KDE-autostart-phase=1
 NoDisplay=true
 EOF
         chmod 644 "${OOBE_HOME}/.config/autostart/sourceless-oobe.desktop"
@@ -257,6 +272,7 @@ User=sourceless-setup
 Session=plasma
 Relogin=false
 EOF
+        restorecon -RF /etc/sddm.conf.d /etc/sourceless 2>/dev/null || true
         exit 0
     fi
 fi

@@ -22,18 +22,21 @@ chmod 755 /etc/sourceless
 chmod 700 "$CERT_DIR"
 
 # 1. Automatic wheel membership revocation for all standard users UID >= 1000
-for u in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
+for u in $(awk -F: '$3 >= 1000 && $1 != "nobody" && $1 != "liveuser" && $1 != "sourceless-setup" {print $1}' /etc/passwd); do
     gpasswd -d "$u" wheel 2>/dev/null || true
 done
 
 # 2. Secure autostart directories
 for user_home in /var/home/* /home/*; do
-    if [ -d "$user_home" ] && [ "$(basename "$user_home")" != "*" ]; then
-        mkdir -p "$user_home/.config/autostart" "$user_home/.local/share/applications"
-        rm -rf "$user_home/.config/autostart/"* "$user_home/.local/share/applications/"*
-        chown root:root "$user_home/.config/autostart" "$user_home/.local/share/applications" 2>/dev/null || true
-        chmod 555 "$user_home/.config/autostart" "$user_home/.local/share/applications" 2>/dev/null || true
-    fi
+    [ -d "$user_home" ] || continue
+    home_name="$(basename "$user_home")"
+    case "$home_name" in
+        "*"|liveuser|sourceless-setup|lost+found) continue ;;
+    esac
+    mkdir -p "$user_home/.config/autostart" "$user_home/.local/share/applications"
+    rm -rf "$user_home/.config/autostart/"* "$user_home/.local/share/applications/"*
+    chown root:root "$user_home/.config/autostart" "$user_home/.local/share/applications" 2>/dev/null || true
+    chmod 555 "$user_home/.config/autostart" "$user_home/.local/share/applications" 2>/dev/null || true
 done
 
 # 3. Hardware identification and enrollment loop

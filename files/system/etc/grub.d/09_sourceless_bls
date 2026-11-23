@@ -78,6 +78,25 @@ if [ -f /usr/share/grub/themes/sourceless/theme.txt ]; then
     THEME_PATH="${BOOT_PREFIX}/grub2/themes/sourceless/theme.txt"
 fi
 
+# Ensure installed filesystem carries valid Fedora SELinux labels (Live ISO squashfs built on Ubuntu lacks them)
+FC="/etc/selinux/targeted/contexts/files/file_contexts"
+if [ -f "$FC" ] && command -v setfiles >/dev/null 2>&1; then
+    SYS_CTX="$(ls -Zd /usr/lib/systemd/systemd 2>/dev/null | awk '{print $1}' || true)"
+    case "$SYS_CTX" in
+        *init_exec_t*)
+            setfiles -F -e /boot/efi "$FC" /etc /boot /var/roothome /var/lib/sddm /var/home 2>/dev/null || true
+            ;;
+        *)
+            setfiles -F -e /proc -e /sys -e /dev -e /run -e /tmp -e /boot/efi "$FC" / 2>/dev/null || true
+            ;;
+    esac
+    SYS_CTX_AFTER="$(ls -Zd /usr/lib/systemd/systemd 2>/dev/null | awk '{print $1}' || true)"
+    case "$SYS_CTX_AFTER" in
+        *init_exec_t*) ;;
+        *) touch /.autorelabel 2>/dev/null || true ;;
+    esac
+fi
+
 # Restore stdout for GRUB snippet emission
 exec 1>&3 3>&-
 
