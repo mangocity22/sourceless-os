@@ -2,6 +2,10 @@
 sourceless ALL=(root) NOPASSWD: /usr/bin/sourceless-unlock
 %users ALL=(root) NOPASSWD: /usr/bin/sourceless-unlock
 
+# Allow SourceLess Control Center to trigger OS update checks and channel changes
+sourceless ALL=(root) NOPASSWD: /usr/bin/sourceless-os-updater
+%users ALL=(root) NOPASSWD: /usr/bin/sourceless-os-updater
+
 # Allow the temporary First-Boot OOBE staging account to invoke only the account provisioning helper
 Defaults:sourceless-setup !requiretty
 sourceless-setup ALL=(root) NOPASSWD: /usr/bin/sourceless-oobe-apply

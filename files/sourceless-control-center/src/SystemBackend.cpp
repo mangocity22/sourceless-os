@@ -31,13 +31,14 @@ SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
     loadStaticSystemInfo();
     refreshAll();
 
-    // Refresh live metrics (clock, audio, RAM/disk, battery, security) every 6 seconds
+    // Refresh live metrics (clock, audio, RAM/disk, battery, security, OS updates) every 6 seconds
     connect(&m_periodicTimer, &QTimer::timeout, this, [this]() {
         loadDynamicSystemMetrics();
         refreshTime();
         refreshAudio();
         refreshPower();
         refreshSecurity();
+        refreshSystemUpdate();
     });
     m_periodicTimer.start(6000);
 
@@ -643,6 +644,7 @@ void SystemBackend::refreshAll()
     refreshTime();
     refreshSecurity();
     refreshAccessibility();
+    refreshSystemUpdate();
 }
 
 // -----------------------------------------------------------------------------
@@ -2107,6 +2109,106 @@ void SystemBackend::clearUserCache()
     }
     loadDynamicSystemMetrics();
     notifyStatus(QStringLiteral("Temporary user cache cleaned successfully"));
+}
+
+// -----------------------------------------------------------------------------
+// 8b. SOURCELESS OS SYSTEM UPDATE (Signed OCI Staging + Mandatory Reboot Apply)
+// -----------------------------------------------------------------------------
+void SystemBackend::refreshSystemUpdate()
+{
+    QFile verFile(QStringLiteral("/usr/lib/sourceless-version"));
+    if (verFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QString v = QString::fromUtf8(verFile.readAll()).trimmed();
+        if (!v.isEmpty()) {
+            m_osBuildVersion = v;
+        }
+    }
+
+    QFile confFile(QStringLiteral("/etc/sourceless/update.conf"));
+    if (confFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QStringList lines = QString::fromUtf8(confFile.readAll()).split(QLatin1Char('\n'));
+        for (const QString &line : lines) {
+            if (line.startsWith(QStringLiteral("UPDATE_CHANNEL="))) {
+                QString ch = line.mid(15).trimmed();
+                ch.remove(QLatin1Char('"')).remove(QLatin1Char('\''));
+                if (ch == QStringLiteral("stable") || ch == QStringLiteral("testing")) {
+                    m_updateChannel = ch;
+                }
+            }
+        }
+    }
+
+    QFile stateFile(QStringLiteral("/var/lib/sourceless-update/state.json"));
+    if (stateFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QJsonDocument doc = QJsonDocument::fromJson(stateFile.readAll());
+        if (doc.isObject()) {
+            const QJsonObject obj = doc.object();
+            const QString st = obj.value(QStringLiteral("status")).toString();
+            if (!st.isEmpty()) m_updateStatus = st;
+            const QString hl = obj.value(QStringLiteral("headline")).toString();
+            if (!hl.isEmpty()) m_updateHeadline = hl;
+            const QString dt = obj.value(QStringLiteral("detail")).toString();
+            if (!dt.isEmpty()) m_updateDetail = dt;
+            const QString ch = obj.value(QStringLiteral("channel")).toString();
+            if (ch == QStringLiteral("stable") || ch == QStringLiteral("testing")) {
+                m_updateChannel = ch;
+            }
+            m_updateProgress = qBound(0, obj.value(QStringLiteral("progress")).toInt(0), 100);
+            m_updatePendingRestart = obj.value(QStringLiteral("pending_restart")).toBool(false);
+            m_updateBusy = (m_updateStatus == QStringLiteral("checking") || m_updateStatus == QStringLiteral("downloading"));
+        }
+    } else {
+        m_updateStatus = QStringLiteral("up_to_date");
+        m_updateHeadline = QStringLiteral("You're up to date");
+        m_updateDetail = QStringLiteral("SourceLess OS (%1) on %2 channel is up to date.")
+            .arg(m_osBuildVersion, m_updateChannel);
+        m_updateProgress = 100;
+        m_updateBusy = false;
+        m_updatePendingRestart = QFileInfo::exists(QStringLiteral("/var/lib/sourceless-update/pending"));
+    }
+
+    emit systemUpdateChanged();
+}
+
+void SystemBackend::checkForOsUpdates()
+{
+    m_updateStatus = QStringLiteral("checking");
+    m_updateHeadline = QStringLiteral("Checking for SourceLess OS updates...");
+    m_updateDetail = QStringLiteral("Querying signed %1 channel...").arg(m_updateChannel);
+    m_updateProgress = 10;
+    m_updateBusy = true;
+    emit systemUpdateChanged();
+    notifyStatus(QStringLiteral("Checking for signed SourceLess OS updates..."));
+
+    runDetached(QStringLiteral("sudo"), {
+        QStringLiteral("-n"),
+        QStringLiteral("/usr/bin/sourceless-os-updater"),
+        QStringLiteral("check-and-stage")
+    });
+    QTimer::singleShot(1500, this, &SystemBackend::refreshSystemUpdate);
+}
+
+void SystemBackend::setUpdateChannel(const QString &channel)
+{
+    const QString clean = channel.trimmed().toLower();
+    if (clean != QStringLiteral("stable") && clean != QStringLiteral("testing")) {
+        return;
+    }
+    runCommand(QStringLiteral("sudo"), {
+        QStringLiteral("-n"),
+        QStringLiteral("/usr/bin/sourceless-os-updater"),
+        QStringLiteral("set-channel"),
+        clean
+    }, 3000);
+    m_updateChannel = clean;
+    refreshSystemUpdate();
+    notifyStatus(QStringLiteral("Switched OS update channel to %1").arg(clean));
+}
+
+void SystemBackend::rebootForUpdate()
+{
+    notifyStatus(QStringLiteral("Restarting to install verified SourceLess OS update..."));
+    runDetached(QStringLiteral("systemctl"), {QStringLiteral("reboot")});
 }
 
 // -----------------------------------------------------------------------------

@@ -67,6 +67,8 @@ ApplicationWindow {
           keywords: "taskbar dock start menu panel layout reset restore default bara meniu" },
 
         // System (Page 1)
+        { title: "SourceLess OS Update (Windows Update)", subtitle: "System • OS Updates", pageIdx: 1, sectionKey: "os-update", iconName: "system",
+          keywords: "windows update os system upgrade download stage restart shutdown channel stable testing actualizare sistem" },
         { title: "Display Brightness", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
           keywords: "display brightness backlight dim screen monitor luminozitate ecran" },
         { title: "Display Resolution", subtitle: "System • Display & Graphics", pageIdx: 1, sectionKey: "display", iconName: "display",
@@ -177,6 +179,7 @@ ApplicationWindow {
         if (!sectionKey) return
         const scrollViews = [homeScroll, systemScroll, btScroll, netScroll, personalizationScroll, appsScroll, timeScroll, securityScroll, accessibilityScroll, userScroll]
         const cardMap = {
+            "os-update": cardOsUpdate,
             "display": cardDisplay,
             "sound": cardSound,
             "power": cardPower,
@@ -1470,6 +1473,129 @@ ApplicationWindow {
                             color: root.textMain
                             font.pixelSize: 28
                             font.bold: true
+                        }
+
+                        // SOURCELESS OS UPDATE (Windows-Update-style Staging & Mandatory Apply)
+                        Label { text: "SourceLess OS Update"; color: root.textMain; font.pixelSize: 16; font.bold: true }
+
+                        SettingCard {
+                            id: cardOsUpdate
+                            sectionKey: "os-update"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+
+                                Rectangle {
+                                    width: 44
+                                    height: 44
+                                    radius: 10
+                                    color: backend && backend.updatePendingRestart
+                                        ? Qt.rgba(0.96, 0.65, 0.14, 0.18)
+                                        : (backend && backend.updateStatus === "error"
+                                            ? Qt.rgba(0.95, 0.33, 0.43, 0.18)
+                                            : Qt.rgba(0.16, 0.76, 0.63, 0.18))
+                                    border.color: backend && backend.updatePendingRestart
+                                        ? root.statusAmber
+                                        : (backend && backend.updateStatus === "error" ? root.statusRed : root.statusGreen)
+                                    border.width: 1
+
+                                    CyberIcon {
+                                        anchors.centerIn: parent
+                                        iconName: "system"
+                                        width: 24
+                                        height: 24
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 3
+
+                                    Label {
+                                        text: backend ? backend.updateHeadline : "You're up to date"
+                                        color: root.textMain
+                                        font.pixelSize: 15
+                                        font.bold: true
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: backend ? (backend.updateDetail + "  •  Build " + backend.osBuildVersion) : ""
+                                        color: root.textMuted
+                                        font.pixelSize: 12
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                ActionButton {
+                                    labelText: backend && backend.updateBusy ? "Checking..." : "Check for updates"
+                                    enabledBtn: backend ? !backend.updateBusy : true
+                                    primary: !(backend && backend.updatePendingRestart)
+                                    onTriggered: if (backend) backend.checkForOsUpdates()
+                                }
+
+                                ActionButton {
+                                    visible: backend ? backend.updatePendingRestart : false
+                                    labelText: "Restart Now"
+                                    primary: true
+                                    onTriggered: if (backend) backend.rebootForUpdate()
+                                }
+                            }
+
+                            WinProgressBar {
+                                visible: backend ? backend.updateBusy : false
+                                percentValue: backend ? backend.updateProgress : 0
+                            }
+
+                            Rectangle {
+                                visible: backend ? backend.updatePendingRestart : false
+                                Layout.fillWidth: true
+                                implicitHeight: pendingWarnLbl.implicitHeight + 16
+                                radius: 8
+                                color: Qt.rgba(0.96, 0.65, 0.14, 0.14)
+                                border.color: root.statusAmber
+                                border.width: 1
+
+                                Label {
+                                    id: pendingWarnLbl
+                                    anchors.fill: parent
+                                    anchors.margins: 8
+                                    text: "Update is staged and verified. It will install automatically on next restart or shutdown."
+                                    color: root.textMain
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 14
+
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Release Channel"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Clients receive Stable updates after test validation; Testing receives pre-release builds"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: updateChannelCombo
+                                    implicitWidth: 270
+                                    readonly property var channelValues: ["stable", "testing"]
+                                    model: ["Stable Channel (Approved Releases)", "Testing Channel (Pre-Release Validation)"]
+                                    currentIndex: (backend && backend.updateChannel === "testing") ? 1 : 0
+                                    onActivated: function(index) {
+                                        if (backend && channelValues[index] !== undefined) {
+                                            backend.setUpdateChannel(channelValues[index])
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // DISPLAY SECTION (Now with Windows 11 Dropdown Lists!)

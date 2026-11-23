@@ -1,0 +1,17 @@
+[Unit]
+Description=SourceLess OS Mandatory Staged Update Installer on Restart or Shutdown
+After=local-fs.target systemd-remount-fs.service
+Before=sddm.service display-manager.service multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/true
+ExecStop=/usr/bin/sourceless-os-updater apply-on-shutdown
+TimeoutStopSec=0
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
+WantedBy=graphical.target

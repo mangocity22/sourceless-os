@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodic SourceLess OS Update Checker and Background Stager
+
+[Timer]
+OnBootSec=4min
+OnUnitActiveSec=2h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

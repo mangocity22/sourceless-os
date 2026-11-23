@@ -102,6 +102,8 @@ if [ "$is_sysroot" -eq 1 ] && { [ "$rc" -eq 0 ] || [ "$rc" -eq 23 ] || [ "$rc" -
         /mnt/sysroot/var/mnt \
         /mnt/sysroot/var/usrlocal \
         /mnt/sysroot/var/lib/sddm \
+        /mnt/sysroot/var/lib/sourceless-update \
+        /mnt/sysroot/var/cache/sourceless-update \
         /mnt/sysroot/var/cache 2>/dev/null || true
     chmod 700 /mnt/sysroot/var/roothome 2>/dev/null || true
     chmod 1777 /mnt/sysroot/var/tmp 2>/dev/null || true
@@ -215,7 +217,7 @@ else
     done
 
     # Ensure Atomic /var runtime targets exist with proper permissions and SELinux labels before SDDM starts
-    mkdir -p /var/home /var/roothome /var/lib/sddm /var/tmp /var/log /var/opt /var/srv /var/mnt /var/usrlocal
+    mkdir -p /var/home /var/roothome /var/lib/sddm /var/lib/sourceless-update /var/cache/sourceless-update /var/tmp /var/log /var/opt /var/srv /var/mnt /var/usrlocal
     chmod 700 /var/roothome 2>/dev/null || true
     chmod 1777 /var/tmp 2>/dev/null || true
     chown -R sddm:sddm /var/lib/sddm 2>/dev/null || true

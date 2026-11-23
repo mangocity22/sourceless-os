@@ -35,6 +35,16 @@ class SystemBackend : public QObject
     Q_PROPERTY(QString initialPage READ initialPage CONSTANT)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
 
+    // 1b. OS Update (Windows-Update-style Staging)
+    Q_PROPERTY(QString osBuildVersion READ osBuildVersion NOTIFY systemUpdateChanged)
+    Q_PROPERTY(QString updateStatus READ updateStatus NOTIFY systemUpdateChanged)
+    Q_PROPERTY(QString updateHeadline READ updateHeadline NOTIFY systemUpdateChanged)
+    Q_PROPERTY(QString updateDetail READ updateDetail NOTIFY systemUpdateChanged)
+    Q_PROPERTY(QString updateChannel READ updateChannel NOTIFY systemUpdateChanged)
+    Q_PROPERTY(int updateProgress READ updateProgress NOTIFY systemUpdateChanged)
+    Q_PROPERTY(bool updateBusy READ updateBusy NOTIFY systemUpdateChanged)
+    Q_PROPERTY(bool updatePendingRestart READ updatePendingRestart NOTIFY systemUpdateChanged)
+
     // 2. Audio
     Q_PROPERTY(int volume READ volume NOTIFY audioChanged)
     Q_PROPERTY(bool muted READ muted NOTIFY audioChanged)
@@ -167,6 +177,15 @@ public:
     QString initialPage() const { return m_initialPage; }
     QString statusMessage() const { return m_statusMessage; }
 
+    QString osBuildVersion() const { return m_osBuildVersion; }
+    QString updateStatus() const { return m_updateStatus; }
+    QString updateHeadline() const { return m_updateHeadline; }
+    QString updateDetail() const { return m_updateDetail; }
+    QString updateChannel() const { return m_updateChannel; }
+    int updateProgress() const { return m_updateProgress; }
+    bool updateBusy() const { return m_updateBusy; }
+    bool updatePendingRestart() const { return m_updatePendingRestart; }
+
     int volume() const { return m_volume; }
     bool muted() const { return m_muted; }
     int micVolume() const { return m_micVolume; }
@@ -276,6 +295,10 @@ public:
     Q_INVOKABLE void refreshTime();
     Q_INVOKABLE void refreshSecurity();
     Q_INVOKABLE void refreshAccessibility();
+    Q_INVOKABLE void refreshSystemUpdate();
+    Q_INVOKABLE void checkForOsUpdates();
+    Q_INVOKABLE void setUpdateChannel(const QString &channel);
+    Q_INVOKABLE void rebootForUpdate();
 
     // Audio controls
     Q_INVOKABLE void setVolume(int val);
@@ -381,6 +404,7 @@ signals:
     void securityChanged();
     void accessibilityChanged();
     void statusMessageChanged();
+    void systemUpdateChanged();
 
 private:
     QString runCommand(const QString &program, const QStringList &args, int timeoutMs = 3000) const;
@@ -416,6 +440,15 @@ private:
     QString m_hwid;
     QString m_initialPage;
     QString m_statusMessage;
+
+    QString m_osBuildVersion = QStringLiteral("2026.11");
+    QString m_updateStatus = QStringLiteral("up_to_date");
+    QString m_updateHeadline = QStringLiteral("You're up to date");
+    QString m_updateDetail = QStringLiteral("SourceLess OS updates are verified with Cosign before staging.");
+    QString m_updateChannel = QStringLiteral("stable");
+    int m_updateProgress = 100;
+    bool m_updateBusy = false;
+    bool m_updatePendingRestart = false;
 
     int m_volume = 70;
     bool m_muted = false;

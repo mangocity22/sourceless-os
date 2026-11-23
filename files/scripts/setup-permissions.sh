@@ -70,6 +70,12 @@ chown root:users /etc/sourceless 2>/dev/null || true
 chmod 775 /etc/sourceless 2>/dev/null || true
 
 chmod 755 /usr/bin/sourceless-autoupdate 2>/dev/null || true
+chmod 755 /usr/bin/sourceless-os-updater 2>/dev/null || true
+date -u +%s > /usr/lib/sourceless-build-epoch
+date -u +%Y.%m.%d-%H%M > /usr/lib/sourceless-version
+chmod 644 /usr/lib/sourceless-build-epoch /usr/lib/sourceless-version /etc/sourceless/update.conf /etc/sourceless/cosign.pub 2>/dev/null || true
+mkdir -p /var/lib/sourceless-update /var/cache/sourceless-update
+chmod 755 /var/lib/sourceless-update /var/cache/sourceless-update 2>/dev/null || true
 chmod +x /usr/bin/sourceless-first-login.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-support-dialog.py 2>/dev/null || true
@@ -141,6 +147,8 @@ chmod 700 /var/quarantine
 
 systemctl enable sourceless-client.service 2>/dev/null || true
 systemctl enable sourceless-shield.service 2>/dev/null || true
+systemctl enable sourceless-update-stage.timer 2>/dev/null || true
+systemctl enable sourceless-update-apply.service 2>/dev/null || true
 systemctl enable systemd-resolved.service 2>/dev/null || true
 
 systemctl mask fedora-atomic-desktop-appstream-cache-refresh.service 2>/dev/null || true

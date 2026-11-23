@@ -80,6 +80,8 @@ modules:
         - e2fsprogs
         - dosfstools
         - xfsprogs
+        - skopeo
+        - podman
 
     remove:
       packages:
@@ -113,6 +115,8 @@ modules:
         - sourceless-flatpak-update.timer
         - sourceless-shield.service
         - sourceless-quarantine-purge.timer
+        - sourceless-update-stage.timer
+        - sourceless-update-apply.service
         - dev-shm.mount
         - cups.service
         - sddm.service

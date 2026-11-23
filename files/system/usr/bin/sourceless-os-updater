@@ -1,0 +1,398 @@
+#!/usr/bin/bash
+# /usr/bin/sourceless-os-updater
+# SourceLess OS Windows-Update-style background staging and mandatory shutdown installer
+set -uo pipefail
+
+CONF_FILE="/etc/sourceless/update.conf"
+COSIGN_PUB="/etc/sourceless/cosign.pub"
+VERSION_FILE="/usr/lib/sourceless-version"
+EPOCH_FILE="/usr/lib/sourceless-build-epoch"
+STATE_DIR="/var/lib/sourceless-update"
+CACHE_DIR="/var/cache/sourceless-update"
+STATE_JSON="${STATE_DIR}/state.json"
+INSTALLED_FILE="${STATE_DIR}/installed_digest"
+PENDING_FILE="${STATE_DIR}/pending"
+STAGING_DIR="${CACHE_DIR}/staged-rootfs"
+STAGING_TMP="${CACHE_DIR}/staged-rootfs.tmp"
+LOCK_FILE="/run/sourceless-os-updater.lock"
+
+UPDATE_REPO="ghcr.io/mangocity22/sourceless-os"
+UPDATE_CHANNEL="stable"
+AUTO_STAGE="true"
+
+load_config() {
+    if [ -f "$CONF_FILE" ]; then
+        # shellcheck disable=SC1090
+        source "$CONF_FILE" 2>/dev/null || true
+    fi
+    case "${UPDATE_CHANNEL:-stable}" in
+        stable|testing) ;;
+        *) UPDATE_CHANNEL="stable" ;;
+    esac
+}
+
+get_version() {
+    if [ -f "$VERSION_FILE" ]; then
+        tr -d '\r\n' < "$VERSION_FILE"
+    else
+        echo "2026.11"
+    fi
+}
+
+write_state() {
+    local status="$1"
+    local headline="$2"
+    local detail="$3"
+    local progress="$4"
+    local available_ver="${5:-}"
+    local pending_restart="false"
+    [ -f "$PENDING_FILE" ] && [ -d "$STAGING_DIR" ] && pending_restart="true"
+    mkdir -p "$STATE_DIR"
+    python3 - "$STATE_JSON" "$status" "$headline" "$detail" "$progress" "$UPDATE_CHANNEL" "$(get_version)" "$available_ver" "$pending_restart" << 'PYEOF'
+import datetime, json, os, sys
+path, status, headline, detail, progress, channel, current_ver, avail_ver, pending = sys.argv[1:10]
+data = {
+    "status": status,
+    "headline": headline,
+    "detail": detail,
+    "progress": int(progress),
+    "channel": channel,
+    "current_version": current_ver,
+    "available_version": avail_ver,
+    "pending_restart": pending == "true",
+    "last_checked": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+}
+tmp = path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+os.replace(tmp, path)
+os.chmod(path, 0o644)
+PYEOF
+}
+
+notify_desktop_users() {
+    local title="$1"
+    local body="$2"
+    for uid_dir in /run/user/*; do
+        [ -d "$uid_dir" ] || continue
+        local uid
+        uid="$(basename "$uid_dir")"
+        case "$uid" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        [ "$uid" -ge 1000 ] || continue
+        [ -S "${uid_dir}/bus" ] || continue
+        local uname
+        uname="$(id -nu "$uid" 2>/dev/null || true)"
+        [ -n "$uname" ] || continue
+        case "$uname" in
+            liveuser|sourceless-setup|nobody) continue ;;
+        esac
+        runuser -u "$uname" -- env \
+            XDG_RUNTIME_DIR="$uid_dir" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=${uid_dir}/bus" \
+            notify-send -u critical -a "SourceLess OS Update" -i "sourceless-logo" "$title" "$body" >/dev/null 2>&1 || true
+    done
+}
+
+iso_to_epoch() {
+    python3 - "$1" << 'PYEOF'
+import datetime, sys
+raw = sys.argv[1].strip()
+if not raw or raw == "null":
+    print(0)
+    raise SystemExit(0)
+try:
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    dt = datetime.datetime.fromisoformat(raw)
+    print(int(dt.timestamp()))
+except Exception:
+    print(0)
+PYEOF
+}
+
+cmd_check_and_stage() {
+    if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
+        exit 0
+    fi
+
+    load_config
+    mkdir -p "$STATE_DIR" "$CACHE_DIR"
+
+    exec 9>"$LOCK_FILE"
+    flock -n 9 || exit 0
+
+    local current_ver
+    current_ver="$(get_version)"
+    local target_ref="docker://${UPDATE_REPO}:${UPDATE_CHANNEL}"
+
+    if [ -f "$PENDING_FILE" ] && [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ]; then
+        local staged_digest
+        staged_digest="$(tr -d '\r\n' < "$PENDING_FILE")"
+        write_state "pending_restart" "Restart or Shut Down required to finish updating" \
+            "Verified update (${staged_digest:0:19}) is staged and will install automatically on next restart or shut down." 100 "$staged_digest"
+        exit 0
+    fi
+
+    write_state "checking" "Checking for SourceLess OS updates..." \
+        "Contacting signed ${UPDATE_CHANNEL} channel..." 10 ""
+
+    local inspect_json
+    if ! inspect_json="$(skopeo inspect "$target_ref" 2>/dev/null)"; then
+        write_state "error" "Unable to check for updates right now" \
+            "Could not reach ${UPDATE_REPO}:${UPDATE_CHANNEL}. Your system will retry automatically." 0 ""
+        exit 0
+    fi
+
+    local remote_digest remote_created
+    remote_digest="$(printf '%s' "$inspect_json" | jq -r '.Digest // empty')"
+    remote_created="$(printf '%s' "$inspect_json" | jq -r '.Created // empty')"
+
+    if [ -z "$remote_digest" ]; then
+        write_state "error" "Update metadata unavailable" \
+            "Remote manifest did not return a valid image digest." 0 ""
+        exit 0
+    fi
+
+    if [ ! -f "$INSTALLED_FILE" ]; then
+        local local_epoch=0 remote_epoch=0
+        [ -f "$EPOCH_FILE" ] && local_epoch="$(tr -d '\r\n' < "$EPOCH_FILE")"
+        remote_epoch="$(iso_to_epoch "$remote_created")"
+        if [ "${local_epoch:-0}" -gt 0 ] && [ "${remote_epoch:-0}" -gt 0 ] && [ "$remote_epoch" -le $((local_epoch + 600)) ]; then
+            printf '%s\n' "$remote_digest" > "$INSTALLED_FILE"
+            write_state "up_to_date" "You're up to date" \
+                "SourceLess OS (${current_ver}) on ${UPDATE_CHANNEL} channel is up to date." 100 ""
+            exit 0
+        fi
+    fi
+
+    local installed_digest=""
+    [ -f "$INSTALLED_FILE" ] && installed_digest="$(tr -d '\r\n' < "$INSTALLED_FILE")"
+
+    if [ "$remote_digest" = "$installed_digest" ]; then
+        write_state "up_to_date" "You're up to date" \
+            "SourceLess OS (${current_ver}) on ${UPDATE_CHANNEL} channel is up to date." 100 ""
+        exit 0
+    fi
+
+    if [ "${AUTO_STAGE}" != "true" ]; then
+        write_state "available" "SourceLess OS update available" \
+            "Verified update ${remote_digest:0:19} is ready to download." 0 "$remote_digest"
+        exit 0
+    fi
+
+    local pinned_ref="${UPDATE_REPO}@${remote_digest}"
+    write_state "downloading" "Downloading SourceLess OS update..." \
+        "Verifying Cosign signature and pulling ${remote_digest:0:19} in the background..." 25 "$remote_digest"
+
+    if command -v cosign >/dev/null 2>&1 && [ -f "$COSIGN_PUB" ]; then
+        if ! cosign verify --key "$COSIGN_PUB" "$pinned_ref" >/dev/null 2>&1; then
+            write_state "error" "Update signature verification failed" \
+                "Rejected ${remote_digest:0:19} because its Cosign signature could not be verified." 0 ""
+            exit 1
+        fi
+    fi
+
+    if ! podman pull --quiet "$pinned_ref" >/dev/null 2>&1; then
+        write_state "error" "Update download interrupted" \
+            "Failed to pull ${pinned_ref}. Download will retry automatically." 0 ""
+        exit 1
+    fi
+
+    write_state "downloading" "Staging SourceLess OS update..." \
+        "Preparing verified system rootfs for next restart or shut down..." 70 "$remote_digest"
+
+    rm -rf "$STAGING_TMP"
+    mkdir -p "$STAGING_TMP"
+    local cid=""
+    cid="$(podman create "$pinned_ref" 2>/dev/null || true)"
+    if [ -z "$cid" ]; then
+        rm -rf "$STAGING_TMP"
+        podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
+        write_state "error" "Failed to stage update container" \
+            "Could not create temporary staging container." 0 ""
+        exit 1
+    fi
+
+    if ! podman export "$cid" | tar -x -C "$STAGING_TMP" 2>/dev/null; then
+        podman rm -f "$cid" >/dev/null 2>&1 || true
+        podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
+        rm -rf "$STAGING_TMP"
+        write_state "error" "Failed to extract staged update" \
+            "Could not extract root filesystem payload." 0 ""
+        exit 1
+    fi
+
+    podman rm -f "$cid" >/dev/null 2>&1 || true
+    podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
+
+    if [ ! -x "${STAGING_TMP}/usr/lib/systemd/systemd" ]; then
+        rm -rf "$STAGING_TMP"
+        write_state "error" "Staged update failed integrity check" \
+            "Missing systemd binary inside staged payload." 0 ""
+        exit 1
+    fi
+
+    rm -rf "$STAGING_DIR"
+    mv "$STAGING_TMP" "$STAGING_DIR"
+    printf '%s\n' "$remote_digest" > "$PENDING_FILE"
+
+    write_state "pending_restart" "Restart or Shut Down required to finish updating" \
+        "Verified update (${remote_digest:0:19}) downloaded. It will install automatically on next restart or shut down." 100 "$remote_digest"
+
+    notify_desktop_users \
+        "SourceLess OS Update Ready" \
+        "A new verified system update has been downloaded and will be installed automatically the next time you restart or shut down."
+}
+
+cmd_apply_on_shutdown() {
+    if grep -qw "rd.live.image" /proc/cmdline 2>/dev/null; then
+        exit 0
+    fi
+
+    load_config
+    [ -f "$PENDING_FILE" ] || exit 0
+    [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ] || exit 0
+
+    local pending_digest
+    pending_digest="$(tr -d '\r\n' < "$PENDING_FILE")"
+
+    if command -v plymouth >/dev/null 2>&1; then
+        plymouth display-message --text="Installing SourceLess OS Update... Do not turn off your computer" 2>/dev/null || true
+        plymouth system-update --progress=10 2>/dev/null || true
+    fi
+
+    # Create Btrfs pre-update rollback snapshot and retain at most 2 previous snapshots
+    if command -v btrfs >/dev/null 2>&1 && findmnt -n -o FSTYPE / 2>/dev/null | grep -qw btrfs; then
+        mkdir -p /.snapshots
+        local snap_name="pre-update-$(date -u +%Y%m%d-%H%M%S)"
+        btrfs subvolume snapshot -r / "/.snapshots/${snap_name}" >/dev/null 2>&1 || true
+        ls -1dt /.snapshots/pre-update-* 2>/dev/null | tail -n +3 | while read -r old_snap; do
+            btrfs subvolume delete "$old_snap" >/dev/null 2>&1 || true
+        done
+    fi
+
+    [ -x /usr/bin/rsync ] || exit 1
+    command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=35 2>/dev/null || true
+
+    rsync -aHAX --delete "${STAGING_DIR}/usr/" /usr/ || exit 1
+    command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=65 2>/dev/null || true
+
+    rsync -aHAX \
+        --exclude='/passwd*' \
+        --exclude='/shadow*' \
+        --exclude='/group*' \
+        --exclude='/gshadow*' \
+        --exclude='/subuid*' \
+        --exclude='/subgid*' \
+        --exclude='/fstab' \
+        --exclude='/crypttab' \
+        --exclude='/machine-id' \
+        --exclude='/hostname' \
+        --exclude='/localtime' \
+        --exclude='/locale.conf' \
+        --exclude='/vconsole.conf' \
+        --exclude='/NetworkManager/system-connections/**' \
+        --exclude='/sourceless/certs/**' \
+        --exclude='/sourceless/enrolled_hwid' \
+        --exclude='/sourceless/.oobe_completed' \
+        --exclude='/sourceless/update.conf' \
+        --exclude='/sddm.conf.d/99-*' \
+        --exclude='/sudoers.d/99-liveuser' \
+        --exclude='/ssh/ssh_host_*' \
+        "${STAGING_DIR}/etc/" /etc/ || true
+
+    command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=80 2>/dev/null || true
+
+    for kver_dir in /usr/lib/modules/*; do
+        [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ] || continue
+        local kver
+        kver="$(basename "$kver_dir")"
+        mkdir -p /boot
+        cp -f "$kver_dir/vmlinuz" "/boot/vmlinuz-${kver}" 2>/dev/null || true
+        [ -f "$kver_dir/initramfs.img" ] && cp -f "$kver_dir/initramfs.img" "/boot/initramfs-${kver}.img" 2>/dev/null || true
+    done
+
+    if [ -x /etc/grub.d/09_sourceless_bls ]; then
+        /etc/grub.d/09_sourceless_bls >/dev/null 2>&1 || true
+    fi
+    if command -v grub2-mkconfig >/dev/null 2>&1; then
+        grub2-mkconfig -o /boot/grub2/grub.cfg >/dev/null 2>&1 || true
+        [ -d /boot/efi/EFI/fedora ] && grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg >/dev/null 2>&1 || true
+    fi
+
+    command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=92 2>/dev/null || true
+
+    local fc="/etc/selinux/targeted/contexts/files/file_contexts"
+    if [ -f "$fc" ] && command -v setfiles >/dev/null 2>&1; then
+        setfiles -F -e /boot/efi "$fc" /usr /etc /boot /var/lib/sddm /var/roothome >/dev/null 2>&1 || true
+    fi
+
+    printf '%s\n' "$pending_digest" > "$INSTALLED_FILE"
+    rm -f "$PENDING_FILE"
+    rm -rf "$STAGING_DIR" "$STAGING_TMP"
+
+    local new_ver
+    new_ver="$(get_version)"
+    write_state "up_to_date" "You're up to date" \
+        "Updated cleanly to SourceLess OS (${new_ver}) on ${UPDATE_CHANNEL} channel." 100 ""
+
+    if command -v plymouth >/dev/null 2>&1; then
+        plymouth system-update --progress=100 2>/dev/null || true
+        plymouth display-message --text="SourceLess OS Update Complete" 2>/dev/null || true
+    fi
+    sync
+}
+
+cmd_set_channel() {
+    local ch="${1:-}"
+    case "$ch" in
+        stable|testing) ;;
+        *)
+            echo "Invalid channel: $ch (must be stable or testing)" >&2
+            exit 1
+            ;;
+    esac
+    load_config
+    UPDATE_CHANNEL="$ch"
+    mkdir -p "$(dirname "$CONF_FILE")" "$STATE_DIR"
+    cat << EOF > "$CONF_FILE"
+UPDATE_REPO="${UPDATE_REPO}"
+UPDATE_CHANNEL="${UPDATE_CHANNEL}"
+AUTO_STAGE="${AUTO_STAGE}"
+EOF
+    chmod 644 "$CONF_FILE"
+    write_state "idle" "Switched to ${UPDATE_CHANNEL} channel" \
+        "Select 'Check for updates' to query the signed ${UPDATE_CHANNEL} stream." 0 ""
+}
+
+cmd_status() {
+    load_config
+    if [ -f "$STATE_JSON" ]; then
+        cat "$STATE_JSON"
+    else
+        write_state "up_to_date" "You're up to date" \
+            "SourceLess OS ($(get_version)) on ${UPDATE_CHANNEL} channel." 100 ""
+        cat "$STATE_JSON"
+    fi
+}
+
+case "${1:-status}" in
+    check-and-stage|check)
+        cmd_check_and_stage
+        ;;
+    apply-on-shutdown)
+        cmd_apply_on_shutdown
+        ;;
+    set-channel)
+        cmd_set_channel "${2:-}"
+        ;;
+    status)
+        cmd_status
+        ;;
+    *)
+        echo "Usage: $0 {check-and-stage|check|apply-on-shutdown|set-channel <stable|testing>|status}" >&2
+        exit 1
+        ;;
+esac

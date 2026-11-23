@@ -1,0 +1,12 @@
+[Unit]
+Description=SourceLess OS Signed Background Update Stager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sourceless-os-updater check-and-stage
+Nice=19
+IOSchedulingClass=idle
+StandardOutput=journal
+StandardError=journal

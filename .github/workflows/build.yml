@@ -1,15 +1,18 @@
 name: bluebuild
 
 on:
-  # Daily scheduled rebuild at 06:00 UTC (after upstream ublue images publish)
-  schedule:
-    - cron: "00 06 * * *"
-  # Trigger image build on pushes (skipping documentation-only changes)
+  # Trigger testing image build on pushes (skipping documentation-only changes)
   push:
     paths-ignore:
       - "**.md"
   pull_request:
   workflow_dispatch:
+    inputs:
+      promote_to_stable:
+        description: "Also publish this build directly to the :stable client channel"
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   # Ensure only one build runs per workflow and branch/ref at a time
@@ -39,3 +42,21 @@ jobs:
           registry_token: ${{ github.token }}
           pr_event_number: ${{ github.event.number }}
           maximize_build_space: true
+
+      # Tag testing channel for validation; promote to stable only when explicitly requested
+      - name: Tag Testing Channel (and Optional Stable Channel)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          SRC_IMG="docker://ghcr.io/${IMAGE_OWNER}/sourceless-os:latest"
+          TEST_IMG="docker://ghcr.io/${IMAGE_OWNER}/sourceless-os:testing"
+          STABLE_IMG="docker://ghcr.io/${IMAGE_OWNER}/sourceless-os:stable"
+
+          echo "$GH_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          skopeo copy --all "$SRC_IMG" "$TEST_IMG"
+
+          if [ "${{ github.event.inputs.promote_to_stable }}" = "true" ]; then
+            skopeo copy --all "$SRC_IMG" "$STABLE_IMG"
+          fi
