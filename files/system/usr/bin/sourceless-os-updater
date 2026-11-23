@@ -176,13 +176,16 @@ cmd_check_and_stage() {
     current_ver="$(get_version)"
     local target_ref="docker://${UPDATE_REPO}:${UPDATE_CHANNEL}"
 
-    if [ "$force_update" -eq 0 ] && [ -f "$PENDING_FILE" ] && [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ]; then
+    if [ "$force_update" -eq 0 ] && [ -f "$PENDING_FILE" ]; then
         local staged_digest
         staged_digest="$(tr -d '\r\n' < "$PENDING_FILE")"
-        log_msg "Update (${staged_digest:0:19}) is already staged and ready to install on next restart/shut down."
-        write_state "pending_restart" "Restart or Shut Down required to finish updating" \
-            "Verified update (${staged_digest:0:19}) is staged and will install automatically on next restart or shut down." 100 "$staged_digest"
-        exit 0
+        if [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ] || \
+           (command -v podman >/dev/null 2>&1 && podman image exists "${UPDATE_REPO}@${staged_digest}" >/dev/null 2>&1); then
+            log_msg "Update (${staged_digest:0:19}) is already staged and ready to install on next restart/shut down."
+            write_state "pending_restart" "Restart or Shut Down required to finish updating" \
+                "Verified update (${staged_digest:0:19}) is staged and will install automatically on next restart or shut down." 100 "$staged_digest"
+            exit 0
+        fi
     fi
 
     log_msg "Checking ${UPDATE_REPO}:${UPDATE_CHANNEL}..."
@@ -284,20 +287,29 @@ cmd_check_and_stage() {
     fi
 
     rm -rf "$STAGING_TMP"
-    mkdir -p "$STAGING_TMP"
     local staged_ok=0
+    local staged_is_link=0
 
-    if command -v podman >/dev/null 2>&1 && { podman pull --quiet "$pinned_ref" >/dev/null 2>&1 || podman pull --authfile=/dev/null --quiet "$pinned_ref" >/dev/null 2>&1; }; then
-        log_msg "Staging update rootfs via podman..."
+    if command -v podman >/dev/null 2>&1 && { podman image exists "$pinned_ref" >/dev/null 2>&1 || podman pull --quiet "$pinned_ref" >/dev/null 2>&1 || podman pull --authfile=/dev/null --quiet "$pinned_ref" >/dev/null 2>&1; }; then
+        log_msg "Mounting staged update rootfs via podman..."
         write_state "downloading" "Staging SourceLess OS update..." \
             "Preparing verified system rootfs for next restart or shut down..." 70 "$remote_digest"
-        local cid=""
-        cid="$(podman create "$pinned_ref" 2>/dev/null || true)"
-        if [ -n "$cid" ] && podman export "$cid" | tar -x --numeric-owner -C "$STAGING_TMP" 2>/dev/null; then
+        local mnt_dir=""
+        mnt_dir="$(podman image mount "$pinned_ref" 2>/dev/null || true)"
+        if [ -n "$mnt_dir" ] && [ -x "${mnt_dir}/usr/lib/systemd/systemd" ]; then
+            rm -rf "$STAGING_DIR"
+            ln -s "$mnt_dir" "$STAGING_DIR"
             staged_ok=1
+            staged_is_link=1
+        else
+            mkdir -p "$STAGING_TMP"
+            local cid=""
+            cid="$(podman create "$pinned_ref" /usr/bin/true 2>/dev/null || true)"
+            if [ -n "$cid" ] && podman export "$cid" | tar -x --numeric-owner -C "$STAGING_TMP" 2>/dev/null; then
+                staged_ok=1
+            fi
+            [ -n "$cid" ] && podman rm -f "$cid" >/dev/null 2>&1 || true
         fi
-        [ -n "$cid" ] && podman rm -f "$cid" >/dev/null 2>&1 || true
-        podman rmi -f "$pinned_ref" >/dev/null 2>&1 || true
     fi
 
     if [ "$staged_ok" -eq 0 ]; then
@@ -311,16 +323,19 @@ cmd_check_and_stage() {
         fi
     fi
 
-    if [ "$staged_ok" -eq 0 ] || [ ! -x "${STAGING_TMP}/usr/lib/systemd/systemd" ]; then
+    if [ "$staged_ok" -eq 0 ] || { [ "$staged_is_link" -eq 0 ] && [ ! -x "${STAGING_TMP}/usr/lib/systemd/systemd" ]; } || { [ "$staged_is_link" -eq 1 ] && [ ! -x "${STAGING_DIR}/usr/lib/systemd/systemd" ]; }; then
         rm -rf "$STAGING_TMP"
+        [ "$staged_is_link" -eq 1 ] && rm -f "$STAGING_DIR"
         log_msg "ERROR: Failed to stage update payload."
         write_state "error" "Staged update failed integrity check" \
             "Failed to download or verify staged root filesystem." 0 ""
         exit 1
     fi
 
-    rm -rf "$STAGING_DIR"
-    mv "$STAGING_TMP" "$STAGING_DIR"
+    if [ "$staged_is_link" -eq 0 ]; then
+        rm -rf "$STAGING_DIR"
+        mv "$STAGING_TMP" "$STAGING_DIR"
+    fi
     printf '%s\n' "$remote_digest" > "$PENDING_FILE"
 
     log_msg "Update staged (${remote_digest:0:19}). It will install automatically on next restart or shut down."
@@ -339,10 +354,20 @@ cmd_apply_on_shutdown() {
 
     load_config
     [ -f "$PENDING_FILE" ] || exit 0
-    [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ] || exit 0
 
     local pending_digest
     pending_digest="$(tr -d '\r\n' < "$PENDING_FILE")"
+    local src_root=""
+    local mounted_podman=0
+
+    if [ -x "${STAGING_DIR}/usr/lib/systemd/systemd" ]; then
+        src_root="$(readlink -f "$STAGING_DIR" 2>/dev/null || echo "$STAGING_DIR")"
+    elif command -v podman >/dev/null 2>&1; then
+        src_root="$(podman image mount "${UPDATE_REPO}@${pending_digest}" 2>/dev/null || true)"
+        [ -n "$src_root" ] && mounted_podman=1
+    fi
+
+    [ -n "$src_root" ] && [ -x "${src_root}/usr/lib/systemd/systemd" ] || exit 0
 
     if command -v plymouth >/dev/null 2>&1; then
         plymouth display-message --text="Installing SourceLess OS Update... Do not turn off your computer" 2>/dev/null || true
@@ -362,7 +387,7 @@ cmd_apply_on_shutdown() {
     [ -x /usr/bin/rsync ] || exit 1
     command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=35 2>/dev/null || true
 
-    rsync -aHAX --delete "${STAGING_DIR}/usr/" /usr/ || exit 1
+    rsync -aHAX --delete "${src_root}/usr/" /usr/ || exit 1
     command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=65 2>/dev/null || true
 
     rsync -aHAX \
@@ -387,7 +412,7 @@ cmd_apply_on_shutdown() {
         --exclude='/sddm.conf.d/99-*' \
         --exclude='/sudoers.d/99-liveuser' \
         --exclude='/ssh/ssh_host_*' \
-        "${STAGING_DIR}/etc/" /etc/ || true
+        "${src_root}/etc/" /etc/ || true
 
     command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=80 2>/dev/null || true
 
@@ -418,6 +443,11 @@ cmd_apply_on_shutdown() {
     printf '%s\n' "$pending_digest" > "$INSTALLED_FILE"
     rm -f "$PENDING_FILE"
     rm -rf "$STAGING_DIR" "$STAGING_TMP"
+    if command -v podman >/dev/null 2>&1; then
+        [ "$mounted_podman" -eq 1 ] && podman image unmount "${UPDATE_REPO}@${pending_digest}" >/dev/null 2>&1 || true
+        podman image unmount --all >/dev/null 2>&1 || true
+        podman image prune -f >/dev/null 2>&1 || true
+    fi
 
     local new_ver
     new_ver="$(get_version)"
