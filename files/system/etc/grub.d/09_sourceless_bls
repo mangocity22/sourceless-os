@@ -1,0 +1,99 @@
+#!/usr/bin/bash
+# /etc/grub.d/09_sourceless_bls
+# Generates Boot Loader Specification (BLS) entries for SourceLess OS when 05-rpmostree.install skips kernel-install.
+set -u
+
+exec 3>&1
+exec >/dev/null 2>&1
+
+[ -f /etc/fstab ] || exit 0
+
+# Parse root device and optional Btrfs subvolume from /etc/fstab
+ROOT_LINE=$(awk '!/^[[:space:]]*#/ && NF >= 4 && $2 == "/" { print $1 "|" $4; exit }' /etc/fstab 2>/dev/null || true)
+[ -n "$ROOT_LINE" ] || exit 0
+
+ROOT_SPEC="${ROOT_LINE%%|*}"
+ROOT_OPTS="${ROOT_LINE#*|}"
+ROOT_SUBVOL=$(echo "$ROOT_OPTS" | tr ',' '\n' | sed -n 's/^subvol=//p' | head -n 1)
+
+if [ -n "$ROOT_SUBVOL" ]; then
+    ROOTFLAGS="rootflags=subvol=${ROOT_SUBVOL}"
+else
+    ROOTFLAGS=""
+fi
+
+if awk '!/^[[:space:]]*#/ && NF >= 2 && $2 == "/boot" { found=1; exit } END { exit !found }' /etc/fstab 2>/dev/null; then
+    BOOT_PREFIX=""
+else
+    BOOT_PREFIX="/boot"
+fi
+
+# Populate missing kernels/initramfs from /usr/lib/modules into /boot
+for kver_dir in /usr/lib/modules/*; do
+    [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ] || continue
+    kver="$(basename "$kver_dir")"
+    mkdir -p /boot
+    [ -f "/boot/vmlinuz-${kver}" ] || cp -f "$kver_dir/vmlinuz" "/boot/vmlinuz-${kver}" || true
+    if [ ! -f "/boot/initramfs-${kver}.img" ] && [ -f "$kver_dir/initramfs.img" ]; then
+        cp -f "$kver_dir/initramfs.img" "/boot/initramfs-${kver}.img" || true
+    fi
+done
+
+CMDLINE_OPTS="root=${ROOT_SPEC} ${ROOTFLAGS} ro rhgb quiet"
+CMDLINE_OPTS=$(echo "$CMDLINE_OPTS" | awk '{$1=$1; print}')
+
+mkdir -p /boot/loader/entries /etc/kernel
+echo "$CMDLINE_OPTS" > /etc/kernel/cmdline
+chmod 644 /etc/kernel/cmdline || true
+
+LATEST_KVER=""
+for vml in $(ls -1 /boot/vmlinuz-* 2>/dev/null | grep -v 'rescue' | sort -V || true); do
+    [ -f "$vml" ] || continue
+    kver="${vml#/boot/vmlinuz-}"
+    [ -f "/boot/initramfs-${kver}.img" ] || continue
+    LATEST_KVER="$kver"
+
+    {
+        echo "title SourceLess OS (${kver})"
+        echo "version ${kver}"
+        echo "linux ${BOOT_PREFIX}/vmlinuz-${kver}"
+        echo "initrd ${BOOT_PREFIX}/initramfs-${kver}.img"
+        echo "options ${CMDLINE_OPTS}"
+        echo 'grub_users $grub_users'
+        echo "grub_arg --unrestricted"
+        echo "grub_class sourceless"
+    } > "/boot/loader/entries/sourceless-${kver}.conf"
+    chmod 644 "/boot/loader/entries/sourceless-${kver}.conf" || true
+done
+
+if [ -n "$LATEST_KVER" ] && command -v grub2-editenv >/dev/null 2>&1; then
+    mkdir -p /boot/grub2
+    grub2-editenv /boot/grub2/grubenv set saved_entry="sourceless-${LATEST_KVER}" menu_auto_hide=0 || true
+fi
+
+THEME_PATH=""
+if [ -f /usr/share/grub/themes/sourceless/theme.txt ]; then
+    mkdir -p /boot/grub2/themes/sourceless
+    cp -af /usr/share/grub/themes/sourceless/. /boot/grub2/themes/sourceless/ || true
+    THEME_PATH="${BOOT_PREFIX}/grub2/themes/sourceless/theme.txt"
+fi
+
+# Restore stdout for GRUB snippet emission
+exec 1>&3 3>&-
+
+if [ -n "$THEME_PATH" ]; then
+    cat << EOF
+insmod gfxterm
+set menu_auto_hide=0
+set timeout=5
+if [ -f ${THEME_PATH} ]; then
+  set theme="${THEME_PATH}"
+  export theme
+fi
+EOF
+else
+    cat << 'EOF'
+set menu_auto_hide=0
+set timeout=5
+EOF
+fi

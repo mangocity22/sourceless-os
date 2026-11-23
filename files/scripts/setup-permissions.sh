@@ -56,6 +56,7 @@ chmod 700 /usr/bin/sourceless-unlock 2>/dev/null || true
 chmod 700 /usr/bin/sourceless-client-boot.sh 2>/dev/null || true
 chmod 700 /usr/bin/sourceless-cert-verify.sh 2>/dev/null || true
 chmod 644 /etc/profile.d/sourceless-shell-guard.sh 2>/dev/null || true
+chmod 755 /etc/grub.d/09_sourceless_bls 2>/dev/null || true
 chmod +x /etc/grub.d/40_custom_sourceless 2>/dev/null || true
 
 chmod 0440 /etc/sudoers.d/sourceless-lockdown 2>/dev/null || true

@@ -109,6 +109,15 @@ if [ "$is_sysroot" -eq 1 ] && { [ "$rc" -eq 0 ] || [ "$rc" -eq 23 ] || [ "$rc" -
         rm -f /mnt/sysroot/root 2>/dev/null || true
         ln -s var/roothome /mnt/sysroot/root 2>/dev/null || mkdir -p /mnt/sysroot/root 2>/dev/null || true
     fi
+    for kver_dir in /mnt/sysroot/usr/lib/modules/*; do
+        [ -d "$kver_dir" ] && [ -f "$kver_dir/vmlinuz" ] || continue
+        kver=$(basename "$kver_dir")
+        mkdir -p /mnt/sysroot/boot 2>/dev/null || true
+        [ -f "/mnt/sysroot/boot/vmlinuz-${kver}" ] || cp -f "$kver_dir/vmlinuz" "/mnt/sysroot/boot/vmlinuz-${kver}" 2>/dev/null || true
+        if [ ! -f "/mnt/sysroot/boot/initramfs-${kver}.img" ] && [ -f "$kver_dir/initramfs.img" ]; then
+            cp -f "$kver_dir/initramfs.img" "/mnt/sysroot/boot/initramfs-${kver}.img" 2>/dev/null || true
+        fi
+    done
     exit 0
 fi
 exit "$rc"
@@ -188,7 +197,7 @@ else
     chmod 700 /var/roothome 2>/dev/null || true
     chmod 1777 /var/tmp 2>/dev/null || true
     chown -R sddm:sddm /var/lib/sddm 2>/dev/null || true
-    restorecon -RF /var/lib/sddm /var/roothome /etc/sddm.conf.d 2>/dev/null || true
+    restorecon -RF /var/lib/sddm /var/roothome /var/tmp /var/log /etc/sddm.conf.d /etc/fstab /boot/loader 2>/dev/null || true
 fi
 
 # 2. First-Boot Windows-style OOBE check (when .oobe_completed marker is absent)
