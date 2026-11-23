@@ -39,7 +39,7 @@ for kver_dir in /usr/lib/modules/*; do
     fi
 done
 
-CMDLINE_OPTS="root=${ROOT_SPEC} ${ROOTFLAGS} ro rhgb quiet"
+CMDLINE_OPTS="root=${ROOT_SPEC} ${ROOTFLAGS} ro lockdown=integrity rhgb quiet"
 CMDLINE_OPTS=$(echo "$CMDLINE_OPTS" | awk '{$1=$1; print}')
 
 mkdir -p /boot/loader/entries /etc/kernel

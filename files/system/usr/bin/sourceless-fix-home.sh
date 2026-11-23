@@ -204,6 +204,16 @@ else
         userdel -r liveuser 2>/dev/null || true
     fi
 
+    # Ensure kernel integrity lockdown is active and persisted in installed BLS entries
+    if [ -w /sys/kernel/security/lockdown ] && grep -q '\[none\]' /sys/kernel/security/lockdown 2>/dev/null; then
+        printf 'integrity' > /sys/kernel/security/lockdown 2>/dev/null || true
+    fi
+    for bls_file in /boot/loader/entries/*.conf; do
+        if [ -f "$bls_file" ]; then
+            sed -i '/^options /{/lockdown=/!s/$/ lockdown=integrity/}' "$bls_file" 2>/dev/null || true
+        fi
+    done
+
     # Ensure Atomic /var runtime targets exist with proper permissions and SELinux labels before SDDM starts
     mkdir -p /var/home /var/roothome /var/lib/sddm /var/tmp /var/log /var/opt /var/srv /var/mnt /var/usrlocal
     chmod 700 /var/roothome 2>/dev/null || true
