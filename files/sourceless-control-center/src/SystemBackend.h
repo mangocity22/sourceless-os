@@ -1,11 +1,16 @@
 #pragma once
 
+#include <QMetaObject>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QThreadPool>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QTimer>
+#include <atomic>
+#include <utility>
 
 class SystemBackend : public QObject
 {
@@ -156,6 +161,7 @@ class SystemBackend : public QObject
 
 public:
     explicit SystemBackend(const QString &startPage = QStringLiteral("home"), QObject *parent = nullptr);
+    ~SystemBackend() override;
 
     // Getters
     QString userName() const { return m_userName; }
@@ -420,6 +426,7 @@ signals:
 
 private:
     QString runCommand(const QString &program, const QStringList &args, int timeoutMs = 3000) const;
+    QString runCommandCancellable(const QString &program, const QStringList &args, int timeoutMs = 3000) const;
     void runDetached(const QString &program, const QStringList &args) const;
     void applyDisplayOrientationRaw(const QString &orientation);
     void setKwinEffectEnabled(const QString &pluginKey, const QString &effectId, bool enabled) const;
@@ -429,6 +436,36 @@ private:
     void loadStaticSystemInfo();
     void loadDynamicSystemMetrics();
     void loadInputSettings();
+    void refreshGpuInfoAsync();
+    void scheduleStartupRefresh();
+
+    template <typename ComputeFn, typename ApplyFn>
+    void runAsyncTask(const QString &taskKey, ComputeFn computeFn, ApplyFn applyFn)
+    {
+        if (m_destroying.load(std::memory_order_relaxed) || m_inflightTasks.contains(taskKey)) {
+            return;
+        }
+        m_inflightTasks.insert(taskKey);
+        m_workerPool.start([this, taskKey, compute = std::move(computeFn), apply = std::move(applyFn)]() mutable {
+            if (m_destroying.load(std::memory_order_relaxed)) {
+                return;
+            }
+            auto result = compute();
+            if (m_destroying.load(std::memory_order_relaxed)) {
+                return;
+            }
+            QMetaObject::invokeMethod(
+                this,
+                [this, taskKey, apply = std::move(apply), res = std::move(result)]() mutable {
+                    m_inflightTasks.remove(taskKey);
+                    if (m_destroying.load(std::memory_order_relaxed)) {
+                        return;
+                    }
+                    apply(std::move(res));
+                },
+                Qt::QueuedConnection);
+        });
+    }
 
     QString m_userName;
     QString m_userFullName;
@@ -565,4 +602,7 @@ private:
     bool m_visibleBellInvert = true;
 
     QTimer m_periodicTimer;
+    std::atomic<bool> m_destroying{false};
+    QSet<QString> m_inflightTasks;
+    QThreadPool m_workerPool;
 };

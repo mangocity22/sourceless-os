@@ -54,6 +54,7 @@ ApplicationWindow {
     property bool searchPopupOpen: false
     property bool searchPopupHovered: false
     property bool addingPrinter: false
+    onCurrentPageChanged: root.refreshPageData(root.currentPage)
 
     readonly property var searchCatalog: [
         // Personalization (Page 4)
@@ -169,12 +170,34 @@ ApplicationWindow {
 
     function refreshPageData(pageIdx) {
         if (!backend) return
-        if (pageIdx === 2) { backend.refreshBluetooth(); backend.refreshPrinters() }
-        else if (pageIdx === 3) backend.refreshNetwork()
-        else if (pageIdx === 5) backend.refreshApps()
-        else if (pageIdx === 7) backend.refreshSecurity()
-        else if (pageIdx === 8) backend.refreshAccessibility()
-        else if (pageIdx === 9) backend.refreshUserProfile()
+        if (pageIdx === 0) {
+            backend.refreshAudio()
+            backend.refreshDisplay()
+            backend.refreshNetwork()
+            backend.refreshSecurity()
+        } else if (pageIdx === 1) {
+            backend.refreshDisplay()
+            backend.refreshAudio()
+            backend.refreshPower()
+            backend.refreshSystemUpdate()
+        } else if (pageIdx === 2) {
+            backend.refreshBluetooth()
+            backend.refreshPrinters()
+        } else if (pageIdx === 3) {
+            backend.refreshNetwork()
+        } else if (pageIdx === 4) {
+            backend.refreshPersonalization()
+        } else if (pageIdx === 5) {
+            backend.refreshApps()
+        } else if (pageIdx === 6) {
+            backend.refreshTime()
+        } else if (pageIdx === 7) {
+            backend.refreshSecurity()
+        } else if (pageIdx === 8) {
+            backend.refreshAccessibility()
+        } else if (pageIdx === 9) {
+            backend.refreshUserProfile()
+        }
     }
 
     function scrollToSection(pageIdx, sectionKey) {
@@ -225,7 +248,6 @@ ApplicationWindow {
         if (!item) return
         if (root.currentPage !== item.pageIdx) {
             root.currentPage = item.pageIdx
-            root.refreshPageData(item.pageIdx)
         }
         root.highlightedSection = item.sectionKey || ""
         highlightResetTimer.restart()
@@ -720,7 +742,7 @@ ApplicationWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: { root.currentPage = 9; if (backend) backend.refreshUserProfile() }
+                            onClicked: root.currentPage = 9
                         }
                     }
 
@@ -888,10 +910,7 @@ ApplicationWindow {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.currentPage = navItem.modelData.pageIdx
-                                    root.refreshPageData(navItem.modelData.pageIdx)
-                                }
+                                onClicked: root.currentPage = navItem.modelData.pageIdx
                             }
                         }
                     }

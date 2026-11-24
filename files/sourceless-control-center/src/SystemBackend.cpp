@@ -3,6 +3,7 @@
 #include <KUser>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -28,17 +29,29 @@ SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
     : QObject(parent)
     , m_initialPage(startPage.isEmpty() ? QStringLiteral("home") : startPage)
 {
-    loadStaticSystemInfo();
-    refreshAll();
+    m_workerPool.setMaxThreadCount(4);
 
-    // Refresh live metrics (clock, audio, RAM/disk, battery, security, OS updates) every 6 seconds
+    // Instant local/procfs initialization only so the window appears without delay
+    loadStaticSystemInfo();
+    loadDynamicSystemMetrics();
+    loadInputSettings();
+    refreshSystemUpdate();
+
+    // Defer subprocess/D-Bus probes until after the event loop starts and the window is shown
+    QTimer::singleShot(0, this, &SystemBackend::scheduleStartupRefresh);
+
+    // Refresh live metrics (clock, RAM/disk, OS updates, audio, security, battery) every 6 seconds
     connect(&m_periodicTimer, &QTimer::timeout, this, [this]() {
         loadDynamicSystemMetrics();
-        refreshTime();
-        refreshAudio();
-        refreshPower();
-        refreshSecurity();
         refreshSystemUpdate();
+        m_currentDateTime = QDateTime::currentDateTime().toString(
+            m_use24Hour ? QStringLiteral("dddd, dd MMMM yyyy  •  HH:mm") : QStringLiteral("dddd, dd MMMM yyyy  •  hh:mm AP"));
+        emit timeChanged();
+        refreshAudio();
+        refreshSecurity();
+        if (m_hasBattery) {
+            refreshPower();
+        }
     });
     m_periodicTimer.start(6000);
 
@@ -54,6 +67,15 @@ SystemBackend::SystemBackend(const QString &startPage, QObject *parent)
     });
 }
 
+SystemBackend::~SystemBackend()
+{
+    m_destroying.store(true, std::memory_order_relaxed);
+    m_periodicTimer.stop();
+    m_orientationRevertTimer.stop();
+    m_workerPool.clear();
+    m_workerPool.waitForDone(2500);
+}
+
 QString SystemBackend::runCommand(const QString &program, const QStringList &args, int timeoutMs) const
 {
     QProcess proc;
@@ -62,6 +84,28 @@ QString SystemBackend::runCommand(const QString &program, const QStringList &arg
         proc.kill();
         proc.waitForFinished(500);
         return QString();
+    }
+    return QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+}
+
+QString SystemBackend::runCommandCancellable(const QString &program, const QStringList &args, int timeoutMs) const
+{
+    if (m_destroying.load(std::memory_order_relaxed)) {
+        return QString();
+    }
+    QProcess proc;
+    proc.start(program, args);
+    QElapsedTimer timer;
+    timer.start();
+    while (!proc.waitForFinished(150)) {
+        if (proc.error() == QProcess::FailedToStart) {
+            return QString();
+        }
+        if (m_destroying.load(std::memory_order_relaxed) || timer.elapsed() >= timeoutMs) {
+            proc.kill();
+            proc.waitForFinished(250);
+            return QString();
+        }
     }
     return QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
 }
@@ -91,6 +135,27 @@ void SystemBackend::loadStaticSystemInfo()
         m_userFullName = m_userName;
     }
 
+    // Fast local profile metadata (D-Bus refresh happens asynchronously after startup)
+    QString accountsFileRealName;
+    QString accountsFileEmail;
+    QString accountsFileIcon;
+    QFile accUserFile(QStringLiteral("/var/lib/AccountsService/users/") + m_userName);
+    if (accUserFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        for (const QString &rawLine : QString::fromUtf8(accUserFile.readAll()).split(QLatin1Char('\n'))) {
+            const QString line = rawLine.trimmed();
+            if (line.startsWith(QStringLiteral("RealName="))) {
+                accountsFileRealName = line.mid(9).trimmed();
+            } else if (line.startsWith(QStringLiteral("Email="))) {
+                accountsFileEmail = line.mid(6).trimmed();
+            } else if (line.startsWith(QStringLiteral("Icon="))) {
+                accountsFileIcon = line.mid(5).trimmed();
+            }
+        }
+    }
+    if (!accountsFileRealName.isEmpty()) {
+        m_userFullName = accountsFileRealName;
+    }
+
     // Compute initials
     const QStringList parts = m_userFullName.split(QLatin1Char(' '), Qt::SkipEmptyParts);
     if (parts.size() >= 2) {
@@ -101,28 +166,17 @@ void SystemBackend::loadStaticSystemInfo()
         m_userInitials = QStringLiteral("SL");
     }
 
-    // Comprehensive Profile Picture (Avatar) Discovery
-    const uid_t uid = getuid();
-    const QString accountsDbusIcon = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("--system"),
-         QStringLiteral("org.freedesktop.Accounts"),
-         QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid),
-         QStringLiteral("org.freedesktop.Accounts.User.IconFile")}, 1200);
-
-    QString accountsFileIcon;
-    QFile accUserFile(QStringLiteral("/var/lib/AccountsService/users/") + m_userName);
-    if (accUserFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        for (const QString &line : QString::fromUtf8(accUserFile.readAll()).split(QLatin1Char('\n'))) {
-            if (line.trimmed().startsWith(QStringLiteral("Icon="))) {
-                accountsFileIcon = line.trimmed().mid(5).trimmed();
-                break;
-            }
-        }
+    if (!accountsFileEmail.isEmpty()) {
+        m_userEmail = accountsFileEmail;
+    } else {
+        QSettings mailCfg(QDir::homePath() + QStringLiteral("/.config/emaildefaults"), QSettings::IniFormat);
+        mailCfg.beginGroup(QStringLiteral("PROFILE_Default"));
+        m_userEmail = mailCfg.value(QStringLiteral("EmailAddress")).toString().trimmed();
+        mailCfg.endGroup();
     }
 
     const QStringList avatarCandidates = {
         kuser.faceIconPath(),
-        accountsDbusIcon,
         accountsFileIcon,
         QStringLiteral("/var/lib/AccountsService/icons/") + m_userName,
         QDir::homePath() + QStringLiteral("/.face.icon"),
@@ -193,15 +247,62 @@ void SystemBackend::loadStaticSystemInfo()
         }
     }
 
-    // GPU Model
-    const QString lspciOut = runCommand(QStringLiteral("sh"),
-        {QStringLiteral("-c"), QStringLiteral("lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n 1")}, 1500);
-    if (!lspciOut.isEmpty()) {
-        const int idx = lspciOut.indexOf(QStringLiteral(": "));
-        m_gpuModel = (idx != -1) ? lspciOut.mid(idx + 2).trimmed() : lspciOut;
-    } else {
-        m_gpuModel = QStringLiteral("Integrated / Virtual Graphics Adapter");
+    // GPU Model placeholder (resolved asynchronously after startup)
+    m_gpuModel = QStringLiteral("Detecting graphics adapter...");
+
+    // Pre-populate dropdown defaults so UI combo boxes are valid immediately
+    if (m_availableResolutions.isEmpty()) {
+        m_availableResolutions = {
+            QStringLiteral("3840x2160"),
+            QStringLiteral("2560x1440"),
+            QStringLiteral("1920x1080"),
+            QStringLiteral("1680x1050"),
+            QStringLiteral("1600x900"),
+            QStringLiteral("1366x768"),
+            QStringLiteral("1280x720")
+        };
     }
+    if (m_availableRefreshRates.isEmpty()) {
+        m_availableRefreshRates = {m_currentRefreshRate};
+    }
+    if (m_availableTimezones.isEmpty()) {
+        m_availableTimezones = {
+            QStringLiteral("Europe/Bucharest"),
+            QStringLiteral("UTC"),
+            QStringLiteral("Europe/London"),
+            QStringLiteral("Europe/Berlin"),
+            QStringLiteral("Europe/Paris"),
+            QStringLiteral("Europe/Madrid"),
+            QStringLiteral("Europe/Rome"),
+            QStringLiteral("Europe/Vienna"),
+            QStringLiteral("Europe/Warsaw"),
+            QStringLiteral("Europe/Budapest"),
+            QStringLiteral("Europe/Prague"),
+            QStringLiteral("Europe/Athens"),
+            QStringLiteral("Europe/Istanbul"),
+            QStringLiteral("Europe/Kyiv"),
+            QStringLiteral("Europe/Chisinau"),
+            QStringLiteral("Europe/Zurich"),
+            QStringLiteral("Europe/Amsterdam"),
+            QStringLiteral("Europe/Brussels"),
+            QStringLiteral("Europe/Stockholm"),
+            QStringLiteral("America/New_York"),
+            QStringLiteral("America/Chicago"),
+            QStringLiteral("America/Denver"),
+            QStringLiteral("America/Los_Angeles"),
+            QStringLiteral("America/Toronto"),
+            QStringLiteral("America/Sao_Paulo"),
+            QStringLiteral("Asia/Tokyo"),
+            QStringLiteral("Asia/Seoul"),
+            QStringLiteral("Asia/Shanghai"),
+            QStringLiteral("Asia/Singapore"),
+            QStringLiteral("Asia/Dubai"),
+            QStringLiteral("Asia/Kolkata"),
+            QStringLiteral("Australia/Sydney")
+        };
+    }
+    m_currentDateTime = QDateTime::currentDateTime().toString(
+        m_use24Hour ? QStringLiteral("dddd, dd MMMM yyyy  •  HH:mm") : QStringLiteral("dddd, dd MMMM yyyy  •  hh:mm AP"));
 
     // Hardware ID (masked for display)
     QFile hwidFile(QStringLiteral("/etc/sourceless/enrolled_hwid"));
@@ -218,99 +319,165 @@ void SystemBackend::loadStaticSystemInfo()
     } else {
         m_hwid = QStringLiteral("SL-VERIFIED-NODE");
     }
+}
 
+void SystemBackend::refreshGpuInfoAsync()
+{
+    runAsyncTask(
+        QStringLiteral("gpu"),
+        [this]() {
+            const QString lspciOut = runCommandCancellable(QStringLiteral("sh"),
+                {QStringLiteral("-c"), QStringLiteral("lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n 1")}, 1500);
+            if (!lspciOut.isEmpty()) {
+                const int idx = lspciOut.indexOf(QStringLiteral(": "));
+                return (idx != -1) ? lspciOut.mid(idx + 2).trimmed() : lspciOut;
+            }
+            return QStringLiteral("Integrated / Virtual Graphics Adapter");
+        },
+        [this](QString gpu) {
+            m_gpuModel = std::move(gpu);
+            emit systemInfoChanged();
+        });
+}
+
+void SystemBackend::scheduleStartupRefresh()
+{
+    refreshGpuInfoAsync();
+    refreshAudio();
+    refreshDisplay();
+    refreshNetwork();
+    refreshSecurity();
+    refreshBluetooth();
     refreshUserProfile();
+
+    if (m_initialPage == QStringLiteral("system")) {
+        refreshPower();
+    } else if (m_initialPage == QStringLiteral("bluetooth") || m_initialPage == QStringLiteral("printers")) {
+        refreshPrinters();
+    } else if (m_initialPage == QStringLiteral("personalization")) {
+        refreshPersonalization();
+    } else if (m_initialPage == QStringLiteral("apps")) {
+        refreshApps();
+    } else if (m_initialPage == QStringLiteral("time")) {
+        refreshTime();
+    } else if (m_initialPage == QStringLiteral("accessibility")) {
+        refreshAccessibility();
+    }
 }
 
 void SystemBackend::refreshUserProfile()
 {
     const uid_t uid = getuid();
-    const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+    const QString userName = m_userName;
+    const QString fallbackFullName = m_userFullName;
+    const QString currentAvatar = m_userAvatar;
+    const QString homePath = QDir::homePath();
 
-    const QString realNameDbus = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
-         userObj, QStringLiteral("org.freedesktop.Accounts.User.RealName")}, 1200);
-    const QString emailDbus = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
-         userObj, QStringLiteral("org.freedesktop.Accounts.User.Email")}, 1200);
-    const QString iconDbus = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
-         userObj, QStringLiteral("org.freedesktop.Accounts.User.IconFile")}, 1200);
+    struct UserProfileSnapshot {
+        QString fullName;
+        QString initials;
+        QString email;
+        QString avatar;
+    };
 
-    QString accFileRealName;
-    QString accFileEmail;
-    QString accFileIcon;
-    QFile accUserFile(QStringLiteral("/var/lib/AccountsService/users/") + m_userName);
-    if (accUserFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        for (const QString &rawLine : QString::fromUtf8(accUserFile.readAll()).split(QLatin1Char('\n'))) {
-            const QString line = rawLine.trimmed();
-            if (line.startsWith(QStringLiteral("RealName="))) {
-                accFileRealName = line.mid(9).trimmed();
-            } else if (line.startsWith(QStringLiteral("Email="))) {
-                accFileEmail = line.mid(6).trimmed();
-            } else if (line.startsWith(QStringLiteral("Icon="))) {
-                accFileIcon = line.mid(5).trimmed();
+    runAsyncTask(
+        QStringLiteral("userProfile"),
+        [this, uid, userName, fallbackFullName, currentAvatar, homePath]() {
+            UserProfileSnapshot snap;
+            const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
+
+            const QString realNameDbus = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+                 userObj, QStringLiteral("org.freedesktop.Accounts.User.RealName")}, 1200);
+            const QString emailDbus = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+                 userObj, QStringLiteral("org.freedesktop.Accounts.User.Email")}, 1200);
+            const QString iconDbus = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+                 userObj, QStringLiteral("org.freedesktop.Accounts.User.IconFile")}, 1200);
+
+            QString accFileRealName;
+            QString accFileEmail;
+            QString accFileIcon;
+            QFile accUserFile(QStringLiteral("/var/lib/AccountsService/users/") + userName);
+            if (accUserFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                for (const QString &rawLine : QString::fromUtf8(accUserFile.readAll()).split(QLatin1Char('\n'))) {
+                    const QString line = rawLine.trimmed();
+                    if (line.startsWith(QStringLiteral("RealName="))) {
+                        accFileRealName = line.mid(9).trimmed();
+                    } else if (line.startsWith(QStringLiteral("Email="))) {
+                        accFileEmail = line.mid(6).trimmed();
+                    } else if (line.startsWith(QStringLiteral("Icon="))) {
+                        accFileIcon = line.mid(5).trimmed();
+                    }
+                }
             }
-        }
-    }
 
-    QString resolvedName = !realNameDbus.trimmed().isEmpty() ? realNameDbus.trimmed() : accFileRealName;
-    if (!resolvedName.isEmpty()) {
-        m_userFullName = resolvedName;
-    } else if (m_userFullName.isEmpty()) {
-        m_userFullName = m_userName;
-    }
-
-    const QStringList parts = m_userFullName.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    if (parts.size() >= 2) {
-        m_userInitials = QString(parts.first().at(0).toUpper()) + QString(parts.last().at(0).toUpper());
-    } else if (!m_userFullName.isEmpty()) {
-        m_userInitials = m_userFullName.left(2).toUpper();
-    } else {
-        m_userInitials = QStringLiteral("SL");
-    }
-
-    QString resolvedEmail = !emailDbus.trimmed().isEmpty() ? emailDbus.trimmed() : accFileEmail;
-    if (resolvedEmail.isEmpty()) {
-        QSettings mailCfg(QDir::homePath() + QStringLiteral("/.config/emaildefaults"), QSettings::IniFormat);
-        mailCfg.beginGroup(QStringLiteral("PROFILE_Default"));
-        resolvedEmail = mailCfg.value(QStringLiteral("EmailAddress")).toString().trimmed();
-        mailCfg.endGroup();
-    }
-    m_userEmail = resolvedEmail;
-
-    QString existingCachedAvatar;
-    if (!m_userAvatar.isEmpty()) {
-        const QString localCached = QUrl(m_userAvatar).toLocalFile();
-        if (!localCached.isEmpty() && localCached.contains(QStringLiteral("sourceless-avatar-")) && QFileInfo::exists(localCached)) {
-            existingCachedAvatar = m_userAvatar;
-        }
-    }
-
-    if (!existingCachedAvatar.isEmpty()) {
-        m_userAvatar = existingCachedAvatar;
-    } else {
-        KUser kuser;
-        const QStringList avatarCandidates = {
-            iconDbus,
-            accFileIcon,
-            QDir::homePath() + QStringLiteral("/.face.icon"),
-            QDir::homePath() + QStringLiteral("/.face"),
-            QDir::homePath() + QStringLiteral("/.config/face.icon"),
-            kuser.faceIconPath(),
-            QStringLiteral("/var/lib/AccountsService/icons/") + m_userName
-        };
-        m_userAvatar.clear();
-        for (const QString &candidate : avatarCandidates) {
-            const QString cleanPath = candidate.trimmed();
-            if (!cleanPath.isEmpty() && QFileInfo::exists(cleanPath) && QFileInfo(cleanPath).isFile()) {
-                m_userAvatar = QUrl::fromLocalFile(cleanPath).toString();
-                break;
+            const QString resolvedName = !realNameDbus.trimmed().isEmpty() ? realNameDbus.trimmed() : accFileRealName;
+            if (!resolvedName.isEmpty()) {
+                snap.fullName = resolvedName;
+            } else if (!fallbackFullName.isEmpty()) {
+                snap.fullName = fallbackFullName;
+            } else {
+                snap.fullName = userName;
             }
-        }
-    }
 
-    emit systemInfoChanged();
+            const QStringList parts = snap.fullName.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+            if (parts.size() >= 2) {
+                snap.initials = QString(parts.first().at(0).toUpper()) + QString(parts.last().at(0).toUpper());
+            } else if (!snap.fullName.isEmpty()) {
+                snap.initials = snap.fullName.left(2).toUpper();
+            } else {
+                snap.initials = QStringLiteral("SL");
+            }
+
+            QString resolvedEmail = !emailDbus.trimmed().isEmpty() ? emailDbus.trimmed() : accFileEmail;
+            if (resolvedEmail.isEmpty()) {
+                QSettings mailCfg(homePath + QStringLiteral("/.config/emaildefaults"), QSettings::IniFormat);
+                mailCfg.beginGroup(QStringLiteral("PROFILE_Default"));
+                resolvedEmail = mailCfg.value(QStringLiteral("EmailAddress")).toString().trimmed();
+                mailCfg.endGroup();
+            }
+            snap.email = resolvedEmail;
+
+            QString existingCachedAvatar;
+            if (!currentAvatar.isEmpty()) {
+                const QString localCached = QUrl(currentAvatar).toLocalFile();
+                if (!localCached.isEmpty() && localCached.contains(QStringLiteral("sourceless-avatar-")) && QFileInfo::exists(localCached)) {
+                    existingCachedAvatar = currentAvatar;
+                }
+            }
+
+            if (!existingCachedAvatar.isEmpty()) {
+                snap.avatar = existingCachedAvatar;
+            } else {
+                KUser kuser;
+                const QStringList avatarCandidates = {
+                    iconDbus,
+                    accFileIcon,
+                    homePath + QStringLiteral("/.face.icon"),
+                    homePath + QStringLiteral("/.face"),
+                    homePath + QStringLiteral("/.config/face.icon"),
+                    kuser.faceIconPath(),
+                    QStringLiteral("/var/lib/AccountsService/icons/") + userName
+                };
+                for (const QString &candidate : avatarCandidates) {
+                    const QString cleanPath = candidate.trimmed();
+                    if (!cleanPath.isEmpty() && QFileInfo::exists(cleanPath) && QFileInfo(cleanPath).isFile()) {
+                        snap.avatar = QUrl::fromLocalFile(cleanPath).toString();
+                        break;
+                    }
+                }
+            }
+            return snap;
+        },
+        [this](UserProfileSnapshot snap) {
+            m_userFullName = std::move(snap.fullName);
+            m_userInitials = std::move(snap.initials);
+            m_userEmail = std::move(snap.email);
+            m_userAvatar = std::move(snap.avatar);
+            emit systemInfoChanged();
+        });
 }
 
 void SystemBackend::setUserFullName(const QString &fullName)
@@ -652,44 +819,65 @@ void SystemBackend::refreshAll()
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshAudio()
 {
-    const QString sinkVol = runCommand(QStringLiteral("wpctl"), {QStringLiteral("get-volume"), QStringLiteral("@DEFAULT_AUDIO_SINK@")}, 1500);
-    if (!sinkVol.isEmpty() && sinkVol.contains(QStringLiteral("Volume:"))) {
-        m_muted = sinkVol.contains(QStringLiteral("[MUTED]"));
-        QRegularExpression re(QStringLiteral("Volume:\\s*([0-9]+\\.?[0-9]*)"));
-        auto match = re.match(sinkVol);
-        if (match.hasMatch()) {
-            m_volume = qBound(0, static_cast<int>(std::round(match.captured(1).toDouble() * 100.0)), 100);
-        }
-    }
+    struct AudioSnapshot {
+        int volume;
+        bool muted;
+        int micVolume;
+        bool micMuted;
+        QString audioOutputName;
+    };
 
-    const QString srcVol = runCommand(QStringLiteral("wpctl"), {QStringLiteral("get-volume"), QStringLiteral("@DEFAULT_AUDIO_SOURCE@")}, 1500);
-    if (!srcVol.isEmpty() && srcVol.contains(QStringLiteral("Volume:"))) {
-        m_micMuted = srcVol.contains(QStringLiteral("[MUTED]"));
-        QRegularExpression re(QStringLiteral("Volume:\\s*([0-9]+\\.?[0-9]*)"));
-        auto match = re.match(srcVol);
-        if (match.hasMatch()) {
-            m_micVolume = qBound(0, static_cast<int>(std::round(match.captured(1).toDouble() * 100.0)), 100);
-        }
-    }
+    AudioSnapshot init{m_volume, m_muted, m_micVolume, m_micMuted, m_audioOutputName};
 
-    const QString sinkInspect = runCommand(QStringLiteral("wpctl"), {QStringLiteral("inspect"), QStringLiteral("@DEFAULT_AUDIO_SINK@")}, 1500);
-    if (!sinkInspect.isEmpty()) {
-        for (const QString &line : sinkInspect.split(QLatin1Char('\n'))) {
-            if (line.contains(QStringLiteral("node.description"))) {
-                const int eqIdx = line.indexOf(QLatin1Char('='));
-                if (eqIdx != -1) {
-                    QString desc = line.mid(eqIdx + 1).trimmed();
-                    desc.remove(QLatin1Char('"'));
-                    if (!desc.isEmpty()) {
-                        m_audioOutputName = desc;
+    runAsyncTask(
+        QStringLiteral("audio"),
+        [this, init]() mutable {
+            const QString sinkVol = runCommandCancellable(QStringLiteral("wpctl"), {QStringLiteral("get-volume"), QStringLiteral("@DEFAULT_AUDIO_SINK@")}, 1500);
+            if (!sinkVol.isEmpty() && sinkVol.contains(QStringLiteral("Volume:"))) {
+                init.muted = sinkVol.contains(QStringLiteral("[MUTED]"));
+                QRegularExpression re(QStringLiteral("Volume:\\s*([0-9]+\\.?[0-9]*)"));
+                auto match = re.match(sinkVol);
+                if (match.hasMatch()) {
+                    init.volume = qBound(0, static_cast<int>(std::round(match.captured(1).toDouble() * 100.0)), 100);
+                }
+            }
+
+            const QString srcVol = runCommandCancellable(QStringLiteral("wpctl"), {QStringLiteral("get-volume"), QStringLiteral("@DEFAULT_AUDIO_SOURCE@")}, 1500);
+            if (!srcVol.isEmpty() && srcVol.contains(QStringLiteral("Volume:"))) {
+                init.micMuted = srcVol.contains(QStringLiteral("[MUTED]"));
+                QRegularExpression re(QStringLiteral("Volume:\\s*([0-9]+\\.?[0-9]*)"));
+                auto match = re.match(srcVol);
+                if (match.hasMatch()) {
+                    init.micVolume = qBound(0, static_cast<int>(std::round(match.captured(1).toDouble() * 100.0)), 100);
+                }
+            }
+
+            const QString sinkInspect = runCommandCancellable(QStringLiteral("wpctl"), {QStringLiteral("inspect"), QStringLiteral("@DEFAULT_AUDIO_SINK@")}, 1500);
+            if (!sinkInspect.isEmpty()) {
+                for (const QString &line : sinkInspect.split(QLatin1Char('\n'))) {
+                    if (line.contains(QStringLiteral("node.description"))) {
+                        const int eqIdx = line.indexOf(QLatin1Char('='));
+                        if (eqIdx != -1) {
+                            QString desc = line.mid(eqIdx + 1).trimmed();
+                            desc.remove(QLatin1Char('"'));
+                            if (!desc.isEmpty()) {
+                                init.audioOutputName = desc;
+                            }
+                        }
+                        break;
                     }
                 }
-                break;
             }
-        }
-    }
-
-    emit audioChanged();
+            return init;
+        },
+        [this](AudioSnapshot snap) {
+            m_volume = snap.volume;
+            m_muted = snap.muted;
+            m_micVolume = snap.micVolume;
+            m_micMuted = snap.micMuted;
+            m_audioOutputName = std::move(snap.audioOutputName);
+            emit audioChanged();
+        });
 }
 
 void SystemBackend::setVolume(int val)
@@ -773,194 +961,241 @@ QString parseTradeoffString(const QJsonValue &val)
 
 void SystemBackend::refreshDisplay()
 {
-    const QString maxBr = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("org.kde.Solid.PowerManagement"),
-         QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl"),
-         QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl.brightnessMax")}, 1500);
-    const QString curBr = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("org.kde.Solid.PowerManagement"),
-         QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl"),
-         QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl.brightness")}, 1500);
+    struct DisplaySnapshot {
+        bool hasBrightness = true;
+        int maxRawBrightness = 0;
+        int brightness = 100;
+        QString displayName;
+        int displayScale = 100;
+        QString displayOrientation;
+        QString colorAccuracy;
+        QString currentResolution;
+        QString currentRefreshRate;
+        QStringList availableResolutions;
+        QStringList availableRefreshRates;
+        bool nightLightEnabled = false;
+        int nightLightTemp = 4500;
+    };
 
-    m_hasBrightness = true;
-    if (!maxBr.isEmpty() && maxBr.toInt() > 0) {
-        m_maxRawBrightness = maxBr.toInt();
-        m_brightness = qBound(5, static_cast<int>(std::round((curBr.toInt() * 100.0) / m_maxRawBrightness)), 100);
-    } else {
-        m_maxRawBrightness = 0;
-    }
+    DisplaySnapshot init;
+    init.hasBrightness = true;
+    init.maxRawBrightness = 0;
+    init.brightness = m_brightness;
+    init.displayName = m_displayName;
+    init.displayScale = m_displayScale;
+    init.displayOrientation = m_displayOrientation;
+    init.colorAccuracy = m_colorAccuracy;
+    init.currentResolution = m_currentResolution;
+    init.currentRefreshRate = m_currentRefreshRate;
+    init.nightLightEnabled = m_nightLightEnabled;
+    init.nightLightTemp = m_nightLightTemp;
+    const QString homePath = QDir::homePath();
 
-    QStringList parsedRefreshRates;
-    bool hasKscreenBrightness = false;
-    bool hasTradeoffFromKscreen = false;
+    runAsyncTask(
+        QStringLiteral("display"),
+        [this, init, homePath]() mutable {
+            const QString maxBr = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("org.kde.Solid.PowerManagement"),
+                 QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl"),
+                 QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl.brightnessMax")}, 1500);
+            const QString curBr = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("org.kde.Solid.PowerManagement"),
+                 QStringLiteral("/org/kde/Solid/PowerManagement/Actions/BrightnessControl"),
+                 QStringLiteral("org.kde.Solid.PowerManagement.Actions.BrightnessControl.brightness")}, 1500);
 
-    const QString kscreenJson = runCommand(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2500);
-    if (!kscreenJson.isEmpty()) {
-        const QJsonDocument doc = QJsonDocument::fromJson(kscreenJson.toUtf8());
-        if (doc.isObject()) {
-            const QJsonArray outputs = doc.object().value(QStringLiteral("outputs")).toArray();
-            for (const QJsonValue &val : outputs) {
-                const QJsonObject outObj = val.toObject();
-                if (outObj.value(QStringLiteral("connected")).toBool() && outObj.value(QStringLiteral("enabled")).toBool()) {
-                    m_displayName = outObj.value(QStringLiteral("name")).toString(QStringLiteral("Primary Display"));
-                    const double scale = outObj.value(QStringLiteral("scale")).toDouble(1.0);
-                    m_displayScale = static_cast<int>(std::round(scale * 100.0));
-                    const QString currentModeId = outObj.value(QStringLiteral("currentModeId")).toString();
+            init.hasBrightness = true;
+            if (!maxBr.isEmpty() && maxBr.toInt() > 0) {
+                init.maxRawBrightness = maxBr.toInt();
+                init.brightness = qBound(5, static_cast<int>(std::round((curBr.toInt() * 100.0) / init.maxRawBrightness)), 100);
+            } else {
+                init.maxRawBrightness = 0;
+            }
 
-                    if (m_maxRawBrightness <= 0 && outObj.contains(QStringLiteral("brightness"))) {
-                        m_brightness = extractBrightnessPercent(outObj.value(QStringLiteral("brightness")), m_brightness);
-                        hasKscreenBrightness = true;
-                    }
+            QStringList parsedRefreshRates;
+            bool hasKscreenBrightness = false;
+            bool hasTradeoffFromKscreen = false;
 
-                    const QJsonValue rotVal = outObj.value(QStringLiteral("rotation"));
-                    if (rotVal.isString()) {
-                        const QString rStr = rotVal.toString().toLower();
-                        if (rStr == QStringLiteral("left") || rStr == QStringLiteral("right") || rStr == QStringLiteral("inverted")) {
-                            m_displayOrientation = rStr;
-                        } else {
-                            m_displayOrientation = QStringLiteral("normal");
-                        }
-                    } else if (rotVal.isDouble()) {
-                        switch (rotVal.toInt(1)) {
-                        case 2: m_displayOrientation = QStringLiteral("left"); break;
-                        case 4: m_displayOrientation = QStringLiteral("inverted"); break;
-                        case 8: m_displayOrientation = QStringLiteral("right"); break;
-                        default: m_displayOrientation = QStringLiteral("normal"); break;
-                        }
-                    }
+            const QString kscreenJson = runCommandCancellable(QStringLiteral("kscreen-doctor"), {QStringLiteral("-j")}, 2500);
+            if (!kscreenJson.isEmpty()) {
+                const QJsonDocument doc = QJsonDocument::fromJson(kscreenJson.toUtf8());
+                if (doc.isObject()) {
+                    const QJsonArray outputs = doc.object().value(QStringLiteral("outputs")).toArray();
+                    for (const QJsonValue &val : outputs) {
+                        const QJsonObject outObj = val.toObject();
+                        if (outObj.value(QStringLiteral("connected")).toBool() && outObj.value(QStringLiteral("enabled")).toBool()) {
+                            init.displayName = outObj.value(QStringLiteral("name")).toString(QStringLiteral("Primary Display"));
+                            const double scale = outObj.value(QStringLiteral("scale")).toDouble(1.0);
+                            init.displayScale = static_cast<int>(std::round(scale * 100.0));
+                            const QString currentModeId = outObj.value(QStringLiteral("currentModeId")).toString();
 
-                    if (outObj.contains(QStringLiteral("colorPowerTradeoff"))) {
-                        const QString parsed = parseTradeoffString(outObj.value(QStringLiteral("colorPowerTradeoff")));
-                        if (!parsed.isEmpty()) {
-                            m_colorAccuracy = parsed;
-                            hasTradeoffFromKscreen = true;
-                        }
-                    }
-
-                    QStringList resList;
-                    const QJsonArray modes = outObj.value(QStringLiteral("modes")).toArray();
-                    // First pass: collect resolutions and active mode resolution/refresh rate
-                    for (const QJsonValue &mVal : modes) {
-                        const QJsonObject modeObj = mVal.toObject();
-                        const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
-                        const int w = sizeObj.value(QStringLiteral("width")).toInt();
-                        const int h = sizeObj.value(QStringLiteral("height")).toInt();
-                        if (w >= 800 && h >= 600) {
-                            const QString resStr = QStringLiteral("%1x%2").arg(w).arg(h);
-                            if (!resList.contains(resStr)) {
-                                resList.append(resStr);
+                            if (init.maxRawBrightness <= 0 && outObj.contains(QStringLiteral("brightness"))) {
+                                init.brightness = extractBrightnessPercent(outObj.value(QStringLiteral("brightness")), init.brightness);
+                                hasKscreenBrightness = true;
                             }
-                            if (modeObj.value(QStringLiteral("id")).toString() == currentModeId) {
-                                m_currentResolution = resStr;
-                                const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
-                                m_currentRefreshRate = QStringLiteral("%1 Hz").arg(hz);
+
+                            const QJsonValue rotVal = outObj.value(QStringLiteral("rotation"));
+                            if (rotVal.isString()) {
+                                const QString rStr = rotVal.toString().toLower();
+                                if (rStr == QStringLiteral("left") || rStr == QStringLiteral("right") || rStr == QStringLiteral("inverted")) {
+                                    init.displayOrientation = rStr;
+                                } else {
+                                    init.displayOrientation = QStringLiteral("normal");
+                                }
+                            } else if (rotVal.isDouble()) {
+                                switch (rotVal.toInt(1)) {
+                                case 2: init.displayOrientation = QStringLiteral("left"); break;
+                                case 4: init.displayOrientation = QStringLiteral("inverted"); break;
+                                case 8: init.displayOrientation = QStringLiteral("right"); break;
+                                default: init.displayOrientation = QStringLiteral("normal"); break;
+                                }
                             }
+
+                            if (outObj.contains(QStringLiteral("colorPowerTradeoff"))) {
+                                const QString parsed = parseTradeoffString(outObj.value(QStringLiteral("colorPowerTradeoff")));
+                                if (!parsed.isEmpty()) {
+                                    init.colorAccuracy = parsed;
+                                    hasTradeoffFromKscreen = true;
+                                }
+                            }
+
+                            QStringList resList;
+                            const QJsonArray modes = outObj.value(QStringLiteral("modes")).toArray();
+                            for (const QJsonValue &mVal : modes) {
+                                const QJsonObject modeObj = mVal.toObject();
+                                const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
+                                const int w = sizeObj.value(QStringLiteral("width")).toInt();
+                                const int h = sizeObj.value(QStringLiteral("height")).toInt();
+                                if (w >= 800 && h >= 600) {
+                                    const QString resStr = QStringLiteral("%1x%2").arg(w).arg(h);
+                                    if (!resList.contains(resStr)) {
+                                        resList.append(resStr);
+                                    }
+                                    if (modeObj.value(QStringLiteral("id")).toString() == currentModeId) {
+                                        init.currentResolution = resStr;
+                                        const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
+                                        init.currentRefreshRate = QStringLiteral("%1 Hz").arg(hz);
+                                    }
+                                }
+                            }
+                            if (!resList.isEmpty()) {
+                                init.availableResolutions = resList;
+                            }
+
+                            QList<int> hzValues;
+                            for (const QJsonValue &mVal : modes) {
+                                const QJsonObject modeObj = mVal.toObject();
+                                const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
+                                const QString resStr = QStringLiteral("%1x%2")
+                                    .arg(sizeObj.value(QStringLiteral("width")).toInt())
+                                    .arg(sizeObj.value(QStringLiteral("height")).toInt());
+                                if (resStr == init.currentResolution) {
+                                    const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
+                                    if (!hzValues.contains(hz)) {
+                                        hzValues.append(hz);
+                                    }
+                                }
+                            }
+                            std::sort(hzValues.begin(), hzValues.end(), std::greater<int>());
+                            for (int hz : hzValues) {
+                                parsedRefreshRates.append(QStringLiteral("%1 Hz").arg(hz));
+                            }
+                            break;
                         }
                     }
-                    if (!resList.isEmpty()) {
-                        m_availableResolutions = resList;
-                    }
+                }
+            }
 
-                    // Second pass: collect unique integer Hz values for the active resolution
-                    QList<int> hzValues;
-                    for (const QJsonValue &mVal : modes) {
-                        const QJsonObject modeObj = mVal.toObject();
-                        const QJsonObject sizeObj = modeObj.value(QStringLiteral("size")).toObject();
-                        const QString resStr = QStringLiteral("%1x%2")
-                            .arg(sizeObj.value(QStringLiteral("width")).toInt())
-                            .arg(sizeObj.value(QStringLiteral("height")).toInt());
-                        if (resStr == m_currentResolution) {
-                            const int hz = parseRefreshRateHz(modeObj.value(QStringLiteral("refreshRate")).toDouble(60.0));
-                            if (!hzValues.contains(hz)) {
-                                hzValues.append(hz);
-                            }
+            QFile kwinOutFile(homePath + QStringLiteral("/.config/kwinoutputconfig.json"));
+            if (kwinOutFile.open(QIODevice::ReadOnly)) {
+                const QJsonDocument outDoc = QJsonDocument::fromJson(kwinOutFile.readAll());
+                QJsonArray outputEntries;
+                if (outDoc.isArray()) {
+                    const QJsonArray rootArr = outDoc.array();
+                    for (const QJsonValue &secVal : rootArr) {
+                        const QJsonObject secObj = secVal.toObject();
+                        if (secObj.value(QStringLiteral("name")).toString() == QStringLiteral("outputs")) {
+                            outputEntries = secObj.value(QStringLiteral("data")).toArray();
+                            break;
                         }
                     }
-                    std::sort(hzValues.begin(), hzValues.end(), std::greater<int>());
-                    for (int hz : hzValues) {
-                        parsedRefreshRates.append(QStringLiteral("%1 Hz").arg(hz));
+                    if (outputEntries.isEmpty()) {
+                        outputEntries = rootArr;
                     }
-                    break;
+                } else if (outDoc.isObject()) {
+                    outputEntries = outDoc.object().value(QStringLiteral("outputs")).toArray();
                 }
-            }
-        }
-    }
 
-    // Check ~/.config/kwinoutputconfig.json for colorPowerTradeoff & brightness fallback
-    QFile kwinOutFile(QDir::homePath() + QStringLiteral("/.config/kwinoutputconfig.json"));
-    if (kwinOutFile.open(QIODevice::ReadOnly)) {
-        const QJsonDocument outDoc = QJsonDocument::fromJson(kwinOutFile.readAll());
-        QJsonArray outputEntries;
-        if (outDoc.isArray()) {
-            const QJsonArray rootArr = outDoc.array();
-            for (const QJsonValue &secVal : rootArr) {
-                const QJsonObject secObj = secVal.toObject();
-                if (secObj.value(QStringLiteral("name")).toString() == QStringLiteral("outputs")) {
-                    outputEntries = secObj.value(QStringLiteral("data")).toArray();
-                    break;
-                }
-            }
-            if (outputEntries.isEmpty()) {
-                outputEntries = rootArr;
-            }
-        } else if (outDoc.isObject()) {
-            outputEntries = outDoc.object().value(QStringLiteral("outputs")).toArray();
-        }
-
-        for (const QJsonValue &entryVal : outputEntries) {
-            const QJsonObject entryObj = entryVal.toObject();
-            const QString connector = entryObj.value(QStringLiteral("connectorName")).toString(
-                entryObj.value(QStringLiteral("name")).toString());
-            if (!connector.isEmpty() && connector == m_displayName) {
-                if (!hasTradeoffFromKscreen && entryObj.contains(QStringLiteral("colorPowerTradeoff"))) {
-                    const QString parsed = parseTradeoffString(entryObj.value(QStringLiteral("colorPowerTradeoff")));
-                    if (!parsed.isEmpty()) {
-                        m_colorAccuracy = parsed;
+                for (const QJsonValue &entryVal : outputEntries) {
+                    const QJsonObject entryObj = entryVal.toObject();
+                    const QString connector = entryObj.value(QStringLiteral("connectorName")).toString(
+                        entryObj.value(QStringLiteral("name")).toString());
+                    if (!connector.isEmpty() && connector == init.displayName) {
+                        if (!hasTradeoffFromKscreen && entryObj.contains(QStringLiteral("colorPowerTradeoff"))) {
+                            const QString parsed = parseTradeoffString(entryObj.value(QStringLiteral("colorPowerTradeoff")));
+                            if (!parsed.isEmpty()) {
+                                init.colorAccuracy = parsed;
+                            }
+                        }
+                        if (init.maxRawBrightness <= 0 && !hasKscreenBrightness && entryObj.contains(QStringLiteral("brightness"))) {
+                            init.brightness = extractBrightnessPercent(entryObj.value(QStringLiteral("brightness")), init.brightness);
+                        }
+                        break;
                     }
                 }
-                if (m_maxRawBrightness <= 0 && !hasKscreenBrightness && entryObj.contains(QStringLiteral("brightness"))) {
-                    m_brightness = extractBrightnessPercent(entryObj.value(QStringLiteral("brightness")), m_brightness);
-                }
-                break;
             }
-        }
-    }
 
-    if (m_availableResolutions.isEmpty()) {
-        m_availableResolutions = {
-            QStringLiteral("3840x2160"),
-            QStringLiteral("2560x1440"),
-            QStringLiteral("1920x1080"),
-            QStringLiteral("1680x1050"),
-            QStringLiteral("1600x900"),
-            QStringLiteral("1366x768"),
-            QStringLiteral("1280x720")
-        };
-    }
+            if (init.availableResolutions.isEmpty()) {
+                init.availableResolutions = {
+                    QStringLiteral("3840x2160"),
+                    QStringLiteral("2560x1440"),
+                    QStringLiteral("1920x1080"),
+                    QStringLiteral("1680x1050"),
+                    QStringLiteral("1600x900"),
+                    QStringLiteral("1366x768"),
+                    QStringLiteral("1280x720")
+                };
+            }
 
-    if (!parsedRefreshRates.isEmpty()) {
-        m_availableRefreshRates = parsedRefreshRates;
-    } else {
-        m_availableRefreshRates = {m_currentRefreshRate};
-    }
+            if (!parsedRefreshRates.isEmpty()) {
+                init.availableRefreshRates = parsedRefreshRates;
+            } else {
+                init.availableRefreshRates = {init.currentRefreshRate};
+            }
 
-    QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
-    kwinrc.beginGroup(QStringLiteral("NightColor"));
-    m_nightLightEnabled = kwinrc.value(QStringLiteral("Active"), false).toBool();
-    m_nightLightTemp = kwinrc.value(QStringLiteral("NightTemperature"), 4500).toInt();
-    kwinrc.endGroup();
+            QSettings kwinrc(homePath + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+            kwinrc.beginGroup(QStringLiteral("NightColor"));
+            init.nightLightEnabled = kwinrc.value(QStringLiteral("Active"), false).toBool();
+            init.nightLightTemp = kwinrc.value(QStringLiteral("NightTemperature"), 4500).toInt();
+            kwinrc.endGroup();
 
-    const QString nlEnabledDbus = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("org.kde.KWin"),
-         QStringLiteral("/org/kde/KWin/NightLight"),
-         QStringLiteral("org.kde.KWin.NightLight.enabled")}, 1000);
-    if (nlEnabledDbus == QStringLiteral("true")) {
-        m_nightLightEnabled = true;
-    } else if (nlEnabledDbus == QStringLiteral("false")) {
-        m_nightLightEnabled = false;
-    }
+            const QString nlEnabledDbus = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("org.kde.KWin"),
+                 QStringLiteral("/org/kde/KWin/NightLight"),
+                 QStringLiteral("org.kde.KWin.NightLight.enabled")}, 1000);
+            if (nlEnabledDbus == QStringLiteral("true")) {
+                init.nightLightEnabled = true;
+            } else if (nlEnabledDbus == QStringLiteral("false")) {
+                init.nightLightEnabled = false;
+            }
 
-    emit displayChanged();
+            return init;
+        },
+        [this](DisplaySnapshot snap) {
+            m_hasBrightness = snap.hasBrightness;
+            m_maxRawBrightness = snap.maxRawBrightness;
+            m_brightness = snap.brightness;
+            m_displayName = std::move(snap.displayName);
+            m_displayScale = snap.displayScale;
+            m_displayOrientation = std::move(snap.displayOrientation);
+            m_colorAccuracy = std::move(snap.colorAccuracy);
+            m_currentResolution = std::move(snap.currentResolution);
+            m_currentRefreshRate = std::move(snap.currentRefreshRate);
+            m_availableResolutions = std::move(snap.availableResolutions);
+            m_availableRefreshRates = std::move(snap.availableRefreshRates);
+            m_nightLightEnabled = snap.nightLightEnabled;
+            m_nightLightTemp = snap.nightLightTemp;
+            emit displayChanged();
+        });
 }
 
 void SystemBackend::setBrightness(int val)
@@ -1234,42 +1469,58 @@ void SystemBackend::setNightLight(bool enabled, int temp)
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshNetwork()
 {
-    const QString wifiState = runCommand(QStringLiteral("nmcli"), {QStringLiteral("radio"), QStringLiteral("wifi")}, 1500);
-    m_wifiEnabled = (wifiState.trimmed() == QStringLiteral("enabled"));
+    struct NetworkSnapshot {
+        bool wifiEnabled = true;
+        bool networkConnected = false;
+        QString connectionType = QStringLiteral("Disconnected");
+        QString activeNetworkName = QStringLiteral("Not Connected");
+        QString ipAddress = QStringLiteral("Offline");
+    };
 
-    const QString activeConns = runCommand(QStringLiteral("nmcli"),
-        {QStringLiteral("-t"), QStringLiteral("-f"), QStringLiteral("NAME,TYPE,DEVICE"), QStringLiteral("connection"), QStringLiteral("show"), QStringLiteral("--active")}, 2000);
+    runAsyncTask(
+        QStringLiteral("network"),
+        [this]() {
+            NetworkSnapshot snap;
+            const QString wifiState = runCommandCancellable(QStringLiteral("nmcli"), {QStringLiteral("radio"), QStringLiteral("wifi")}, 1500);
+            snap.wifiEnabled = (wifiState.trimmed() == QStringLiteral("enabled"));
 
-    m_networkConnected = false;
-    m_connectionType = QStringLiteral("Disconnected");
-    m_activeNetworkName = QStringLiteral("Not Connected");
+            const QString activeConns = runCommandCancellable(QStringLiteral("nmcli"),
+                {QStringLiteral("-t"), QStringLiteral("-f"), QStringLiteral("NAME,TYPE,DEVICE"), QStringLiteral("connection"), QStringLiteral("show"), QStringLiteral("--active")}, 2000);
 
-    for (const QString &line : activeConns.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-        const QStringList fields = line.split(QLatin1Char(':'));
-        if (fields.size() >= 3) {
-            const QString name = fields.at(0);
-            const QString type = fields.at(1);
-            if (type == QStringLiteral("loopback") || name == QStringLiteral("lo")) {
-                continue;
+            for (const QString &line : activeConns.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                const QStringList fields = line.split(QLatin1Char(':'));
+                if (fields.size() >= 3) {
+                    const QString name = fields.at(0);
+                    const QString type = fields.at(1);
+                    if (type == QStringLiteral("loopback") || name == QStringLiteral("lo")) {
+                        continue;
+                    }
+                    snap.networkConnected = true;
+                    snap.activeNetworkName = name;
+                    if (type.contains(QStringLiteral("wireless")) || type.contains(QStringLiteral("wifi"))) {
+                        snap.connectionType = QStringLiteral("Wi-Fi");
+                    } else if (type.contains(QStringLiteral("ethernet"))) {
+                        snap.connectionType = QStringLiteral("Ethernet");
+                    } else {
+                        snap.connectionType = type;
+                    }
+                    break;
+                }
             }
-            m_networkConnected = true;
-            m_activeNetworkName = name;
-            if (type.contains(QStringLiteral("wireless")) || type.contains(QStringLiteral("wifi"))) {
-                m_connectionType = QStringLiteral("Wi-Fi");
-            } else if (type.contains(QStringLiteral("ethernet"))) {
-                m_connectionType = QStringLiteral("Ethernet");
-            } else {
-                m_connectionType = type;
-            }
-            break;
-        }
-    }
 
-    const QString ipOut = runCommand(QStringLiteral("sh"),
-        {QStringLiteral("-c"), QStringLiteral("ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n 1")}, 1500);
-    m_ipAddress = ipOut.isEmpty() ? QStringLiteral("Offline") : ipOut;
-
-    emit networkChanged();
+            const QString ipOut = runCommandCancellable(QStringLiteral("sh"),
+                {QStringLiteral("-c"), QStringLiteral("ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n 1")}, 1500);
+            snap.ipAddress = ipOut.isEmpty() ? QStringLiteral("Offline") : ipOut;
+            return snap;
+        },
+        [this](NetworkSnapshot snap) {
+            m_wifiEnabled = snap.wifiEnabled;
+            m_networkConnected = snap.networkConnected;
+            m_connectionType = std::move(snap.connectionType);
+            m_activeNetworkName = std::move(snap.activeNetworkName);
+            m_ipAddress = std::move(snap.ipAddress);
+            emit networkChanged();
+        });
 }
 
 void SystemBackend::setWifiEnabled(bool enabled)
@@ -1351,29 +1602,42 @@ void SystemBackend::disconnectNetwork()
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshBluetooth()
 {
-    const QString btShow = runCommand(QStringLiteral("bluetoothctl"), {QStringLiteral("show")}, 1500);
-    m_bluetoothEnabled = btShow.contains(QStringLiteral("Powered: yes"), Qt::CaseInsensitive);
+    struct BluetoothSnapshot {
+        bool enabled = false;
+        QVariantList devices;
+    };
 
-    QVariantList devList;
-    if (m_bluetoothEnabled) {
-        const QString devsOut = runCommand(QStringLiteral("bluetoothctl"), {QStringLiteral("devices")}, 1500);
-        for (const QString &line : devsOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-            const QStringList tokens = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-            if (tokens.size() >= 3 && tokens.at(0) == QStringLiteral("Device")) {
-                const QString mac = tokens.at(1);
-                const QString name = tokens.mid(2).join(QLatin1Char(' '));
-                const QString infoOut = runCommand(QStringLiteral("bluetoothctl"), {QStringLiteral("info"), mac}, 1000);
-                const bool connected = infoOut.contains(QStringLiteral("Connected: yes"), Qt::CaseInsensitive);
-                QVariantMap dev;
-                dev[QStringLiteral("mac")] = mac;
-                dev[QStringLiteral("name")] = name;
-                dev[QStringLiteral("connected")] = connected;
-                devList.append(dev);
+    runAsyncTask(
+        QStringLiteral("bluetooth"),
+        [this]() {
+            BluetoothSnapshot snap;
+            const QString btShow = runCommandCancellable(QStringLiteral("bluetoothctl"), {QStringLiteral("show")}, 1500);
+            snap.enabled = btShow.contains(QStringLiteral("Powered: yes"), Qt::CaseInsensitive);
+
+            if (snap.enabled) {
+                const QString devsOut = runCommandCancellable(QStringLiteral("bluetoothctl"), {QStringLiteral("devices")}, 1500);
+                for (const QString &line : devsOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                    const QStringList tokens = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                    if (tokens.size() >= 3 && tokens.at(0) == QStringLiteral("Device")) {
+                        const QString mac = tokens.at(1);
+                        const QString name = tokens.mid(2).join(QLatin1Char(' '));
+                        const QString infoOut = runCommandCancellable(QStringLiteral("bluetoothctl"), {QStringLiteral("info"), mac}, 1000);
+                        const bool connected = infoOut.contains(QStringLiteral("Connected: yes"), Qt::CaseInsensitive);
+                        QVariantMap dev;
+                        dev[QStringLiteral("mac")] = mac;
+                        dev[QStringLiteral("name")] = name;
+                        dev[QStringLiteral("connected")] = connected;
+                        snap.devices.append(dev);
+                    }
+                }
             }
-        }
-    }
-    m_bluetoothDevices = devList;
-    emit bluetoothChanged();
+            return snap;
+        },
+        [this](BluetoothSnapshot snap) {
+            m_bluetoothEnabled = snap.enabled;
+            m_bluetoothDevices = std::move(snap.devices);
+            emit bluetoothChanged();
+        });
 }
 
 void SystemBackend::setBluetoothEnabled(bool enabled)
@@ -1398,7 +1662,7 @@ void SystemBackend::scanBluetooth()
     notifyStatus(QStringLiteral("Scanning Bluetooth devices..."));
     runCommand(QStringLiteral("bluetoothctl"), {QStringLiteral("--timeout"), QStringLiteral("3"), QStringLiteral("scan"), QStringLiteral("on")}, 4000);
     refreshBluetooth();
-    notifyStatus(QStringLiteral("Bluetooth scan complete (%1 devices)").arg(m_bluetoothDevices.size()));
+    notifyStatus(QStringLiteral("Bluetooth scan complete — updating device list..."));
 }
 
 void SystemBackend::toggleBluetoothDevice(const QString &mac, bool connectDevice)
@@ -1459,103 +1723,120 @@ void SystemBackend::setMouseSettings(int speed, bool natural, bool tap, bool lef
 
 void SystemBackend::refreshPrinters()
 {
-    const QString sched = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-r")}, 1500);
-    m_cupsRunning = sched.contains(QStringLiteral("is running"), Qt::CaseInsensitive);
+    struct PrintersSnapshot {
+        bool cupsRunning = false;
+        QString defaultPrinter = QStringLiteral("None");
+        int activePrintJobs = 0;
+        QVariantList printers;
+    };
 
-    QString defaultDest;
-    QFile lpOptsFile(QDir::homePath() + QStringLiteral("/.cups/lpoptions"));
-    if (lpOptsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        for (const QString &line : QString::fromUtf8(lpOptsFile.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-            const QString trimmed = line.trimmed();
-            if (trimmed.startsWith(QStringLiteral("Default "))) {
-                const QStringList parts = trimmed.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-                if (parts.size() >= 2) {
-                    defaultDest = parts.at(1);
-                    break;
+    const QString homePath = QDir::homePath();
+
+    runAsyncTask(
+        QStringLiteral("printers"),
+        [this, homePath]() {
+            PrintersSnapshot snap;
+            const QString sched = runCommandCancellable(QStringLiteral("lpstat"), {QStringLiteral("-r")}, 1500);
+            snap.cupsRunning = sched.contains(QStringLiteral("is running"), Qt::CaseInsensitive);
+
+            QString defaultDest;
+            QFile lpOptsFile(homePath + QStringLiteral("/.cups/lpoptions"));
+            if (lpOptsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                for (const QString &line : QString::fromUtf8(lpOptsFile.readAll()).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                    const QString trimmed = line.trimmed();
+                    if (trimmed.startsWith(QStringLiteral("Default "))) {
+                        const QStringList parts = trimmed.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                        if (parts.size() >= 2) {
+                            defaultDest = parts.at(1);
+                            break;
+                        }
+                    }
                 }
             }
-        }
-    }
-    if (defaultDest.isEmpty()) {
-        const QString lpstatD = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-d")}, 1200);
-        const int colonIdx = lpstatD.indexOf(QLatin1Char(':'));
-        if (colonIdx != -1) {
-            defaultDest = lpstatD.mid(colonIdx + 1).trimmed();
-        }
-    }
-    m_defaultPrinter = defaultDest.isEmpty() ? QStringLiteral("None") : defaultDest;
-
-    QMap<QString, QString> uris;
-    const QString lpstatV = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-v")}, 1500);
-    QRegularExpression reUri(QStringLiteral("^device for ([^:]+):\\s*(.+)$"));
-    for (const QString &line : lpstatV.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-        const auto m = reUri.match(line.trimmed());
-        if (m.hasMatch()) {
-            uris.insert(m.captured(1).trimmed(), m.captured(2).trimmed());
-        }
-    }
-
-    QMap<QString, int> jobsPerPrinter;
-    m_activePrintJobs = 0;
-    const QString lpstatO = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-o")}, 1500);
-    QRegularExpression reJob(QStringLiteral("^(.+)-\\d+\\s+"));
-    for (const QString &line : lpstatO.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-        const QString trimmed = line.trimmed();
-        if (trimmed.isEmpty()) {
-            continue;
-        }
-        ++m_activePrintJobs;
-        const auto m = reJob.match(trimmed);
-        if (m.hasMatch()) {
-            const QString pName = m.captured(1);
-            jobsPerPrinter[pName] = jobsPerPrinter.value(pName, 0) + 1;
-        }
-    }
-
-    QStringList orderedNames;
-    QMap<QString, QString> statuses;
-    const QString lpstatP = runCommand(QStringLiteral("lpstat"), {QStringLiteral("-p")}, 1500);
-    QRegularExpression rePrinter(QStringLiteral("^printer\\s+(\\S+)\\s+(.+)$"));
-    for (const QString &line : lpstatP.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-        const auto m = rePrinter.match(line.trimmed());
-        if (m.hasMatch()) {
-            const QString name = m.captured(1);
-            const QString desc = m.captured(2);
-            QString status = QStringLiteral("Ready");
-            if (desc.contains(QStringLiteral("disabled"), Qt::CaseInsensitive)) {
-                status = QStringLiteral("Paused / Disabled");
-            } else if (desc.contains(QStringLiteral("printing"), Qt::CaseInsensitive)) {
-                status = QStringLiteral("Printing");
-            } else if (desc.contains(QStringLiteral("idle"), Qt::CaseInsensitive)) {
-                status = QStringLiteral("Idle");
+            if (defaultDest.isEmpty()) {
+                const QString lpstatD = runCommandCancellable(QStringLiteral("lpstat"), {QStringLiteral("-d")}, 1200);
+                const int colonIdx = lpstatD.indexOf(QLatin1Char(':'));
+                if (colonIdx != -1) {
+                    defaultDest = lpstatD.mid(colonIdx + 1).trimmed();
+                }
             }
-            if (!orderedNames.contains(name)) {
-                orderedNames.append(name);
+            snap.defaultPrinter = defaultDest.isEmpty() ? QStringLiteral("None") : defaultDest;
+
+            QMap<QString, QString> uris;
+            const QString lpstatV = runCommandCancellable(QStringLiteral("lpstat"), {QStringLiteral("-v")}, 1500);
+            QRegularExpression reUri(QStringLiteral("^device for ([^:]+):\\s*(.+)$"));
+            for (const QString &line : lpstatV.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                const auto m = reUri.match(line.trimmed());
+                if (m.hasMatch()) {
+                    uris.insert(m.captured(1).trimmed(), m.captured(2).trimmed());
+                }
             }
-            statuses.insert(name, status);
-        }
-    }
 
-    for (auto it = uris.constBegin(); it != uris.constEnd(); ++it) {
-        if (!orderedNames.contains(it.key())) {
-            orderedNames.append(it.key());
-            statuses.insert(it.key(), QStringLiteral("Ready"));
-        }
-    }
+            QMap<QString, int> jobsPerPrinter;
+            const QString lpstatO = runCommandCancellable(QStringLiteral("lpstat"), {QStringLiteral("-o")}, 1500);
+            QRegularExpression reJob(QStringLiteral("^(.+)-\\d+\\s+"));
+            for (const QString &line : lpstatO.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                const QString trimmed = line.trimmed();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                ++snap.activePrintJobs;
+                const auto m = reJob.match(trimmed);
+                if (m.hasMatch()) {
+                    const QString pName = m.captured(1);
+                    jobsPerPrinter[pName] = jobsPerPrinter.value(pName, 0) + 1;
+                }
+            }
 
-    QVariantList printerList;
-    for (const QString &name : orderedNames) {
-        QVariantMap item;
-        item[QStringLiteral("name")] = name;
-        item[QStringLiteral("uri")] = uris.value(name, QStringLiteral("Local / Auto-discovered"));
-        item[QStringLiteral("status")] = statuses.value(name, QStringLiteral("Ready"));
-        item[QStringLiteral("isDefault")] = (!defaultDest.isEmpty() && name == defaultDest);
-        item[QStringLiteral("jobs")] = jobsPerPrinter.value(name, 0);
-        printerList.append(item);
-    }
+            QStringList orderedNames;
+            QMap<QString, QString> statuses;
+            const QString lpstatP = runCommandCancellable(QStringLiteral("lpstat"), {QStringLiteral("-p")}, 1500);
+            QRegularExpression rePrinter(QStringLiteral("^printer\\s+(\\S+)\\s+(.+)$"));
+            for (const QString &line : lpstatP.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                const auto m = rePrinter.match(line.trimmed());
+                if (m.hasMatch()) {
+                    const QString name = m.captured(1);
+                    const QString desc = m.captured(2);
+                    QString status = QStringLiteral("Ready");
+                    if (desc.contains(QStringLiteral("disabled"), Qt::CaseInsensitive)) {
+                        status = QStringLiteral("Paused / Disabled");
+                    } else if (desc.contains(QStringLiteral("printing"), Qt::CaseInsensitive)) {
+                        status = QStringLiteral("Printing");
+                    } else if (desc.contains(QStringLiteral("idle"), Qt::CaseInsensitive)) {
+                        status = QStringLiteral("Idle");
+                    }
+                    if (!orderedNames.contains(name)) {
+                        orderedNames.append(name);
+                    }
+                    statuses.insert(name, status);
+                }
+            }
 
-    m_printers = printerList;
-    emit printersChanged();
+            for (auto it = uris.constBegin(); it != uris.constEnd(); ++it) {
+                if (!orderedNames.contains(it.key())) {
+                    orderedNames.append(it.key());
+                    statuses.insert(it.key(), QStringLiteral("Ready"));
+                }
+            }
+
+            for (const QString &name : orderedNames) {
+                QVariantMap item;
+                item[QStringLiteral("name")] = name;
+                item[QStringLiteral("uri")] = uris.value(name, QStringLiteral("Local / Auto-discovered"));
+                item[QStringLiteral("status")] = statuses.value(name, QStringLiteral("Ready"));
+                item[QStringLiteral("isDefault")] = (!defaultDest.isEmpty() && name == defaultDest);
+                item[QStringLiteral("jobs")] = jobsPerPrinter.value(name, 0);
+                snap.printers.append(item);
+            }
+            return snap;
+        },
+        [this](PrintersSnapshot snap) {
+            m_cupsRunning = snap.cupsRunning;
+            m_defaultPrinter = std::move(snap.defaultPrinter);
+            m_activePrintJobs = snap.activePrintJobs;
+            m_printers = std::move(snap.printers);
+            emit printersChanged();
+        });
 }
 
 void SystemBackend::setDefaultPrinter(const QString &printerName)
@@ -1688,94 +1969,127 @@ void SystemBackend::openSystemPrinterConfig()
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshPower()
 {
-    m_hasBattery = false;
-    QDir powerDir(QStringLiteral("/sys/class/power_supply"));
-    for (const QString &entry : powerDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-        if (entry.startsWith(QStringLiteral("BAT"))) {
-            m_hasBattery = true;
-            QFile capFile(powerDir.filePath(entry + QStringLiteral("/capacity")));
-            if (capFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                m_batteryPercent = qBound(0, QString::fromUtf8(capFile.readAll()).trimmed().toInt(), 100);
+    struct PowerSnapshot {
+        bool hasBattery = false;
+        int batteryPercent = 100;
+        QString batteryState = QStringLiteral("Connected to AC Power");
+        QString powerProfile;
+        int screenLockMinutes = 5;
+        int screenOffMinutes = 10;
+        int sleepTimeoutMinutes = 15;
+        bool lockOnSleep = true;
+    };
+
+    PowerSnapshot init;
+    init.powerProfile = m_powerProfile;
+    init.screenLockMinutes = m_screenLockMinutes;
+    init.screenOffMinutes = m_screenOffMinutes;
+    init.sleepTimeoutMinutes = m_sleepTimeoutMinutes;
+    init.lockOnSleep = m_lockOnSleep;
+
+    runAsyncTask(
+        QStringLiteral("power"),
+        [this, init]() mutable {
+            init.hasBattery = false;
+            QDir powerDir(QStringLiteral("/sys/class/power_supply"));
+            for (const QString &entry : powerDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+                if (entry.startsWith(QStringLiteral("BAT"))) {
+                    init.hasBattery = true;
+                    QFile capFile(powerDir.filePath(entry + QStringLiteral("/capacity")));
+                    if (capFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        init.batteryPercent = qBound(0, QString::fromUtf8(capFile.readAll()).trimmed().toInt(), 100);
+                    }
+                    QFile statusFile(powerDir.filePath(entry + QStringLiteral("/status")));
+                    if (statusFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                        init.batteryState = QString::fromUtf8(statusFile.readAll()).trimmed();
+                    }
+                    break;
+                }
             }
-            QFile statusFile(powerDir.filePath(entry + QStringLiteral("/status")));
-            if (statusFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                m_batteryState = QString::fromUtf8(statusFile.readAll()).trimmed();
+            if (!init.hasBattery) {
+                init.batteryPercent = 100;
+                init.batteryState = QStringLiteral("Connected to AC Power");
             }
-            break;
-        }
-    }
-    if (!m_hasBattery) {
-        m_batteryPercent = 100;
-        m_batteryState = QStringLiteral("Connected to AC Power");
-    }
 
-    const QString ppOut = runCommand(QStringLiteral("powerprofilesctl"), {QStringLiteral("get")}, 1500);
-    if (!ppOut.isEmpty()) {
-        m_powerProfile = ppOut.trimmed();
-    }
+            const QString ppOut = runCommandCancellable(QStringLiteral("powerprofilesctl"), {QStringLiteral("get")}, 1500);
+            if (!ppOut.isEmpty()) {
+                init.powerProfile = ppOut.trimmed();
+            }
 
-    // Read screen auto-lock & lock-on-sleep settings from kscreenlockerrc
-    const QString autoLockRaw = runCommand(QStringLiteral("kreadconfig6"),
-        {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
-         QStringLiteral("--group"), QStringLiteral("Daemon"),
-         QStringLiteral("--key"), QStringLiteral("Autolock"),
-         QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
-    if (autoLockRaw == QStringLiteral("false") || autoLockRaw == QStringLiteral("0")) {
-        m_screenLockMinutes = 0;
-    } else {
-        const int lockMins = runCommand(QStringLiteral("kreadconfig6"),
-            {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
-             QStringLiteral("--group"), QStringLiteral("Daemon"),
-             QStringLiteral("--key"), QStringLiteral("Timeout"),
-             QStringLiteral("--default"), QStringLiteral("5")}, 1200).trimmed().toInt();
-        m_screenLockMinutes = (lockMins > 0) ? lockMins : 5;
-    }
+            // Read screen auto-lock & lock-on-sleep settings from kscreenlockerrc
+            const QString autoLockRaw = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+                 QStringLiteral("--group"), QStringLiteral("Daemon"),
+                 QStringLiteral("--key"), QStringLiteral("Autolock"),
+                 QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
+            if (autoLockRaw == QStringLiteral("false") || autoLockRaw == QStringLiteral("0")) {
+                init.screenLockMinutes = 0;
+            } else {
+                const int lockMins = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                    {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+                     QStringLiteral("--group"), QStringLiteral("Daemon"),
+                     QStringLiteral("--key"), QStringLiteral("Timeout"),
+                     QStringLiteral("--default"), QStringLiteral("5")}, 1200).trimmed().toInt();
+                init.screenLockMinutes = (lockMins > 0) ? lockMins : 5;
+            }
 
-    const QString lockResumeRaw = runCommand(QStringLiteral("kreadconfig6"),
-        {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
-         QStringLiteral("--group"), QStringLiteral("Daemon"),
-         QStringLiteral("--key"), QStringLiteral("LockOnResume"),
-         QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
-    m_lockOnSleep = (lockResumeRaw != QStringLiteral("false") && lockResumeRaw != QStringLiteral("0"));
+            const QString lockResumeRaw = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+                 QStringLiteral("--group"), QStringLiteral("Daemon"),
+                 QStringLiteral("--key"), QStringLiteral("LockOnResume"),
+                 QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
+            init.lockOnSleep = (lockResumeRaw != QStringLiteral("false") && lockResumeRaw != QStringLiteral("0"));
 
-    // Read display idle turn-off & system sleep timeouts from powerdevilrc
-    const QString dispIdleRaw = runCommand(QStringLiteral("kreadconfig6"),
-        {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
-         QStringLiteral("--group"), QStringLiteral("AC"),
-         QStringLiteral("--group"), QStringLiteral("Display"),
-         QStringLiteral("--key"), QStringLiteral("TurnOffDisplayWhenIdle"),
-         QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
-    if (dispIdleRaw == QStringLiteral("false") || dispIdleRaw == QStringLiteral("0")) {
-        m_screenOffMinutes = 0;
-    } else {
-        const int dispSec = runCommand(QStringLiteral("kreadconfig6"),
-            {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
-             QStringLiteral("--group"), QStringLiteral("AC"),
-             QStringLiteral("--group"), QStringLiteral("Display"),
-             QStringLiteral("--key"), QStringLiteral("TurnOffDisplayIdleTimeoutSec"),
-             QStringLiteral("--default"), QStringLiteral("600")}, 1200).trimmed().toInt();
-        m_screenOffMinutes = (dispSec >= 60) ? qMax(1, dispSec / 60) : 10;
-    }
+            // Read display idle turn-off & system sleep timeouts from powerdevilrc
+            const QString dispIdleRaw = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+                 QStringLiteral("--group"), QStringLiteral("AC"),
+                 QStringLiteral("--group"), QStringLiteral("Display"),
+                 QStringLiteral("--key"), QStringLiteral("TurnOffDisplayWhenIdle"),
+                 QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
+            if (dispIdleRaw == QStringLiteral("false") || dispIdleRaw == QStringLiteral("0")) {
+                init.screenOffMinutes = 0;
+            } else {
+                const int dispSec = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                    {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+                     QStringLiteral("--group"), QStringLiteral("AC"),
+                     QStringLiteral("--group"), QStringLiteral("Display"),
+                     QStringLiteral("--key"), QStringLiteral("TurnOffDisplayIdleTimeoutSec"),
+                     QStringLiteral("--default"), QStringLiteral("600")}, 1200).trimmed().toInt();
+                init.screenOffMinutes = (dispSec >= 60) ? qMax(1, dispSec / 60) : 10;
+            }
 
-    const int suspendAction = runCommand(QStringLiteral("kreadconfig6"),
-        {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
-         QStringLiteral("--group"), QStringLiteral("AC"),
-         QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
-         QStringLiteral("--key"), QStringLiteral("AutoSuspendAction"),
-         QStringLiteral("--default"), QStringLiteral("1")}, 1200).trimmed().toInt();
-    if (suspendAction == 0) {
-        m_sleepTimeoutMinutes = 0;
-    } else {
-        const int sleepSec = runCommand(QStringLiteral("kreadconfig6"),
-            {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
-             QStringLiteral("--group"), QStringLiteral("AC"),
-             QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
-             QStringLiteral("--key"), QStringLiteral("AutoSuspendIdleTimeoutSec"),
-             QStringLiteral("--default"), QStringLiteral("900")}, 1200).trimmed().toInt();
-        m_sleepTimeoutMinutes = (sleepSec >= 60) ? qMax(1, sleepSec / 60) : 15;
-    }
+            const int suspendAction = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+                 QStringLiteral("--group"), QStringLiteral("AC"),
+                 QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
+                 QStringLiteral("--key"), QStringLiteral("AutoSuspendAction"),
+                 QStringLiteral("--default"), QStringLiteral("1")}, 1200).trimmed().toInt();
+            if (suspendAction == 0) {
+                init.sleepTimeoutMinutes = 0;
+            } else {
+                const int sleepSec = runCommandCancellable(QStringLiteral("kreadconfig6"),
+                    {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+                     QStringLiteral("--group"), QStringLiteral("AC"),
+                     QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
+                     QStringLiteral("--key"), QStringLiteral("AutoSuspendIdleTimeoutSec"),
+                     QStringLiteral("--default"), QStringLiteral("900")}, 1200).trimmed().toInt();
+                init.sleepTimeoutMinutes = (sleepSec >= 60) ? qMax(1, sleepSec / 60) : 15;
+            }
 
-    emit powerChanged();
+            return init;
+        },
+        [this](PowerSnapshot snap) {
+            m_hasBattery = snap.hasBattery;
+            m_batteryPercent = snap.batteryPercent;
+            m_batteryState = std::move(snap.batteryState);
+            m_powerProfile = std::move(snap.powerProfile);
+            m_screenLockMinutes = snap.screenLockMinutes;
+            m_screenOffMinutes = snap.screenOffMinutes;
+            m_sleepTimeoutMinutes = snap.sleepTimeoutMinutes;
+            m_lockOnSleep = snap.lockOnSleep;
+            emit powerChanged();
+        });
 }
 
 void SystemBackend::setPowerProfile(const QString &profile)
@@ -1930,197 +2244,220 @@ QJsonObject readJsonMetadata(const QString &jsonPath)
 
 void SystemBackend::refreshPersonalization()
 {
-    // Active Plasma desktop theme
-    QSettings plasmarc(QDir::homePath() + QStringLiteral("/.config/plasmarc"), QSettings::IniFormat);
-    plasmarc.beginGroup(QStringLiteral("Theme"));
-    QString activeTheme = plasmarc.value(QStringLiteral("name")).toString().trimmed();
-    plasmarc.endGroup();
-    if (activeTheme.isEmpty()) {
-        QSettings globalPlasmarc(QStringLiteral("/etc/xdg/plasmarc"), QSettings::IniFormat);
-        globalPlasmarc.beginGroup(QStringLiteral("Theme"));
-        activeTheme = globalPlasmarc.value(QStringLiteral("name"), QStringLiteral("SourcelessGlass")).toString().trimmed();
-        globalPlasmarc.endGroup();
-    }
-    if (activeTheme.isEmpty()) {
-        activeTheme = QStringLiteral("SourcelessGlass");
-    }
-    m_currentTheme = activeTheme;
-
-    // Index Look-and-Feel thumbnails & mapped desktop theme IDs
-    QVariantMap lnfThumbByDesktopTheme;
-    QVariantList customLnfFallback;
-    const QDir lnfRoot(QStringLiteral("/usr/share/plasma/look-and-feel"));
-    for (const QString &lnfDir : lnfRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
-        if (lnfDir.startsWith(QStringLiteral("org.kde.")) || lnfDir.startsWith(QStringLiteral("org.fedoraproject."))) {
-            continue;
-        }
-        const QString lnfPath = lnfRoot.filePath(lnfDir);
-        const QString thumbPath = lnfPath + QStringLiteral("/contents/previews/thumbnail.png");
-        const QString thumbUrl = QFileInfo::exists(thumbPath) ? QUrl::fromLocalFile(thumbPath).toString() : QString();
-
-        QSettings defaultsIni(lnfPath + QStringLiteral("/contents/defaults"), QSettings::IniFormat);
-        defaultsIni.beginGroup(QStringLiteral("PlasmaTheme"));
-        QString mappedDesktop = defaultsIni.value(QStringLiteral("name")).toString().trimmed();
-        defaultsIni.endGroup();
-        if (mappedDesktop.isEmpty()) {
-            defaultsIni.beginGroup(QStringLiteral("Theme"));
-            mappedDesktop = defaultsIni.value(QStringLiteral("name")).toString().trimmed();
-            defaultsIni.endGroup();
-        }
-        if (!mappedDesktop.isEmpty() && !thumbUrl.isEmpty()) {
-            lnfThumbByDesktopTheme[mappedDesktop] = thumbUrl;
-        }
-
-        const QJsonObject meta = readJsonMetadata(lnfPath + QStringLiteral("/metadata.json"));
-        const QJsonObject plugin = meta.value(QStringLiteral("KPlugin")).toObject();
-        const QString lnfId = plugin.value(QStringLiteral("Id")).toString(lnfDir);
-        const QString lnfName = plugin.value(QStringLiteral("Name")).toString(lnfDir);
-        const QString lnfDesc = plugin.value(QStringLiteral("Description")).toString();
-
-        QVariantMap lnfItem;
-        lnfItem[QStringLiteral("id")] = lnfId;
-        lnfItem[QStringLiteral("mappedDesktop")] = mappedDesktop;
-        lnfItem[QStringLiteral("name")] = lnfName;
-        lnfItem[QStringLiteral("description")] = lnfDesc;
-        lnfItem[QStringLiteral("hasBlur")] = mappedDesktop.contains(QStringLiteral("Glass"), Qt::CaseInsensitive)
-                                             || lnfDesc.contains(QStringLiteral("Glass"), Qt::CaseInsensitive);
-        lnfItem[QStringLiteral("previewUrl")] = thumbUrl;
-        customLnfFallback.append(lnfItem);
-    }
-
-    // Scan installed Plasma desktop themes (skip generic upstream system directories)
-    QVariantList themeList;
-    QStringList seenThemeIds;
-    const QStringList skipDesktopDirs = {
-        QStringLiteral("default"),
-        QStringLiteral("widgets"),
-        QStringLiteral("breeze"),
-        QStringLiteral("breeze-dark"),
-        QStringLiteral("breeze-light"),
-        QStringLiteral("oxygen")
+    struct PersonalizationSnapshot {
+        QString currentTheme;
+        QVariantList themes;
+        QVariantList wallpapers;
+        bool blurEnabled = true;
+        bool animationsEnabled = true;
     };
-    const QDir dtRoot(QStringLiteral("/usr/share/plasma/desktoptheme"));
-    for (const QString &dirName : dtRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
-        if (skipDesktopDirs.contains(dirName, Qt::CaseInsensitive)) {
-            continue;
-        }
-        const QString dtPath = dtRoot.filePath(dirName);
-        if (!QFileInfo::exists(dtPath + QStringLiteral("/metadata.json"))) {
-            continue;
-        }
-        const QJsonObject meta = readJsonMetadata(dtPath + QStringLiteral("/metadata.json"));
-        const QJsonObject plugin = meta.value(QStringLiteral("KPlugin")).toObject();
-        const QString themeId = plugin.value(QStringLiteral("Id")).toString(dirName);
-        const QString themeName = plugin.value(QStringLiteral("Name")).toString(dirName);
-        const bool hasBlur = meta.value(QStringLiteral("BlurEffect")).toObject().value(QStringLiteral("enabled")).toBool(false);
-        QString desc = plugin.value(QStringLiteral("Description")).toString().trimmed();
-        if (desc.isEmpty()) {
-            desc = hasBlur ? QStringLiteral("Liquid Glass • Blur Enabled") : QStringLiteral("Solid Theme • No Blur");
-        }
 
-        QString previewUrl;
-        const QStringList previewCandidates = {
-            dtPath + QStringLiteral("/preview.png"),
-            dtPath + QStringLiteral("/contents/previews/preview.png"),
-            dtPath + QStringLiteral("/contents/previews/thumbnail.png")
-        };
-        for (const QString &cand : previewCandidates) {
-            if (QFileInfo::exists(cand)) {
-                previewUrl = QUrl::fromLocalFile(cand).toString();
-                break;
+    const QString homePath = QDir::homePath();
+
+    runAsyncTask(
+        QStringLiteral("personalization"),
+        [homePath]() {
+            PersonalizationSnapshot snap;
+
+            // Active Plasma desktop theme
+            QSettings plasmarc(homePath + QStringLiteral("/.config/plasmarc"), QSettings::IniFormat);
+            plasmarc.beginGroup(QStringLiteral("Theme"));
+            QString activeTheme = plasmarc.value(QStringLiteral("name")).toString().trimmed();
+            plasmarc.endGroup();
+            if (activeTheme.isEmpty()) {
+                QSettings globalPlasmarc(QStringLiteral("/etc/xdg/plasmarc"), QSettings::IniFormat);
+                globalPlasmarc.beginGroup(QStringLiteral("Theme"));
+                activeTheme = globalPlasmarc.value(QStringLiteral("name"), QStringLiteral("SourcelessGlass")).toString().trimmed();
+                globalPlasmarc.endGroup();
             }
-        }
-        if (previewUrl.isEmpty() && lnfThumbByDesktopTheme.contains(themeId)) {
-            previewUrl = lnfThumbByDesktopTheme.value(themeId).toString();
-        }
-
-        QVariantMap theme;
-        theme[QStringLiteral("id")] = themeId;
-        theme[QStringLiteral("name")] = themeName;
-        theme[QStringLiteral("description")] = desc;
-        theme[QStringLiteral("hasBlur")] = hasBlur;
-        theme[QStringLiteral("previewUrl")] = previewUrl;
-        theme[QStringLiteral("active")] = (themeId == m_currentTheme);
-        themeList.append(theme);
-        seenThemeIds.append(themeId);
-    }
-
-    // Include any standalone custom Look-and-Feel themes not already backed by a listed desktop theme
-    for (const QVariant &v : customLnfFallback) {
-        QVariantMap lnf = v.toMap();
-        const QString lnfId = lnf.value(QStringLiteral("id")).toString();
-        const QString mapped = lnf.value(QStringLiteral("mappedDesktop")).toString();
-        if (seenThemeIds.contains(lnfId) || (!mapped.isEmpty() && seenThemeIds.contains(mapped))) {
-            continue;
-        }
-        QString desc = lnf.value(QStringLiteral("description")).toString().trimmed();
-        if (desc.isEmpty()) {
-            desc = lnf.value(QStringLiteral("hasBlur")).toBool()
-                       ? QStringLiteral("Liquid Glass • Blur Enabled")
-                       : QStringLiteral("Solid Theme • No Blur");
-        }
-        lnf[QStringLiteral("description")] = desc;
-        lnf[QStringLiteral("active")] = (lnfId == m_currentTheme);
-        lnf.remove(QStringLiteral("mappedDesktop"));
-        themeList.append(lnf);
-    }
-    m_themes = themeList;
-
-    // Scan curated wallpapers
-    QVariantList wpList;
-    QDir wpRoot(QStringLiteral("/usr/share/wallpapers"));
-    const QStringList entries = wpRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-    for (const QString &dirName : entries) {
-        const QString fullDir = wpRoot.filePath(dirName);
-        if (QFileInfo(fullDir).isSymLink()) {
-            continue;
-        }
-        QString imgPath;
-        const QStringList candidates = {
-            fullDir + QStringLiteral("/contents/images_dark/3840x2160.jpg"),
-            fullDir + QStringLiteral("/contents/images/3840x2160.jpg"),
-            fullDir + QStringLiteral("/contents/images_dark/3840x2160.png"),
-            fullDir + QStringLiteral("/contents/images/3840x2160.png"),
-            fullDir + QStringLiteral("/contents/images_dark/1920x1080.png"),
-            fullDir + QStringLiteral("/contents/images/1920x1080.png")
-        };
-        for (const QString &cand : candidates) {
-            if (QFileInfo::exists(cand)) {
-                imgPath = cand;
-                break;
+            if (activeTheme.isEmpty()) {
+                activeTheme = QStringLiteral("SourcelessGlass");
             }
-        }
-        if (imgPath.isEmpty()) {
-            QDir imgDir(fullDir + QStringLiteral("/contents/images"));
-            const QStringList files = imgDir.entryList({QStringLiteral("*.jpg"), QStringLiteral("*.png")}, QDir::Files);
-            if (!files.isEmpty()) {
-                imgPath = imgDir.filePath(files.first());
+            snap.currentTheme = activeTheme;
+
+            // Index Look-and-Feel thumbnails & mapped desktop theme IDs
+            QVariantMap lnfThumbByDesktopTheme;
+            QVariantList customLnfFallback;
+            const QDir lnfRoot(QStringLiteral("/usr/share/plasma/look-and-feel"));
+            for (const QString &lnfDir : lnfRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+                if (lnfDir.startsWith(QStringLiteral("org.kde.")) || lnfDir.startsWith(QStringLiteral("org.fedoraproject."))) {
+                    continue;
+                }
+                const QString lnfPath = lnfRoot.filePath(lnfDir);
+                const QString thumbPath = lnfPath + QStringLiteral("/contents/previews/thumbnail.png");
+                const QString thumbUrl = QFileInfo::exists(thumbPath) ? QUrl::fromLocalFile(thumbPath).toString() : QString();
+
+                QSettings defaultsIni(lnfPath + QStringLiteral("/contents/defaults"), QSettings::IniFormat);
+                defaultsIni.beginGroup(QStringLiteral("PlasmaTheme"));
+                QString mappedDesktop = defaultsIni.value(QStringLiteral("name")).toString().trimmed();
+                defaultsIni.endGroup();
+                if (mappedDesktop.isEmpty()) {
+                    defaultsIni.beginGroup(QStringLiteral("Theme"));
+                    mappedDesktop = defaultsIni.value(QStringLiteral("name")).toString().trimmed();
+                    defaultsIni.endGroup();
+                }
+                if (!mappedDesktop.isEmpty() && !thumbUrl.isEmpty()) {
+                    lnfThumbByDesktopTheme[mappedDesktop] = thumbUrl;
+                }
+
+                const QJsonObject meta = readJsonMetadata(lnfPath + QStringLiteral("/metadata.json"));
+                const QJsonObject plugin = meta.value(QStringLiteral("KPlugin")).toObject();
+                const QString lnfId = plugin.value(QStringLiteral("Id")).toString(lnfDir);
+                const QString lnfName = plugin.value(QStringLiteral("Name")).toString(lnfDir);
+                const QString lnfDesc = plugin.value(QStringLiteral("Description")).toString();
+
+                QVariantMap lnfItem;
+                lnfItem[QStringLiteral("id")] = lnfId;
+                lnfItem[QStringLiteral("mappedDesktop")] = mappedDesktop;
+                lnfItem[QStringLiteral("name")] = lnfName;
+                lnfItem[QStringLiteral("description")] = lnfDesc;
+                lnfItem[QStringLiteral("hasBlur")] = mappedDesktop.contains(QStringLiteral("Glass"), Qt::CaseInsensitive)
+                                                     || lnfDesc.contains(QStringLiteral("Glass"), Qt::CaseInsensitive);
+                lnfItem[QStringLiteral("previewUrl")] = thumbUrl;
+                customLnfFallback.append(lnfItem);
             }
-        }
-        if (!imgPath.isEmpty()) {
-            QVariantMap wp;
-            wp[QStringLiteral("id")] = dirName;
-            QString displayName = dirName;
-            displayName.replace(QLatin1Char('-'), QLatin1Char(' '));
-            wp[QStringLiteral("name")] = displayName;
-            wp[QStringLiteral("previewUrl")] = QUrl::fromLocalFile(imgPath).toString();
-            wp[QStringLiteral("path")] = imgPath;
-            wpList.append(wp);
-        }
-    }
-    m_wallpapers = wpList;
 
-    QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
-    kwinrc.beginGroup(QStringLiteral("Plugins"));
-    m_blurEnabled = kwinrc.value(QStringLiteral("blurEnabled"), true).toBool();
-    kwinrc.endGroup();
+            // Scan installed Plasma desktop themes (skip generic upstream system directories)
+            QVariantList themeList;
+            QStringList seenThemeIds;
+            const QStringList skipDesktopDirs = {
+                QStringLiteral("default"),
+                QStringLiteral("widgets"),
+                QStringLiteral("breeze"),
+                QStringLiteral("breeze-dark"),
+                QStringLiteral("breeze-light"),
+                QStringLiteral("oxygen")
+            };
+            const QDir dtRoot(QStringLiteral("/usr/share/plasma/desktoptheme"));
+            for (const QString &dirName : dtRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+                if (skipDesktopDirs.contains(dirName, Qt::CaseInsensitive)) {
+                    continue;
+                }
+                const QString dtPath = dtRoot.filePath(dirName);
+                if (!QFileInfo::exists(dtPath + QStringLiteral("/metadata.json"))) {
+                    continue;
+                }
+                const QJsonObject meta = readJsonMetadata(dtPath + QStringLiteral("/metadata.json"));
+                const QJsonObject plugin = meta.value(QStringLiteral("KPlugin")).toObject();
+                const QString themeId = plugin.value(QStringLiteral("Id")).toString(dirName);
+                const QString themeName = plugin.value(QStringLiteral("Name")).toString(dirName);
+                const bool hasBlur = meta.value(QStringLiteral("BlurEffect")).toObject().value(QStringLiteral("enabled")).toBool(false);
+                QString desc = plugin.value(QStringLiteral("Description")).toString().trimmed();
+                if (desc.isEmpty()) {
+                    desc = hasBlur ? QStringLiteral("Liquid Glass • Blur Enabled") : QStringLiteral("Solid Theme • No Blur");
+                }
 
-    QSettings kdeglobals(QDir::homePath() + QStringLiteral("/.config/kdeglobals"), QSettings::IniFormat);
-    kdeglobals.beginGroup(QStringLiteral("KDE"));
-    m_animationsEnabled = kdeglobals.value(QStringLiteral("AnimationDurationFactor"), 1.0).toDouble() > 0.05;
-    kdeglobals.endGroup();
+                QString previewUrl;
+                const QStringList previewCandidates = {
+                    dtPath + QStringLiteral("/preview.png"),
+                    dtPath + QStringLiteral("/contents/previews/preview.png"),
+                    dtPath + QStringLiteral("/contents/previews/thumbnail.png")
+                };
+                for (const QString &cand : previewCandidates) {
+                    if (QFileInfo::exists(cand)) {
+                        previewUrl = QUrl::fromLocalFile(cand).toString();
+                        break;
+                    }
+                }
+                if (previewUrl.isEmpty() && lnfThumbByDesktopTheme.contains(themeId)) {
+                    previewUrl = lnfThumbByDesktopTheme.value(themeId).toString();
+                }
 
-    emit personalizationChanged();
+                QVariantMap theme;
+                theme[QStringLiteral("id")] = themeId;
+                theme[QStringLiteral("name")] = themeName;
+                theme[QStringLiteral("description")] = desc;
+                theme[QStringLiteral("hasBlur")] = hasBlur;
+                theme[QStringLiteral("previewUrl")] = previewUrl;
+                theme[QStringLiteral("active")] = (themeId == activeTheme);
+                themeList.append(theme);
+                seenThemeIds.append(themeId);
+            }
+
+            for (const QVariant &v : customLnfFallback) {
+                QVariantMap lnf = v.toMap();
+                const QString lnfId = lnf.value(QStringLiteral("id")).toString();
+                const QString mapped = lnf.value(QStringLiteral("mappedDesktop")).toString();
+                if (seenThemeIds.contains(lnfId) || (!mapped.isEmpty() && seenThemeIds.contains(mapped))) {
+                    continue;
+                }
+                QString desc = lnf.value(QStringLiteral("description")).toString().trimmed();
+                if (desc.isEmpty()) {
+                    desc = lnf.value(QStringLiteral("hasBlur")).toBool()
+                               ? QStringLiteral("Liquid Glass • Blur Enabled")
+                               : QStringLiteral("Solid Theme • No Blur");
+                }
+                lnf[QStringLiteral("description")] = desc;
+                lnf[QStringLiteral("active")] = (lnfId == activeTheme);
+                lnf.remove(QStringLiteral("mappedDesktop"));
+                themeList.append(lnf);
+            }
+            snap.themes = themeList;
+
+            // Scan curated wallpapers
+            QVariantList wpList;
+            QDir wpRoot(QStringLiteral("/usr/share/wallpapers"));
+            const QStringList entries = wpRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+            for (const QString &dirName : entries) {
+                const QString fullDir = wpRoot.filePath(dirName);
+                if (QFileInfo(fullDir).isSymLink()) {
+                    continue;
+                }
+                QString imgPath;
+                const QStringList candidates = {
+                    fullDir + QStringLiteral("/contents/images_dark/3840x2160.jpg"),
+                    fullDir + QStringLiteral("/contents/images/3840x2160.jpg"),
+                    fullDir + QStringLiteral("/contents/images_dark/3840x2160.png"),
+                    fullDir + QStringLiteral("/contents/images/3840x2160.png"),
+                    fullDir + QStringLiteral("/contents/images_dark/1920x1080.png"),
+                    fullDir + QStringLiteral("/contents/images/1920x1080.png")
+                };
+                for (const QString &cand : candidates) {
+                    if (QFileInfo::exists(cand)) {
+                        imgPath = cand;
+                        break;
+                    }
+                }
+                if (imgPath.isEmpty()) {
+                    QDir imgDir(fullDir + QStringLiteral("/contents/images"));
+                    const QStringList files = imgDir.entryList({QStringLiteral("*.jpg"), QStringLiteral("*.png")}, QDir::Files);
+                    if (!files.isEmpty()) {
+                        imgPath = imgDir.filePath(files.first());
+                    }
+                }
+                if (!imgPath.isEmpty()) {
+                    QVariantMap wp;
+                    wp[QStringLiteral("id")] = dirName;
+                    QString displayName = dirName;
+                    displayName.replace(QLatin1Char('-'), QLatin1Char(' '));
+                    wp[QStringLiteral("name")] = displayName;
+                    wp[QStringLiteral("previewUrl")] = QUrl::fromLocalFile(imgPath).toString();
+                    wp[QStringLiteral("path")] = imgPath;
+                    wpList.append(wp);
+                }
+            }
+            snap.wallpapers = wpList;
+
+            QSettings kwinrc(homePath + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+            kwinrc.beginGroup(QStringLiteral("Plugins"));
+            snap.blurEnabled = kwinrc.value(QStringLiteral("blurEnabled"), true).toBool();
+            kwinrc.endGroup();
+
+            QSettings kdeglobals(homePath + QStringLiteral("/.config/kdeglobals"), QSettings::IniFormat);
+            kdeglobals.beginGroup(QStringLiteral("KDE"));
+            snap.animationsEnabled = kdeglobals.value(QStringLiteral("AnimationDurationFactor"), 1.0).toDouble() > 0.05;
+            kdeglobals.endGroup();
+
+            return snap;
+        },
+        [this](PersonalizationSnapshot snap) {
+            m_currentTheme = std::move(snap.currentTheme);
+            m_themes = std::move(snap.themes);
+            m_wallpapers = std::move(snap.wallpapers);
+            m_blurEnabled = snap.blurEnabled;
+            m_animationsEnabled = snap.animationsEnabled;
+            emit personalizationChanged();
+        });
 }
 
 void SystemBackend::applyTheme(const QString &themeId)
@@ -2232,33 +2569,40 @@ void SystemBackend::setAnimationsEnabled(bool enabled)
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshApps()
 {
-    const QString out = runCommand(QStringLiteral("flatpak"),
-        {QStringLiteral("list"), QStringLiteral("--app"), QStringLiteral("--columns=name,application,version,branch,installation")}, 3000);
+    runAsyncTask(
+        QStringLiteral("apps"),
+        [this]() {
+            const QString out = runCommandCancellable(QStringLiteral("flatpak"),
+                {QStringLiteral("list"), QStringLiteral("--app"), QStringLiteral("--columns=name,application,version,branch,installation")}, 3000);
 
-    QVariantList apps;
-    const QStringList protectedIds = {
-        QStringLiteral("org.mozilla.firefox"),
-        QStringLiteral("com.github.tchx84.Flatseal")
-    };
+            QVariantList apps;
+            const QStringList protectedIds = {
+                QStringLiteral("org.mozilla.firefox"),
+                QStringLiteral("com.github.tchx84.Flatseal")
+            };
 
-    for (const QString &line : out.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-        const QStringList cols = line.split(QLatin1Char('\t'));
-        if (cols.size() >= 2) {
-            const QString name = cols.at(0).trimmed();
-            const QString appId = cols.at(1).trimmed();
-            const QString version = cols.value(2).trimmed().isEmpty() ? QStringLiteral("Latest") : cols.value(2).trimmed();
-            const QString scope = cols.value(4).trimmed();
-            QVariantMap app;
-            app[QStringLiteral("name")] = name;
-            app[QStringLiteral("appId")] = appId;
-            app[QStringLiteral("version")] = version;
-            app[QStringLiteral("scope")] = scope.isEmpty() ? QStringLiteral("system") : scope;
-            app[QStringLiteral("protectedApp")] = protectedIds.contains(appId);
-            apps.append(app);
-        }
-    }
-    m_installedApps = apps;
-    emit appsChanged();
+            for (const QString &line : out.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                const QStringList cols = line.split(QLatin1Char('\t'));
+                if (cols.size() >= 2) {
+                    const QString name = cols.at(0).trimmed();
+                    const QString appId = cols.at(1).trimmed();
+                    const QString version = cols.value(2).trimmed().isEmpty() ? QStringLiteral("Latest") : cols.value(2).trimmed();
+                    const QString scope = cols.value(4).trimmed();
+                    QVariantMap app;
+                    app[QStringLiteral("name")] = name;
+                    app[QStringLiteral("appId")] = appId;
+                    app[QStringLiteral("version")] = version;
+                    app[QStringLiteral("scope")] = scope.isEmpty() ? QStringLiteral("system") : scope;
+                    app[QStringLiteral("protectedApp")] = protectedIds.contains(appId);
+                    apps.append(app);
+                }
+            }
+            return apps;
+        },
+        [this](QVariantList apps) {
+            m_installedApps = std::move(apps);
+            emit appsChanged();
+        });
 }
 
 void SystemBackend::launchApp(const QString &appId)
@@ -2402,105 +2746,139 @@ void SystemBackend::rebootForUpdate()
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshTime()
 {
-    m_availableTimezones = {
-        QStringLiteral("Europe/Bucharest"),
-        QStringLiteral("UTC"),
-        QStringLiteral("Europe/London"),
-        QStringLiteral("Europe/Berlin"),
-        QStringLiteral("Europe/Paris"),
-        QStringLiteral("Europe/Madrid"),
-        QStringLiteral("Europe/Rome"),
-        QStringLiteral("Europe/Vienna"),
-        QStringLiteral("Europe/Warsaw"),
-        QStringLiteral("Europe/Budapest"),
-        QStringLiteral("Europe/Prague"),
-        QStringLiteral("Europe/Athens"),
-        QStringLiteral("Europe/Istanbul"),
-        QStringLiteral("Europe/Kyiv"),
-        QStringLiteral("Europe/Chisinau"),
-        QStringLiteral("Europe/Zurich"),
-        QStringLiteral("Europe/Amsterdam"),
-        QStringLiteral("Europe/Brussels"),
-        QStringLiteral("Europe/Stockholm"),
-        QStringLiteral("America/New_York"),
-        QStringLiteral("America/Chicago"),
-        QStringLiteral("America/Denver"),
-        QStringLiteral("America/Los_Angeles"),
-        QStringLiteral("America/Toronto"),
-        QStringLiteral("America/Sao_Paulo"),
-        QStringLiteral("Asia/Tokyo"),
-        QStringLiteral("Asia/Seoul"),
-        QStringLiteral("Asia/Shanghai"),
-        QStringLiteral("Asia/Singapore"),
-        QStringLiteral("Asia/Dubai"),
-        QStringLiteral("Asia/Kolkata"),
-        QStringLiteral("Australia/Sydney")
+    struct TimeSnapshot {
+        QStringList availableTimezones;
+        QString timezone;
+        bool ntpEnabled = true;
+        QString keyboardLayout;
+        bool use24Hour = true;
+        QString regionalFormat;
+        QString systemLanguage;
     };
 
-    const QString tz = runCommand(QStringLiteral("timedatectl"), {QStringLiteral("show"), QStringLiteral("-p"), QStringLiteral("Timezone"), QStringLiteral("--value")}, 1500);
-    if (!tz.isEmpty()) {
-        m_timezone = tz.trimmed();
-        if (!m_availableTimezones.contains(m_timezone)) {
-            m_availableTimezones.prepend(m_timezone);
-        }
-    }
+    TimeSnapshot init;
+    init.timezone = m_timezone;
+    init.ntpEnabled = m_ntpEnabled;
+    init.use24Hour = m_use24Hour;
+    init.keyboardLayout = m_keyboardLayout;
+    init.regionalFormat = m_regionalFormat;
+    init.systemLanguage = m_systemLanguage;
+    const QString homePath = QDir::homePath();
 
-    const QString ntp = runCommand(QStringLiteral("timedatectl"), {QStringLiteral("show"), QStringLiteral("-p"), QStringLiteral("NTP"), QStringLiteral("--value")}, 1500);
-    m_ntpEnabled = (ntp.trimmed() == QStringLiteral("yes"));
+    runAsyncTask(
+        QStringLiteral("time"),
+        [this, init, homePath]() mutable {
+            init.availableTimezones = {
+                QStringLiteral("Europe/Bucharest"),
+                QStringLiteral("UTC"),
+                QStringLiteral("Europe/London"),
+                QStringLiteral("Europe/Berlin"),
+                QStringLiteral("Europe/Paris"),
+                QStringLiteral("Europe/Madrid"),
+                QStringLiteral("Europe/Rome"),
+                QStringLiteral("Europe/Vienna"),
+                QStringLiteral("Europe/Warsaw"),
+                QStringLiteral("Europe/Budapest"),
+                QStringLiteral("Europe/Prague"),
+                QStringLiteral("Europe/Athens"),
+                QStringLiteral("Europe/Istanbul"),
+                QStringLiteral("Europe/Kyiv"),
+                QStringLiteral("Europe/Chisinau"),
+                QStringLiteral("Europe/Zurich"),
+                QStringLiteral("Europe/Amsterdam"),
+                QStringLiteral("Europe/Brussels"),
+                QStringLiteral("Europe/Stockholm"),
+                QStringLiteral("America/New_York"),
+                QStringLiteral("America/Chicago"),
+                QStringLiteral("America/Denver"),
+                QStringLiteral("America/Los_Angeles"),
+                QStringLiteral("America/Toronto"),
+                QStringLiteral("America/Sao_Paulo"),
+                QStringLiteral("Asia/Tokyo"),
+                QStringLiteral("Asia/Seoul"),
+                QStringLiteral("Asia/Shanghai"),
+                QStringLiteral("Asia/Singapore"),
+                QStringLiteral("Asia/Dubai"),
+                QStringLiteral("Asia/Kolkata"),
+                QStringLiteral("Australia/Sydney")
+            };
 
-    QSettings kxkb(QDir::homePath() + QStringLiteral("/.config/kxkbrc"), QSettings::IniFormat);
-    kxkb.beginGroup(QStringLiteral("Layout"));
-    m_keyboardLayout = kxkb.value(QStringLiteral("LayoutList"), QStringLiteral("us")).toString();
-    kxkb.endGroup();
-
-    QSettings localeRc(QDir::homePath() + QStringLiteral("/.config/plasma-localerc"), QSettings::IniFormat);
-    localeRc.beginGroup(QStringLiteral("Clock"));
-    m_use24Hour = localeRc.value(QStringLiteral("Use24Hour"), m_use24Hour).toBool();
-    localeRc.endGroup();
-
-    localeRc.beginGroup(QStringLiteral("Formats"));
-    QString fmtLang = localeRc.value(QStringLiteral("LANG")).toString().trimmed();
-    localeRc.endGroup();
-
-    if (fmtLang.isEmpty()) {
-        QFile sysLocale(QStringLiteral("/etc/locale.conf"));
-        if (sysLocale.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            for (const QString &rawLine : QString::fromUtf8(sysLocale.readAll()).split(QLatin1Char('\n'))) {
-                const QString line = rawLine.trimmed();
-                if (line.startsWith(QStringLiteral("LANG="))) {
-                    fmtLang = line.mid(5).trimmed();
-                    fmtLang.remove(QLatin1Char('"'));
-                    break;
+            const QString tz = runCommandCancellable(QStringLiteral("timedatectl"), {QStringLiteral("show"), QStringLiteral("-p"), QStringLiteral("Timezone"), QStringLiteral("--value")}, 1500);
+            if (!tz.isEmpty()) {
+                init.timezone = tz.trimmed();
+                if (!init.availableTimezones.contains(init.timezone)) {
+                    init.availableTimezones.prepend(init.timezone);
                 }
             }
-        }
-    }
-    if (fmtLang.endsWith(QStringLiteral(".utf8"), Qt::CaseInsensitive)) {
-        fmtLang.replace(fmtLang.size() - 5, 5, QStringLiteral(".UTF-8"));
-    }
-    if (!fmtLang.isEmpty()) {
-        m_regionalFormat = fmtLang;
-    }
 
-    localeRc.beginGroup(QStringLiteral("Translations"));
-    const QString transLang = localeRc.value(QStringLiteral("LANGUAGE")).toString().trimmed();
-    localeRc.endGroup();
-    if (!transLang.isEmpty()) {
-        const QStringList langs = transLang.split(QLatin1Char(':'), Qt::SkipEmptyParts);
-        if (!langs.isEmpty()) {
-            m_systemLanguage = langs.first().trimmed();
-        }
-    } else if (!m_regionalFormat.isEmpty()) {
-        const QString base = m_regionalFormat.section(QLatin1Char('.'), 0, 0).trimmed();
-        if (!base.isEmpty() && base != QStringLiteral("C")) {
-            m_systemLanguage = base;
-        }
-    }
+            const QString ntp = runCommandCancellable(QStringLiteral("timedatectl"), {QStringLiteral("show"), QStringLiteral("-p"), QStringLiteral("NTP"), QStringLiteral("--value")}, 1500);
+            if (!ntp.isEmpty()) {
+                init.ntpEnabled = (ntp.trimmed() == QStringLiteral("yes"));
+            }
 
-    m_currentDateTime = QDateTime::currentDateTime().toString(
-        m_use24Hour ? QStringLiteral("dddd, dd MMMM yyyy  •  HH:mm") : QStringLiteral("dddd, dd MMMM yyyy  •  hh:mm AP"));
+            QSettings kxkb(homePath + QStringLiteral("/.config/kxkbrc"), QSettings::IniFormat);
+            kxkb.beginGroup(QStringLiteral("Layout"));
+            init.keyboardLayout = kxkb.value(QStringLiteral("LayoutList"), QStringLiteral("us")).toString();
+            kxkb.endGroup();
 
-    emit timeChanged();
+            QSettings localeRc(homePath + QStringLiteral("/.config/plasma-localerc"), QSettings::IniFormat);
+            localeRc.beginGroup(QStringLiteral("Clock"));
+            init.use24Hour = localeRc.value(QStringLiteral("Use24Hour"), init.use24Hour).toBool();
+            localeRc.endGroup();
+
+            localeRc.beginGroup(QStringLiteral("Formats"));
+            QString fmtLang = localeRc.value(QStringLiteral("LANG")).toString().trimmed();
+            localeRc.endGroup();
+
+            if (fmtLang.isEmpty()) {
+                QFile sysLocale(QStringLiteral("/etc/locale.conf"));
+                if (sysLocale.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    for (const QString &rawLine : QString::fromUtf8(sysLocale.readAll()).split(QLatin1Char('\n'))) {
+                        const QString line = rawLine.trimmed();
+                        if (line.startsWith(QStringLiteral("LANG="))) {
+                            fmtLang = line.mid(5).trimmed();
+                            fmtLang.remove(QLatin1Char('"'));
+                            break;
+                        }
+                    }
+                }
+            }
+            if (fmtLang.endsWith(QStringLiteral(".utf8"), Qt::CaseInsensitive)) {
+                fmtLang.replace(fmtLang.size() - 5, 5, QStringLiteral(".UTF-8"));
+            }
+            if (!fmtLang.isEmpty()) {
+                init.regionalFormat = fmtLang;
+            }
+
+            localeRc.beginGroup(QStringLiteral("Translations"));
+            const QString transLang = localeRc.value(QStringLiteral("LANGUAGE")).toString().trimmed();
+            localeRc.endGroup();
+            if (!transLang.isEmpty()) {
+                const QStringList langs = transLang.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+                if (!langs.isEmpty()) {
+                    init.systemLanguage = langs.first().trimmed();
+                }
+            } else if (!init.regionalFormat.isEmpty()) {
+                const QString base = init.regionalFormat.section(QLatin1Char('.'), 0, 0).trimmed();
+                if (!base.isEmpty() && base != QStringLiteral("C")) {
+                    init.systemLanguage = base;
+                }
+            }
+
+            return init;
+        },
+        [this](TimeSnapshot snap) {
+            m_availableTimezones = std::move(snap.availableTimezones);
+            m_timezone = std::move(snap.timezone);
+            m_ntpEnabled = snap.ntpEnabled;
+            m_keyboardLayout = std::move(snap.keyboardLayout);
+            m_use24Hour = snap.use24Hour;
+            m_regionalFormat = std::move(snap.regionalFormat);
+            m_systemLanguage = std::move(snap.systemLanguage);
+            m_currentDateTime = QDateTime::currentDateTime().toString(
+                m_use24Hour ? QStringLiteral("dddd, dd MMMM yyyy  •  HH:mm") : QStringLiteral("dddd, dd MMMM yyyy  •  hh:mm AP"));
+            emit timeChanged();
+        });
 }
 
 void SystemBackend::setTimezone(const QString &tz)
@@ -2657,108 +3035,144 @@ void SystemBackend::setRegionalFormat(const QString &localeCode)
 // -----------------------------------------------------------------------------
 void SystemBackend::refreshSecurity()
 {
-    int score = 100;
-    QVariantList events;
+    struct SecuritySnapshot {
+        bool selinuxOk = false;
+        QString selinuxStatus;
+        bool lockdownOk = false;
+        QString lockdownMode;
+        bool shieldActive = false;
+        bool clientActive = false;
+        bool supportSessionActive = false;
+        bool isTampered = false;
+        QString systemIntegrity;
+        int securityScore = 100;
+        bool overallSecurityOk = true;
+        QVariantList securityEvents;
+    };
 
-    // 1. SELinux Check
-    m_selinuxOk = false;
-    QFile selinuxFile(QStringLiteral("/sys/fs/selinux/enforce"));
-    if (selinuxFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        if (QString::fromUtf8(selinuxFile.readAll()).trimmed() == QStringLiteral("1")) {
-            m_selinuxOk = true;
-            m_selinuxStatus = QStringLiteral("Enforcing (Mandatory Access Control)");
-        } else {
-            m_selinuxStatus = QStringLiteral("Permissive / Disabled (UNSAFE)");
-        }
-    }
-    if (!m_selinuxOk) {
-        score -= 25;
-        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("SELinux Mandatory Access Control is not enforcing")},
-                                  {QStringLiteral("severity"), QStringLiteral("critical")}});
-    }
+    runAsyncTask(
+        QStringLiteral("security"),
+        [this]() {
+            SecuritySnapshot snap;
+            int score = 100;
+            QVariantList events;
 
-    // 2. Kernel Lockdown Check
-    m_lockdownOk = false;
-    QFile lockdownFile(QStringLiteral("/sys/kernel/security/lockdown"));
-    if (lockdownFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        const QString ld = QString::fromUtf8(lockdownFile.readAll()).trimmed();
-        if (ld.contains(QStringLiteral("[confidentiality]"))) {
-            m_lockdownOk = true;
-            m_lockdownMode = QStringLiteral("Confidentiality (Strict)");
-        } else if (ld.contains(QStringLiteral("[integrity]"))) {
-            m_lockdownOk = true;
-            m_lockdownMode = QStringLiteral("Integrity (Kernel Hardened)");
-        } else {
-            m_lockdownMode = QStringLiteral("None / Disabled (UNSAFE)");
-        }
-    }
-    if (!m_lockdownOk) {
-        score -= 15;
-    }
+            // 1. SELinux Check
+            QFile selinuxFile(QStringLiteral("/sys/fs/selinux/enforce"));
+            if (selinuxFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                if (QString::fromUtf8(selinuxFile.readAll()).trimmed() == QStringLiteral("1")) {
+                    snap.selinuxOk = true;
+                    snap.selinuxStatus = QStringLiteral("Enforcing (Mandatory Access Control)");
+                } else {
+                    snap.selinuxStatus = QStringLiteral("Permissive / Disabled (UNSAFE)");
+                }
+            } else {
+                snap.selinuxStatus = QStringLiteral("Permissive / Disabled (UNSAFE)");
+            }
+            if (!snap.selinuxOk) {
+                score -= 25;
+                events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("SELinux Mandatory Access Control is not enforcing")},
+                                          {QStringLiteral("severity"), QStringLiteral("critical")}});
+            }
 
-    // 3. YARA Shield & Telemetry Agent Check
-    m_shieldActive = (runCommand(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-shield.service")}, 1500) == QStringLiteral("active"));
-    if (!m_shieldActive) {
-        score -= 15;
-        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Real-Time YARA Downloads Shield is stopped")},
-                                  {QStringLiteral("severity"), QStringLiteral("warning")}});
-    }
+            // 2. Kernel Lockdown Check
+            QFile lockdownFile(QStringLiteral("/sys/kernel/security/lockdown"));
+            if (lockdownFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                const QString ld = QString::fromUtf8(lockdownFile.readAll()).trimmed();
+                if (ld.contains(QStringLiteral("[confidentiality]"))) {
+                    snap.lockdownOk = true;
+                    snap.lockdownMode = QStringLiteral("Confidentiality (Strict)");
+                } else if (ld.contains(QStringLiteral("[integrity]"))) {
+                    snap.lockdownOk = true;
+                    snap.lockdownMode = QStringLiteral("Integrity (Kernel Hardened)");
+                } else {
+                    snap.lockdownMode = QStringLiteral("None / Disabled (UNSAFE)");
+                }
+            } else {
+                snap.lockdownMode = QStringLiteral("None / Disabled (UNSAFE)");
+            }
+            if (!snap.lockdownOk) {
+                score -= 15;
+            }
 
-    m_clientActive = (runCommand(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-client.service")}, 1500) == QStringLiteral("active"));
-    if (!m_clientActive) {
-        score -= 10;
-    }
+            // 3. YARA Shield & Telemetry Agent Check
+            snap.shieldActive = (runCommandCancellable(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-shield.service")}, 1500) == QStringLiteral("active"));
+            if (!snap.shieldActive) {
+                score -= 15;
+                events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Real-Time YARA Downloads Shield is stopped")},
+                                          {QStringLiteral("severity"), QStringLiteral("warning")}});
+            }
 
-    // 4. Support Gate & Tamper / Modified Check
-    const bool supportTokenExists = QFileInfo::exists(QStringLiteral("/tmp/sourceless_support_active")) ||
-                                    QFileInfo::exists(QStringLiteral("/var/run/sourceless_support_active"));
-    const bool konsoleRunning = !runCommand(QStringLiteral("pgrep"), {QStringLiteral("-x"), QStringLiteral("konsole.real")}, 1000).isEmpty();
-    m_supportSessionActive = supportTokenExists || konsoleRunning;
+            snap.clientActive = (runCommandCancellable(QStringLiteral("systemctl"), {QStringLiteral("is-active"), QStringLiteral("sourceless-client.service")}, 1500) == QStringLiteral("active"));
+            if (!snap.clientActive) {
+                score -= 10;
+            }
 
-    const bool tamperFlagFile = QFileInfo::exists(QStringLiteral("/etc/sourceless/.tamper_detected")) ||
-                                QFileInfo::exists(QStringLiteral("/tmp/.sourceless_tamper_trigger"));
+            // 4. Support Gate & Tamper / Modified Check
+            const bool supportTokenExists = QFileInfo::exists(QStringLiteral("/tmp/sourceless_support_active")) ||
+                                            QFileInfo::exists(QStringLiteral("/var/run/sourceless_support_active"));
+            const bool konsoleRunning = !runCommandCancellable(QStringLiteral("pgrep"), {QStringLiteral("-x"), QStringLiteral("konsole.real")}, 1000).isEmpty();
+            snap.supportSessionActive = supportTokenExists || konsoleRunning;
 
-    const QString groupsOut = runCommand(QStringLiteral("id"), {QStringLiteral("-Gn")}, 1000);
-    const bool inWheelGroup = groupsOut.split(QLatin1Char(' ')).contains(QStringLiteral("wheel"));
+            const bool tamperFlagFile = QFileInfo::exists(QStringLiteral("/etc/sourceless/.tamper_detected")) ||
+                                        QFileInfo::exists(QStringLiteral("/tmp/.sourceless_tamper_trigger"));
 
-    // Check journald for support unlock or interactive shell audit logs in current boot
-    const QString auditLogs = runCommand(QStringLiteral("sh"),
-        {QStringLiteral("-c"),
-         QStringLiteral("journalctl -b -t sourceless-security -t sourceless-audit --no-pager -q -n 5 2>/dev/null")}, 1500);
-    const bool hasAuditActivity = !auditLogs.isEmpty();
+            const QString groupsOut = runCommandCancellable(QStringLiteral("id"), {QStringLiteral("-Gn")}, 1000);
+            const bool inWheelGroup = groupsOut.split(QLatin1Char(' ')).contains(QStringLiteral("wheel"));
 
-    m_isTampered = tamperFlagFile || m_supportSessionActive || inWheelGroup || hasAuditActivity;
+            // Check journald for support unlock or interactive shell audit logs in current boot
+            const QString auditLogs = runCommandCancellable(QStringLiteral("sh"),
+                {QStringLiteral("-c"),
+                 QStringLiteral("journalctl -b -t sourceless-security -t sourceless-audit --no-pager -q -n 5 2>/dev/null")}, 1500);
+            const bool hasAuditActivity = !auditLogs.isEmpty();
 
-    if (m_isTampered) {
-        score -= 35;
-        QStringList reasons;
-        if (tamperFlagFile) reasons << QStringLiteral("Tamper Seal Broken");
-        if (m_supportSessionActive) reasons << QStringLiteral("Terminal Active");
-        if (inWheelGroup) reasons << QStringLiteral("Wheel Admin");
-        if (hasAuditActivity && !tamperFlagFile) reasons << QStringLiteral("Sudo / Shell Audit Logged");
-        m_systemIntegrity = QStringLiteral("Modified (%1)").arg(reasons.join(QStringLiteral(" • ")));
+            snap.isTampered = tamperFlagFile || snap.supportSessionActive || inWheelGroup || hasAuditActivity;
 
-        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("System Integrity Modified: ") + reasons.join(QStringLiteral(", "))},
-                                  {QStringLiteral("severity"), QStringLiteral("critical")}});
-    } else {
-        m_systemIntegrity = QStringLiteral("Verified Immutable (OSTree + Cosign)");
-    }
+            if (snap.isTampered) {
+                score -= 35;
+                QStringList reasons;
+                if (tamperFlagFile) reasons << QStringLiteral("Tamper Seal Broken");
+                if (snap.supportSessionActive) reasons << QStringLiteral("Terminal Active");
+                if (inWheelGroup) reasons << QStringLiteral("Wheel Admin");
+                if (hasAuditActivity && !tamperFlagFile) reasons << QStringLiteral("Sudo / Shell Audit Logged");
+                snap.systemIntegrity = QStringLiteral("Modified (%1)").arg(reasons.join(QStringLiteral(" • ")));
 
-    if (m_supportSessionActive) {
-        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Interactive Terminal / Support Session is currently ACTIVE")},
-                                  {QStringLiteral("severity"), QStringLiteral("critical")}});
-    }
+                events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("System Integrity Modified: ") + reasons.join(QStringLiteral(", "))},
+                                          {QStringLiteral("severity"), QStringLiteral("critical")}});
+            } else {
+                snap.systemIntegrity = QStringLiteral("Verified Immutable (OSTree + Cosign)");
+            }
 
-    if (events.isEmpty()) {
-        events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("All SourceLess OS lockdown and kernel integrity checks passed")},
-                                  {QStringLiteral("severity"), QStringLiteral("ok")}});
-    }
+            if (snap.supportSessionActive) {
+                events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("Interactive Terminal / Support Session is currently ACTIVE")},
+                                          {QStringLiteral("severity"), QStringLiteral("critical")}});
+            }
 
-    m_securityScore = qBound(0, score, 100);
-    m_overallSecurityOk = (!m_isTampered && m_selinuxOk && m_lockdownOk && m_shieldActive && !m_supportSessionActive);
-    m_securityEvents = events;
+            if (events.isEmpty()) {
+                events.append(QVariantMap{{QStringLiteral("title"), QStringLiteral("All SourceLess OS lockdown and kernel integrity checks passed")},
+                                          {QStringLiteral("severity"), QStringLiteral("ok")}});
+            }
 
-    emit securityChanged();
+            snap.securityScore = qBound(0, score, 100);
+            snap.overallSecurityOk = (!snap.isTampered && snap.selinuxOk && snap.lockdownOk && snap.shieldActive && !snap.supportSessionActive);
+            snap.securityEvents = events;
+            return snap;
+        },
+        [this](SecuritySnapshot snap) {
+            m_selinuxOk = snap.selinuxOk;
+            m_selinuxStatus = std::move(snap.selinuxStatus);
+            m_lockdownOk = snap.lockdownOk;
+            m_lockdownMode = std::move(snap.lockdownMode);
+            m_shieldActive = snap.shieldActive;
+            m_clientActive = snap.clientActive;
+            m_supportSessionActive = snap.supportSessionActive;
+            m_isTampered = snap.isTampered;
+            m_systemIntegrity = std::move(snap.systemIntegrity);
+            m_securityScore = snap.securityScore;
+            m_overallSecurityOk = snap.overallSecurityOk;
+            m_securityEvents = std::move(snap.securityEvents);
+            emit securityChanged();
+        });
 }
 
 void SystemBackend::launchEmergencyTerminal()
@@ -2842,78 +3256,130 @@ void SystemBackend::reloadAccessDaemon() const
 
 void SystemBackend::refreshAccessibility()
 {
-    QSettings kwinrc(QDir::homePath() + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
-    kwinrc.beginGroup(QStringLiteral("Plugins"));
-    m_screenZoomEnabled = kwinrc.value(QStringLiteral("zoomEnabled"), false).toBool();
-    const bool cbEnabled = kwinrc.value(QStringLiteral("colorblindnesscorrectionEnabled"), false).toBool();
-    const bool invertPluginEnabled = kwinrc.value(QStringLiteral("invertEnabled"), false).toBool();
-    if (!invertPluginEnabled) {
-        kwinrc.setValue(QStringLiteral("invertEnabled"), true);
-    }
-    m_shakeCursorEnabled = kwinrc.value(QStringLiteral("shakecursorEnabled"), true).toBool();
-    m_trackMouseEnabled = kwinrc.value(QStringLiteral("trackmouseEnabled"), false).toBool();
-    kwinrc.endGroup();
-    if (!invertPluginEnabled) {
-        kwinrc.sync();
-        runDetached(QStringLiteral("sh"),
-            {QStringLiteral("-c"),
-             QStringLiteral("if [ \"$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded invert 2>/dev/null)\" != \"true\" ]; then "
-                            "qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1; "
-                            "sleep 0.35; "
-                            "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect invert >/dev/null 2>&1; "
-                            "fi")});
-    }
+    struct AccessibilitySnapshot {
+        bool screenZoomEnabled = false;
+        bool invertPluginEnabled = false;
+        bool invertScreenEnabled = false;
+        bool shakeCursorEnabled = true;
+        bool trackMouseEnabled = false;
+        int colorBlindnessMode = 0;
+        int cursorSize = 24;
+        bool screenReaderEnabled = false;
+        bool mouseKeysEnabled = false;
+        bool stickyKeysEnabled = false;
+        bool stickyKeysLock = true;
+        bool slowKeysEnabled = false;
+        int slowKeysDelay = 500;
+        bool bounceKeysEnabled = false;
+        int bounceKeysDelay = 500;
+        bool toggleKeysBeep = false;
+        bool systemBellEnabled = false;
+        bool visibleBellEnabled = false;
+        bool visibleBellInvert = true;
+    };
 
-    const QString activeEffectsOut = runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-         QStringLiteral("org.kde.kwin.Effects.activeEffects")}, 1000);
-    m_invertScreenEnabled = activeEffectsOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)
-                                            .contains(QStringLiteral("invert"));
+    const QString homePath = QDir::homePath();
 
-    if (cbEnabled) {
-        kwinrc.beginGroup(QStringLiteral("Effect-colorblindnesscorrection"));
-        const int cbRawMode = kwinrc.value(QStringLiteral("Mode"), 0).toInt();
-        kwinrc.endGroup();
-        m_colorBlindnessMode = qBound(0, cbRawMode, 3) + 1;
-    } else {
-        m_colorBlindnessMode = 0;
-    }
+    runAsyncTask(
+        QStringLiteral("accessibility"),
+        [this, homePath]() {
+            AccessibilitySnapshot snap;
+            QSettings kwinrc(homePath + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+            kwinrc.beginGroup(QStringLiteral("Plugins"));
+            snap.screenZoomEnabled = kwinrc.value(QStringLiteral("zoomEnabled"), false).toBool();
+            const bool cbEnabled = kwinrc.value(QStringLiteral("colorblindnesscorrectionEnabled"), false).toBool();
+            snap.invertPluginEnabled = kwinrc.value(QStringLiteral("invertEnabled"), false).toBool();
+            snap.shakeCursorEnabled = kwinrc.value(QStringLiteral("shakecursorEnabled"), true).toBool();
+            snap.trackMouseEnabled = kwinrc.value(QStringLiteral("trackmouseEnabled"), false).toBool();
+            kwinrc.endGroup();
 
-    QSettings kcminputrc(QDir::homePath() + QStringLiteral("/.config/kcminputrc"), QSettings::IniFormat);
-    kcminputrc.beginGroup(QStringLiteral("Mouse"));
-    m_cursorSize = qBound(24, kcminputrc.value(QStringLiteral("cursorSize"), 24).toInt(), 64);
-    kcminputrc.endGroup();
+            const QString activeEffectsOut = runCommandCancellable(QStringLiteral("qdbus6"),
+                {QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+                 QStringLiteral("org.kde.kwin.Effects.activeEffects")}, 1000);
+            snap.invertScreenEnabled = activeEffectsOut.split(QLatin1Char('\n'), Qt::SkipEmptyParts)
+                                                       .contains(QStringLiteral("invert"));
 
-    QSettings kaccessrc(QDir::homePath() + QStringLiteral("/.config/kaccessrc"), QSettings::IniFormat);
-    kaccessrc.beginGroup(QStringLiteral("ScreenReader"));
-    if (kaccessrc.contains(QStringLiteral("Enabled"))) {
-        m_screenReaderEnabled = kaccessrc.value(QStringLiteral("Enabled"), false).toBool();
-    } else {
-        m_screenReaderEnabled = kaccessrc.value(QStringLiteral("enabled"), false).toBool();
-    }
-    kaccessrc.endGroup();
+            if (cbEnabled) {
+                kwinrc.beginGroup(QStringLiteral("Effect-colorblindnesscorrection"));
+                const int cbRawMode = kwinrc.value(QStringLiteral("Mode"), 0).toInt();
+                kwinrc.endGroup();
+                snap.colorBlindnessMode = qBound(0, cbRawMode, 3) + 1;
+            } else {
+                snap.colorBlindnessMode = 0;
+            }
 
-    kaccessrc.beginGroup(QStringLiteral("Mouse"));
-    m_mouseKeysEnabled = kaccessrc.value(QStringLiteral("MouseKeys"), false).toBool();
-    kaccessrc.endGroup();
+            QSettings kcminputrc(homePath + QStringLiteral("/.config/kcminputrc"), QSettings::IniFormat);
+            kcminputrc.beginGroup(QStringLiteral("Mouse"));
+            snap.cursorSize = qBound(24, kcminputrc.value(QStringLiteral("cursorSize"), 24).toInt(), 64);
+            kcminputrc.endGroup();
 
-    kaccessrc.beginGroup(QStringLiteral("Keyboard"));
-    m_stickyKeysEnabled = kaccessrc.value(QStringLiteral("StickyKeys"), false).toBool();
-    m_stickyKeysLock = kaccessrc.value(QStringLiteral("StickyKeysLatch"), true).toBool();
-    m_slowKeysEnabled = kaccessrc.value(QStringLiteral("SlowKeys"), false).toBool();
-    m_slowKeysDelay = qBound(100, kaccessrc.value(QStringLiteral("SlowKeysDelay"), 500).toInt(), 2000);
-    m_bounceKeysEnabled = kaccessrc.value(QStringLiteral("BounceKeys"), false).toBool();
-    m_bounceKeysDelay = qBound(100, kaccessrc.value(QStringLiteral("BounceKeysDelay"), 500).toInt(), 2000);
-    m_toggleKeysBeep = kaccessrc.value(QStringLiteral("ToggleKeysBeep"), false).toBool();
-    kaccessrc.endGroup();
+            QSettings kaccessrc(homePath + QStringLiteral("/.config/kaccessrc"), QSettings::IniFormat);
+            kaccessrc.beginGroup(QStringLiteral("ScreenReader"));
+            if (kaccessrc.contains(QStringLiteral("Enabled"))) {
+                snap.screenReaderEnabled = kaccessrc.value(QStringLiteral("Enabled"), false).toBool();
+            } else {
+                snap.screenReaderEnabled = kaccessrc.value(QStringLiteral("enabled"), false).toBool();
+            }
+            kaccessrc.endGroup();
 
-    kaccessrc.beginGroup(QStringLiteral("Bell"));
-    m_systemBellEnabled = kaccessrc.value(QStringLiteral("SystemBell"), false).toBool();
-    m_visibleBellEnabled = kaccessrc.value(QStringLiteral("VisibleBell"), false).toBool();
-    m_visibleBellInvert = kaccessrc.value(QStringLiteral("VisibleBellInvert"), true).toBool();
-    kaccessrc.endGroup();
+            kaccessrc.beginGroup(QStringLiteral("Mouse"));
+            snap.mouseKeysEnabled = kaccessrc.value(QStringLiteral("MouseKeys"), false).toBool();
+            kaccessrc.endGroup();
 
-    emit accessibilityChanged();
+            kaccessrc.beginGroup(QStringLiteral("Keyboard"));
+            snap.stickyKeysEnabled = kaccessrc.value(QStringLiteral("StickyKeys"), false).toBool();
+            snap.stickyKeysLock = kaccessrc.value(QStringLiteral("StickyKeysLatch"), true).toBool();
+            snap.slowKeysEnabled = kaccessrc.value(QStringLiteral("SlowKeys"), false).toBool();
+            snap.slowKeysDelay = qBound(100, kaccessrc.value(QStringLiteral("SlowKeysDelay"), 500).toInt(), 2000);
+            snap.bounceKeysEnabled = kaccessrc.value(QStringLiteral("BounceKeys"), false).toBool();
+            snap.bounceKeysDelay = qBound(100, kaccessrc.value(QStringLiteral("BounceKeysDelay"), 500).toInt(), 2000);
+            snap.toggleKeysBeep = kaccessrc.value(QStringLiteral("ToggleKeysBeep"), false).toBool();
+            kaccessrc.endGroup();
+
+            kaccessrc.beginGroup(QStringLiteral("Bell"));
+            snap.systemBellEnabled = kaccessrc.value(QStringLiteral("SystemBell"), false).toBool();
+            snap.visibleBellEnabled = kaccessrc.value(QStringLiteral("VisibleBell"), false).toBool();
+            snap.visibleBellInvert = kaccessrc.value(QStringLiteral("VisibleBellInvert"), true).toBool();
+            kaccessrc.endGroup();
+
+            return snap;
+        },
+        [this, homePath](AccessibilitySnapshot snap) {
+            if (!snap.invertPluginEnabled) {
+                QSettings kwinrc(homePath + QStringLiteral("/.config/kwinrc"), QSettings::IniFormat);
+                kwinrc.beginGroup(QStringLiteral("Plugins"));
+                kwinrc.setValue(QStringLiteral("invertEnabled"), true);
+                kwinrc.endGroup();
+                kwinrc.sync();
+                runDetached(QStringLiteral("sh"),
+                    {QStringLiteral("-c"),
+                     QStringLiteral("if [ \"$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded invert 2>/dev/null)\" != \"true\" ]; then "
+                                    "qdbus6 org.kde.KWin /KWin org.kde.KWin.reconfigure >/dev/null 2>&1; "
+                                    "sleep 0.35; "
+                                    "qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect invert >/dev/null 2>&1; "
+                                    "fi")});
+            }
+
+            m_screenZoomEnabled = snap.screenZoomEnabled;
+            m_shakeCursorEnabled = snap.shakeCursorEnabled;
+            m_trackMouseEnabled = snap.trackMouseEnabled;
+            m_invertScreenEnabled = snap.invertScreenEnabled;
+            m_colorBlindnessMode = snap.colorBlindnessMode;
+            m_cursorSize = snap.cursorSize;
+            m_screenReaderEnabled = snap.screenReaderEnabled;
+            m_mouseKeysEnabled = snap.mouseKeysEnabled;
+            m_stickyKeysEnabled = snap.stickyKeysEnabled;
+            m_stickyKeysLock = snap.stickyKeysLock;
+            m_slowKeysEnabled = snap.slowKeysEnabled;
+            m_slowKeysDelay = snap.slowKeysDelay;
+            m_bounceKeysEnabled = snap.bounceKeysEnabled;
+            m_bounceKeysDelay = snap.bounceKeysDelay;
+            m_toggleKeysBeep = snap.toggleKeysBeep;
+            m_systemBellEnabled = snap.systemBellEnabled;
+            m_visibleBellEnabled = snap.visibleBellEnabled;
+            m_visibleBellInvert = snap.visibleBellInvert;
+            emit accessibilityChanged();
+        });
 }
 
 void SystemBackend::setScreenZoomEnabled(bool enabled)
