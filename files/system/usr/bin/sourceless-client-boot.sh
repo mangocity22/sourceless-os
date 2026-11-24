@@ -84,11 +84,100 @@ while true; do
     STATUS="Integru"
     [ -f "$TAMPER_FLAG" ] || [ ! -f "$CLIENT_CERT" ] && STATUS="Modificat"
 
+    # --- COLLECT EXTENDED TELEMETRY ---
+    SELINUX_MODE=$(getenforce 2>/dev/null || echo "Disabled")
+    YARA_ACTIVE="false"
+    systemctl is-active --quiet sourceless-shield.service 2>/dev/null && YARA_ACTIVE="true"
+
+    REPORT_JSON=$(python3 - "$HWID" "$CURRENT_HOSTNAME" "$STATUS" "$SELINUX_MODE" "$YARA_ACTIVE" << 'PYEOF'
+import json, os, re, shutil, sys
+hwid, hostname, status, selinux_mode, yara_flag = sys.argv[1:6]
+
+def read_txt(path, default=""):
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read().strip()
+    except Exception:
+        return default
+
+os_version = read_txt("/usr/lib/sourceless-version", "")
+update_channel = "stable"
+conf_txt = read_txt("/etc/sourceless/update.conf", "")
+m = re.search(r'^UPDATE_CHANNEL=["\']?(stable|testing)["\']?', conf_txt, re.M)
+if m:
+    update_channel = m.group(1)
+
+update_status = ""
+try:
+    state_raw = read_txt("/var/lib/sourceless-update/state.json", "")
+    if state_raw:
+        update_status = json.loads(state_raw).get("status", "")
+except Exception:
+    pass
+if not update_status and os.path.exists("/var/lib/sourceless-update/pending"):
+    update_status = "pending_restart"
+
+lockdown = "Unknown"
+ld_raw = read_txt("/sys/kernel/security/lockdown", "")
+lm = re.search(r'\[([^\]]+)\]', ld_raw)
+if lm:
+    lockdown = lm.group(1).capitalize()
+
+ram_percent = 0
+try:
+    meminfo = {}
+    with open("/proc/meminfo", "r", encoding="utf-8") as fh:
+        for line in fh:
+            k, v = line.split(":", 1)
+            meminfo[k.strip()] = int(v.strip().split()[0])
+    total = meminfo.get("MemTotal", 0)
+    avail = meminfo.get("MemAvailable", 0)
+    if total > 0:
+        ram_percent = max(0, min(100, round(((total - avail) * 100.0) / total)))
+except Exception:
+    pass
+
+disk_percent = 0
+try:
+    target = "/var" if os.path.isdir("/var") else "/"
+    usage = shutil.disk_usage(target)
+    if usage.total > 0:
+        disk_percent = max(0, min(100, round((usage.used * 100.0) / usage.total)))
+except Exception:
+    pass
+
+uptime_str = ""
+try:
+    secs = int(float(read_txt("/proc/uptime", "0").split()[0]))
+    days, rem = divmod(secs, 86400)
+    hours, rem = divmod(rem, 3600)
+    mins = rem // 60
+    uptime_str = f"{days}d {hours}h {mins}m" if days > 0 else f"{hours}h {mins}m"
+except Exception:
+    pass
+
+print(json.dumps({
+    "hwid": hwid,
+    "hostname": hostname,
+    "status": status,
+    "os_version": os_version,
+    "update_channel": update_channel,
+    "update_status": update_status,
+    "selinux": selinux_mode,
+    "lockdown": lockdown,
+    "yara_active": (yara_flag == "true"),
+    "ram_percent": ram_percent,
+    "disk_percent": disk_percent,
+    "uptime": uptime_str,
+}))
+PYEOF
+)
+
     # --- TRANSMIT HEARTBEAT & FETCH COMMAND ---
     RESPONSE=$(curl -s -m 4 -X POST "$DASHBOARD_URL" \
         -H "Content-Type: application/json" \
         -H "X-Sourceless-Token: $CLIENT_TOKEN" \
-        -d "{\"hwid\":\"$HWID\", \"hostname\":\"$CURRENT_HOSTNAME\", \"status\":\"$STATUS\"}")
+        -d "$REPORT_JSON")
 
     CMD=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('command', 'none'))" 2>/dev/null)
 
@@ -96,6 +185,29 @@ while true; do
     if [ "$CMD" = "clear_tamper" ]; then
         rm -f "$TAMPER_FLAG"
         echo "$HWID" > "$HWID_FILE"
+
+    elif [ "$CMD" = "check_update" ]; then
+        if [ -x /usr/bin/sourceless-os-updater ]; then
+            systemd-run --no-block --unit=sourceless-remote-update /usr/bin/sourceless-os-updater check-and-stage >/dev/null 2>&1 || \
+                nohup /usr/bin/sourceless-os-updater check-and-stage >/dev/null 2>&1 &
+        fi
+
+    elif [ "$CMD" = "set_channel_stable" ]; then
+        if [ -x /usr/bin/sourceless-os-updater ]; then
+            /usr/bin/sourceless-os-updater set-channel stable >/dev/null 2>&1 || true
+            systemd-run --no-block --unit=sourceless-remote-update /usr/bin/sourceless-os-updater check-and-stage >/dev/null 2>&1 || \
+                nohup /usr/bin/sourceless-os-updater check-and-stage >/dev/null 2>&1 &
+        fi
+
+    elif [ "$CMD" = "set_channel_testing" ]; then
+        if [ -x /usr/bin/sourceless-os-updater ]; then
+            /usr/bin/sourceless-os-updater set-channel testing >/dev/null 2>&1 || true
+            systemd-run --no-block --unit=sourceless-remote-update /usr/bin/sourceless-os-updater check-and-stage >/dev/null 2>&1 || \
+                nohup /usr/bin/sourceless-os-updater check-and-stage >/dev/null 2>&1 &
+        fi
+
+    elif [ "$CMD" = "reboot_device" ]; then
+        systemctl reboot || true
 
     elif [ "$CMD" = "start_support" ]; then
         rm -f /tmp/sourceless_support_active

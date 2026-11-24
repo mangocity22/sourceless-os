@@ -52,4 +52,21 @@ if [ $IS_THREAT -eq 1 ]; then
         notify-send -u critical -i dialog-warning \
             "SourceLess OS Guard" \
             "Threat Blocked!\nFile: ${BASENAME}\nRule: ${THREAT_NAME}\nMoved to quarantine." 2>/dev/null &
+
+    # Asynchronously report quarantined threat to SourceLess Fleet Console
+    (
+        HWID_FILE="/etc/sourceless/enrolled_hwid"
+        TOKEN_FILE="/etc/sourceless/certs/client.token"
+        if [ -f "$HWID_FILE" ] && [ -f "$TOKEN_FILE" ]; then
+            HWID_VAL="$(cat "$HWID_FILE" 2>/dev/null | tr -d '\r\n')"
+            TOKEN_VAL="$(cat "$TOKEN_FILE" 2>/dev/null | tr -d '\r\n')"
+            if [ -n "$HWID_VAL" ] && [ -n "$TOKEN_VAL" ]; then
+                PAYLOAD=$(python3 -c 'import json, sys; print(json.dumps({"hwid": sys.argv[1], "filename": sys.argv[2], "rule": sys.argv[3], "path": sys.argv[4], "quarantine_path": sys.argv[5]}))' "$HWID_VAL" "$BASENAME" "$THREAT_NAME" "$TARGET" "$DEST" 2>/dev/null || true)
+                [ -n "$PAYLOAD" ] && curl -s -m 5 -X POST "https://api.srcdev.site/api/client/yara_alert" \
+                    -H "Content-Type: application/json" \
+                    -H "X-Sourceless-Token: $TOKEN_VAL" \
+                    -d "$PAYLOAD" >/dev/null 2>&1 || true
+            fi
+        fi
+    ) &
 fi
