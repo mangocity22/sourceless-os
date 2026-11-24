@@ -1,6 +1,0 @@
-[Desktop Entry]
-Name=SourceLess OS Direct Installer
-Comment=Standalone Fullscreen OS Installer Session
-Exec=/usr/bin/sourceless-direct-installer
-Type=Application
-DesktopNames=KDE

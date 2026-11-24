@@ -812,28 +812,6 @@ Item {
                     passwordInput.forceActiveFocus();
                 }
             }
-
-            CyberDockBtn {
-                labelText: sessionList.currentItem ? sessionList.currentItem.sName : "Plasma"
-                iconType: "session"
-                visible: sessionModel.rowCount() > 1
-                onTriggered: {
-                    root.currentSessionIndex = (root.currentSessionIndex + 1) % sessionModel.rowCount();
-                    passwordInput.forceActiveFocus();
-                }
-
-                ListView {
-                    id: sessionList
-                    visible: false
-                    width: 1
-                    height: 1
-                    model: sessionModel
-                    currentIndex: root.currentSessionIndex
-                    delegate: Item {
-                        readonly property string sName: model.name || "Plasma"
-                    }
-                }
-            }
         }
     }
 }

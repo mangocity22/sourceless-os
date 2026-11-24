@@ -188,7 +188,7 @@ cmd_check_and_stage() {
         fi
     fi
 
-    log_msg "Checking ${UPDATE_REPO}:${UPDATE_CHANNEL}..."
+    log_msg "Checking SourceLess OS update server (${UPDATE_CHANNEL} channel)..."
     write_state "checking" "Checking for SourceLess OS updates..." \
         "Contacting signed ${UPDATE_CHANNEL} channel..." 10 ""
 
@@ -225,9 +225,9 @@ cmd_check_and_stage() {
     rm -f "$err_tmp"
 
     if [ -z "$inspect_json" ]; then
-        log_msg "Unable to reach ${target_ref}. ${inspect_err}"
+        log_msg "Unable to reach SourceLess OS update server (${UPDATE_CHANNEL} channel)."
         write_state "error" "Unable to check for updates right now" \
-            "Could not reach ${UPDATE_REPO}:${UPDATE_CHANNEL}. Your system will retry automatically." 0 ""
+            "Could not reach SourceLess OS update server (${UPDATE_CHANNEL} channel). Your system will retry automatically." 0 ""
         exit 0
     fi
 
