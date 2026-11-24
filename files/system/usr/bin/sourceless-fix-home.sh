@@ -324,10 +324,17 @@ for USER_HOME in /var/home/*; do
         fi
     fi
 
-    # Sync global SourcelessGlass lock screen configuration
+    # Sync global SourcelessGlass lock screen theme without overwriting user [Daemon] timeouts
     if [ -f /etc/xdg/kscreenlockerrc ]; then
         mkdir -p "${USER_HOME}/.config"
-        cp -f /etc/xdg/kscreenlockerrc "${USER_HOME}/.config/kscreenlockerrc"
+        if [ ! -f "${USER_HOME}/.config/kscreenlockerrc" ]; then
+            cp -f /etc/xdg/kscreenlockerrc "${USER_HOME}/.config/kscreenlockerrc"
+        elif command -v kwriteconfig6 >/dev/null 2>&1; then
+            kwriteconfig6 --file "${USER_HOME}/.config/kscreenlockerrc" --group Greeter --key Theme "org.sourceless.desktop" 2>/dev/null || true
+            kwriteconfig6 --file "${USER_HOME}/.config/kscreenlockerrc" --group Greeter --key WallpaperPlugin "org.kde.image" 2>/dev/null || true
+            kwriteconfig6 --file "${USER_HOME}/.config/kscreenlockerrc" --group Greeter --group Wallpaper --group org.kde.image --group General --key Image "/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg" 2>/dev/null || true
+            kwriteconfig6 --file "${USER_HOME}/.config/kscreenlockerrc" --group Greeter --group Wallpaper --group org.kde.image --group General --key PreviewImage "/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg" 2>/dev/null || true
+        fi
     fi
 
     # Ensure Starship prompt initialization and lock down autostart directory ownership

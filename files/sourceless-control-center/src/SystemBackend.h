@@ -93,6 +93,10 @@ class SystemBackend : public QObject
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY powerChanged)
     Q_PROPERTY(QString batteryState READ batteryState NOTIFY powerChanged)
     Q_PROPERTY(QString powerProfile READ powerProfile NOTIFY powerChanged)
+    Q_PROPERTY(int screenLockMinutes READ screenLockMinutes NOTIFY powerChanged)
+    Q_PROPERTY(int screenOffMinutes READ screenOffMinutes NOTIFY powerChanged)
+    Q_PROPERTY(int sleepTimeoutMinutes READ sleepTimeoutMinutes NOTIFY powerChanged)
+    Q_PROPERTY(bool lockOnSleep READ lockOnSleep NOTIFY powerChanged)
 
     // 7. Personalization
     Q_PROPERTY(QVariantList themes READ themes NOTIFY personalizationChanged)
@@ -229,6 +233,10 @@ public:
     int batteryPercent() const { return m_batteryPercent; }
     QString batteryState() const { return m_batteryState; }
     QString powerProfile() const { return m_powerProfile; }
+    int screenLockMinutes() const { return m_screenLockMinutes; }
+    int screenOffMinutes() const { return m_screenOffMinutes; }
+    int sleepTimeoutMinutes() const { return m_sleepTimeoutMinutes; }
+    bool lockOnSleep() const { return m_lockOnSleep; }
 
     QVariantList themes() const { return m_themes; }
     QString currentTheme() const { return m_currentTheme; }
@@ -338,6 +346,10 @@ public:
 
     // Power controls
     Q_INVOKABLE void setPowerProfile(const QString &profile);
+    Q_INVOKABLE void setScreenLockMinutes(int minutes);
+    Q_INVOKABLE void setScreenOffMinutes(int minutes);
+    Q_INVOKABLE void setSleepTimeoutMinutes(int minutes);
+    Q_INVOKABLE void setLockOnSleep(bool enabled);
 
     // Personalization controls
     Q_INVOKABLE void applyTheme(const QString &themeId);
@@ -496,6 +508,10 @@ private:
     int m_batteryPercent = 100;
     QString m_batteryState = QStringLiteral("AC Power");
     QString m_powerProfile = QStringLiteral("balanced");
+    int m_screenLockMinutes = 5;
+    int m_screenOffMinutes = 10;
+    int m_sleepTimeoutMinutes = 15;
+    bool m_lockOnSleep = true;
 
     QVariantList m_themes;
     QString m_currentTheme = QStringLiteral("SourcelessGlass");

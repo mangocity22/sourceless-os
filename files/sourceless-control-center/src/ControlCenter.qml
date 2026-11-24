@@ -89,6 +89,8 @@ ApplicationWindow {
           keywords: "microphone mic input voice recording sensitivity mute microfon voce" },
         { title: "Power Mode & Battery", subtitle: "System • Power & Storage", pageIdx: 1, sectionKey: "power", iconName: "power",
           keywords: "power battery energy saver balanced performance charge ac adapter consum baterie energie performanta" },
+        { title: "Screen Auto-Lock, Display Off & Sleep Timeout", subtitle: "System • Power & Storage", pageIdx: 1, sectionKey: "power", iconName: "power",
+          keywords: "sleep suspend standby lock screen off timeout inactivity idle auto lock somn blocare ecran" },
         { title: "Storage Sense & Disk Cache", subtitle: "System • Power & Storage", pageIdx: 1, sectionKey: "power", iconName: "storage",
           keywords: "storage disk drive space free used ssd clean temp cache clear stocare spatiu disc memorie cache" },
         { title: "About this PC (Device Specs)", subtitle: "System • About", pageIdx: 1, sectionKey: "about", iconName: "system",
@@ -1923,6 +1925,111 @@ ApplicationWindow {
                                     labelText: "Performance"
                                     primary: backend && backend.powerProfile === "performance"
                                     onTriggered: backend.setPowerProfile("performance")
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Auto-Lock Screen After
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Auto-Lock Screen After"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Lock session automatically after keyboard/mouse inactivity"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: screenLockCombo
+                                    readonly property var lockValues: [1, 2, 5, 10, 15, 30, 0]
+                                    model: ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "Never"]
+                                    currentIndex: {
+                                        if (!backend) return 2
+                                        const idx = lockValues.indexOf(backend.screenLockMinutes)
+                                        return idx >= 0 ? idx : 2
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && lockValues[index] !== undefined) {
+                                            backend.setScreenLockMinutes(lockValues[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Turn Off Display After
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Turn Off Display After"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Power down monitor panel when idle"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: screenOffCombo
+                                    readonly property var offValues: [2, 5, 10, 15, 30, 60, 0]
+                                    model: ["2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 hour", "Never"]
+                                    currentIndex: {
+                                        if (!backend) return 2
+                                        const idx = offValues.indexOf(backend.screenOffMinutes)
+                                        return idx >= 0 ? idx : 2
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && offValues[index] !== undefined) {
+                                            backend.setScreenOffMinutes(offValues[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Put PC to Sleep After
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Put PC to Sleep After"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Suspend system to low-power state after inactivity"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinComboBox {
+                                    id: sleepTimeoutCombo
+                                    readonly property var sleepValues: [5, 10, 15, 30, 60, 120, 0]
+                                    model: ["5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 hour", "2 hours", "Never"]
+                                    currentIndex: {
+                                        if (!backend) return 2
+                                        const idx = sleepValues.indexOf(backend.sleepTimeoutMinutes)
+                                        return idx >= 0 ? idx : 2
+                                    }
+                                    onActivated: function(index) {
+                                        if (backend && sleepValues[index] !== undefined) {
+                                            backend.setSleepTimeoutMinutes(sleepValues[index])
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: root.borderSubtle }
+
+                            // Require Password on Wake
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+                                ColumnLayout {
+                                    spacing: 2
+                                    Label { text: "Require Password on Wake"; color: root.textMain; font.pixelSize: 14; font.bold: true }
+                                    Label { text: "Lock screen immediately when waking from sleep"; color: root.textMuted; font.pixelSize: 12 }
+                                }
+                                Item { Layout.fillWidth: true }
+                                WinSwitch {
+                                    checkedState: backend ? backend.lockOnSleep : true
+                                    onToggled: function(val) { if (backend) backend.setLockOnSleep(val) }
                                 }
                             }
 

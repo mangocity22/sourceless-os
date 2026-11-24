@@ -387,10 +387,14 @@ cmd_apply_on_shutdown() {
     [ -x /usr/bin/rsync ] || exit 1
     command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=35 2>/dev/null || true
 
-    rsync -aHAX --delete "${src_root}/usr/" /usr/ || exit 1
+    local usr_rc=0
+    rsync -aHA --delete "${src_root}/usr/" /usr/ || usr_rc=$?
+    if [ "$usr_rc" -ne 0 ] && [ "$usr_rc" -ne 23 ] && [ "$usr_rc" -ne 24 ]; then
+        exit "$usr_rc"
+    fi
     command -v plymouth >/dev/null 2>&1 && plymouth system-update --progress=65 2>/dev/null || true
 
-    rsync -aHAX \
+    rsync -aHA \
         --exclude='/passwd*' \
         --exclude='/shadow*' \
         --exclude='/group*' \
@@ -408,6 +412,7 @@ cmd_apply_on_shutdown() {
         --exclude='/sourceless/certs/**' \
         --exclude='/sourceless/enrolled_hwid' \
         --exclude='/sourceless/.oobe_completed' \
+        --exclude='/sourceless/.tamper_detected' \
         --exclude='/sourceless/update.conf' \
         --exclude='/sddm.conf.d/99-*' \
         --exclude='/sudoers.d/99-liveuser' \
@@ -453,6 +458,7 @@ cmd_apply_on_shutdown() {
     new_ver="$(get_version)"
     write_state "up_to_date" "You're up to date" \
         "Updated cleanly to SourceLess OS (${new_ver}) on ${UPDATE_CHANNEL} channel." 100 ""
+    restorecon -RF /var/lib/sourceless-update 2>/dev/null || true
 
     if command -v plymouth >/dev/null 2>&1; then
         plymouth system-update --progress=100 2>/dev/null || true

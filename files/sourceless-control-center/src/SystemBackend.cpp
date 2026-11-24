@@ -1713,6 +1713,68 @@ void SystemBackend::refreshPower()
     if (!ppOut.isEmpty()) {
         m_powerProfile = ppOut.trimmed();
     }
+
+    // Read screen auto-lock & lock-on-sleep settings from kscreenlockerrc
+    const QString autoLockRaw = runCommand(QStringLiteral("kreadconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+         QStringLiteral("--group"), QStringLiteral("Daemon"),
+         QStringLiteral("--key"), QStringLiteral("Autolock"),
+         QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
+    if (autoLockRaw == QStringLiteral("false") || autoLockRaw == QStringLiteral("0")) {
+        m_screenLockMinutes = 0;
+    } else {
+        const int lockMins = runCommand(QStringLiteral("kreadconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+             QStringLiteral("--group"), QStringLiteral("Daemon"),
+             QStringLiteral("--key"), QStringLiteral("Timeout"),
+             QStringLiteral("--default"), QStringLiteral("5")}, 1200).trimmed().toInt();
+        m_screenLockMinutes = (lockMins > 0) ? lockMins : 5;
+    }
+
+    const QString lockResumeRaw = runCommand(QStringLiteral("kreadconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+         QStringLiteral("--group"), QStringLiteral("Daemon"),
+         QStringLiteral("--key"), QStringLiteral("LockOnResume"),
+         QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
+    m_lockOnSleep = (lockResumeRaw != QStringLiteral("false") && lockResumeRaw != QStringLiteral("0"));
+
+    // Read display idle turn-off & system sleep timeouts from powerdevilrc
+    const QString dispIdleRaw = runCommand(QStringLiteral("kreadconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+         QStringLiteral("--group"), QStringLiteral("AC"),
+         QStringLiteral("--group"), QStringLiteral("Display"),
+         QStringLiteral("--key"), QStringLiteral("TurnOffDisplayWhenIdle"),
+         QStringLiteral("--default"), QStringLiteral("true")}, 1200).trimmed().toLower();
+    if (dispIdleRaw == QStringLiteral("false") || dispIdleRaw == QStringLiteral("0")) {
+        m_screenOffMinutes = 0;
+    } else {
+        const int dispSec = runCommand(QStringLiteral("kreadconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+             QStringLiteral("--group"), QStringLiteral("AC"),
+             QStringLiteral("--group"), QStringLiteral("Display"),
+             QStringLiteral("--key"), QStringLiteral("TurnOffDisplayIdleTimeoutSec"),
+             QStringLiteral("--default"), QStringLiteral("600")}, 1200).trimmed().toInt();
+        m_screenOffMinutes = (dispSec >= 60) ? qMax(1, dispSec / 60) : 10;
+    }
+
+    const int suspendAction = runCommand(QStringLiteral("kreadconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+         QStringLiteral("--group"), QStringLiteral("AC"),
+         QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
+         QStringLiteral("--key"), QStringLiteral("AutoSuspendAction"),
+         QStringLiteral("--default"), QStringLiteral("1")}, 1200).trimmed().toInt();
+    if (suspendAction == 0) {
+        m_sleepTimeoutMinutes = 0;
+    } else {
+        const int sleepSec = runCommand(QStringLiteral("kreadconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+             QStringLiteral("--group"), QStringLiteral("AC"),
+             QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
+             QStringLiteral("--key"), QStringLiteral("AutoSuspendIdleTimeoutSec"),
+             QStringLiteral("--default"), QStringLiteral("900")}, 1200).trimmed().toInt();
+        m_sleepTimeoutMinutes = (sleepSec >= 60) ? qMax(1, sleepSec / 60) : 15;
+    }
+
     emit powerChanged();
 }
 
@@ -1724,6 +1786,130 @@ void SystemBackend::setPowerProfile(const QString &profile)
     m_powerProfile = profile;
     runCommand(QStringLiteral("powerprofilesctl"), {QStringLiteral("set"), profile}, 2000);
     notifyStatus(QStringLiteral("Power mode switched to %1").arg(profile));
+    emit powerChanged();
+}
+
+void SystemBackend::setScreenLockMinutes(int minutes)
+{
+    const int clean = (minutes <= 0) ? 0 : qBound(1, minutes, 240);
+    m_screenLockMinutes = clean;
+
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+         QStringLiteral("--group"), QStringLiteral("Daemon"),
+         QStringLiteral("--key"), QStringLiteral("Autolock"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         clean > 0 ? QStringLiteral("true") : QStringLiteral("false")}, 1500);
+
+    if (clean > 0) {
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+             QStringLiteral("--group"), QStringLiteral("Daemon"),
+             QStringLiteral("--key"), QStringLiteral("Timeout"),
+             QString::number(clean)}, 1500);
+    }
+
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.freedesktop.ScreenSaver"), QStringLiteral("/ScreenSaver"),
+         QStringLiteral("org.kde.screensaver.configure")}, 1500);
+    notifyStatus(clean > 0
+        ? QStringLiteral("Screen will auto-lock after %1 minute(s)").arg(clean)
+        : QStringLiteral("Automatic screen lock disabled"));
+    emit powerChanged();
+}
+
+void SystemBackend::setLockOnSleep(bool enabled)
+{
+    m_lockOnSleep = enabled;
+    runCommand(QStringLiteral("kwriteconfig6"),
+        {QStringLiteral("--file"), QStringLiteral("kscreenlockerrc"),
+         QStringLiteral("--group"), QStringLiteral("Daemon"),
+         QStringLiteral("--key"), QStringLiteral("LockOnResume"),
+         QStringLiteral("--type"), QStringLiteral("bool"),
+         enabled ? QStringLiteral("true") : QStringLiteral("false")}, 1500);
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.freedesktop.ScreenSaver"), QStringLiteral("/ScreenSaver"),
+         QStringLiteral("org.kde.screensaver.configure")}, 1500);
+    notifyStatus(enabled
+        ? QStringLiteral("Password will be required on wake")
+        : QStringLiteral("Wake lock disabled"));
+    emit powerChanged();
+}
+
+void SystemBackend::setScreenOffMinutes(int minutes)
+{
+    const int clean = (minutes <= 0) ? 0 : qBound(1, minutes, 480);
+    m_screenOffMinutes = clean;
+    const QString secStr = QString::number(clean > 0 ? clean * 60 : 600);
+    const QString enabledStr = clean > 0 ? QStringLiteral("true") : QStringLiteral("false");
+
+    for (const QString &powerState : {QStringLiteral("AC"), QStringLiteral("Battery")}) {
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+             QStringLiteral("--group"), powerState,
+             QStringLiteral("--group"), QStringLiteral("Display"),
+             QStringLiteral("--key"), QStringLiteral("TurnOffDisplayWhenIdle"),
+             QStringLiteral("--type"), QStringLiteral("bool"),
+             enabledStr}, 1500);
+        if (clean > 0) {
+            runCommand(QStringLiteral("kwriteconfig6"),
+                {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+                 QStringLiteral("--group"), powerState,
+                 QStringLiteral("--group"), QStringLiteral("Display"),
+                 QStringLiteral("--key"), QStringLiteral("TurnOffDisplayIdleTimeoutSec"),
+                 secStr}, 1500);
+        }
+    }
+
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.Solid.PowerManagement"),
+         QStringLiteral("/org/kde/Solid/PowerManagement"),
+         QStringLiteral("reparseConfiguration")}, 1500);
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.Solid.PowerManagement"),
+         QStringLiteral("/org/kde/Solid/PowerManagement"),
+         QStringLiteral("refreshStatus")}, 1500);
+    notifyStatus(clean > 0
+        ? QStringLiteral("Display will turn off after %1 minute(s)").arg(clean)
+        : QStringLiteral("Display auto turn-off disabled"));
+    emit powerChanged();
+}
+
+void SystemBackend::setSleepTimeoutMinutes(int minutes)
+{
+    const int clean = (minutes <= 0) ? 0 : qBound(1, minutes, 480);
+    m_sleepTimeoutMinutes = clean;
+    const QString secStr = QString::number(clean > 0 ? clean * 60 : 900);
+    const QString actionStr = (clean > 0) ? QStringLiteral("1") : QStringLiteral("0");
+
+    for (const QString &powerState : {QStringLiteral("AC"), QStringLiteral("Battery")}) {
+        runCommand(QStringLiteral("kwriteconfig6"),
+            {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+             QStringLiteral("--group"), powerState,
+             QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
+             QStringLiteral("--key"), QStringLiteral("AutoSuspendAction"),
+             actionStr}, 1500);
+        if (clean > 0) {
+            runCommand(QStringLiteral("kwriteconfig6"),
+                {QStringLiteral("--file"), QStringLiteral("powerdevilrc"),
+                 QStringLiteral("--group"), powerState,
+                 QStringLiteral("--group"), QStringLiteral("SuspendAndShutdown"),
+                 QStringLiteral("--key"), QStringLiteral("AutoSuspendIdleTimeoutSec"),
+                 secStr}, 1500);
+        }
+    }
+
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.Solid.PowerManagement"),
+         QStringLiteral("/org/kde/Solid/PowerManagement"),
+         QStringLiteral("reparseConfiguration")}, 1500);
+    runCommand(QStringLiteral("qdbus6"),
+        {QStringLiteral("org.kde.Solid.PowerManagement"),
+         QStringLiteral("/org/kde/Solid/PowerManagement"),
+         QStringLiteral("refreshStatus")}, 1500);
+    notifyStatus(clean > 0
+        ? QStringLiteral("System will sleep after %1 minute(s)").arg(clean)
+        : QStringLiteral("Automatic sleep disabled"));
     emit powerChanged();
 }
 
