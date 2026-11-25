@@ -43,6 +43,7 @@ jobs:
           registry_token: ${{ secrets.REGISTRY_PASSWORD }}
           cosign_private_key: ${{ secrets.SIGNING_SECRET }}
           pr_event_number: ${{ github.event.number }}
+          build_opts: "--build-driver podman"
 
       # Tag testing channel for validation; promote to stable only when explicitly requested
       - name: Tag Testing Channel (and Optional Stable Channel)
