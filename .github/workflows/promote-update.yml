@@ -12,10 +12,9 @@ on:
 jobs:
   promote:
     name: Promote OCI Image to Stable
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
-      packages: write
       id-token: write
     steps:
       - name: Install Cosign
@@ -23,22 +22,24 @@ jobs:
 
       - name: Copy Image to Stable and Sign Digest
         env:
-          GH_TOKEN: ${{ github.token }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_PASSWORD: ""
         run: |
-          IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REGISTRY_HOST="updates.srcdev.site"
+          IMAGE_REPO="updates.srcdev.site/sourceless/sourceless-os"
           SOURCE_TAG="${{ github.event.inputs.source_tag }}"
-          SRC_REF="ghcr.io/${IMAGE_OWNER}/sourceless-os:${SOURCE_TAG}"
-          STABLE_REF="ghcr.io/${IMAGE_OWNER}/sourceless-os:stable"
+          SRC_REF="${IMAGE_REPO}:${SOURCE_TAG}"
+          STABLE_REF="${IMAGE_REPO}:stable"
 
-          echo "$GH_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          printf '%s' "$REGISTRY_PASSWORD" | skopeo login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
           skopeo copy --all "docker://${SRC_REF}" "docker://${STABLE_REF}"
 
           STABLE_DIGEST=$(skopeo inspect "docker://${STABLE_REF}" | jq -r '.Digest')
           echo "Promoted ${SRC_REF} -> ${STABLE_REF} (${STABLE_DIGEST})"
 
           if [ -n "$COSIGN_PRIVATE_KEY" ] && [ -n "$STABLE_DIGEST" ] && [ "$STABLE_DIGEST" != "null" ]; then
-            echo "$GH_TOKEN" | cosign login ghcr.io -u "${{ github.actor }}" --password-stdin
-            cosign sign --yes --key env://COSIGN_PRIVATE_KEY "ghcr.io/${IMAGE_OWNER}/sourceless-os@${STABLE_DIGEST}"
+            printf '%s' "$REGISTRY_PASSWORD" | cosign login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
+            cosign sign --yes --key env://COSIGN_PRIVATE_KEY "${IMAGE_REPO}@${STABLE_DIGEST}"
           fi

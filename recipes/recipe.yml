@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-# Image metadata and target registry details (published to ghcr.io/<user>/<name>)
+# Image metadata and target registry details (published to updates.srcdev.site/sourceless/<name>)
 name: sourceless-os
 description: Hardened immutable desktop OS image (SourceLess OS) with KDE Plasma 6 and built-in security controls.
 

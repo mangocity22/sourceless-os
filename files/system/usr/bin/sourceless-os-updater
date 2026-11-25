@@ -16,7 +16,7 @@ STAGING_DIR="${CACHE_DIR}/staged-rootfs"
 STAGING_TMP="${CACHE_DIR}/staged-rootfs.tmp"
 LOCK_FILE="/run/sourceless-os-updater.lock"
 
-UPDATE_REPO="ghcr.io/mangocity22/sourceless-os"
+UPDATE_REPO="updates.srcdev.site/sourceless/sourceless-os"
 UPDATE_CHANNEL="stable"
 AUTO_STAGE="true"
 
@@ -28,6 +28,12 @@ load_config() {
     if [ -f "$CONF_FILE" ]; then
         # shellcheck disable=SC1090
         source "$CONF_FILE" 2>/dev/null || true
+    fi
+    if [ "${UPDATE_REPO:-}" = "ghcr.io/mangocity22/sourceless-os" ]; then
+        UPDATE_REPO="updates.srcdev.site/sourceless/sourceless-os"
+        if [ -w "$CONF_FILE" ]; then
+            sed -i 's|^UPDATE_REPO="ghcr\.io/mangocity22/sourceless-os"|UPDATE_REPO="updates.srcdev.site/sourceless/sourceless-os"|' "$CONF_FILE" 2>/dev/null || true
+        fi
     fi
     case "${UPDATE_CHANNEL:-stable}" in
         stable|testing) ;;

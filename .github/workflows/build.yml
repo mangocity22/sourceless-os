@@ -22,10 +22,9 @@ concurrency:
 jobs:
   bluebuild:
     name: Build Custom Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
-      packages: write
       id-token: write
     strategy:
       fail-fast: false
@@ -38,25 +37,42 @@ jobs:
         uses: blue-build/github-action@v1.11
         with:
           recipe: ${{ matrix.recipe }}
+          registry: updates.srcdev.site
+          registry_namespace: sourceless
+          registry_username: ${{ secrets.REGISTRY_USER }}
+          registry_token: ${{ secrets.REGISTRY_PASSWORD }}
           cosign_private_key: ${{ secrets.SIGNING_SECRET }}
-          registry_token: ${{ github.token }}
           pr_event_number: ${{ github.event.number }}
-          maximize_build_space: true
 
       # Tag testing channel for validation; promote to stable only when explicitly requested
       - name: Tag Testing Channel (and Optional Stable Channel)
         if: github.event_name != 'pull_request'
         env:
-          GH_TOKEN: ${{ github.token }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         run: |
-          IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          SRC_IMG="docker://ghcr.io/${IMAGE_OWNER}/sourceless-os:latest"
-          TEST_IMG="docker://ghcr.io/${IMAGE_OWNER}/sourceless-os:testing"
-          STABLE_IMG="docker://ghcr.io/${IMAGE_OWNER}/sourceless-os:stable"
+          REGISTRY_HOST="updates.srcdev.site"
+          IMAGE_REPO="updates.srcdev.site/sourceless/sourceless-os"
+          SRC_IMG="docker://${IMAGE_REPO}:latest"
+          TEST_IMG="docker://${IMAGE_REPO}:testing"
+          STABLE_IMG="docker://${IMAGE_REPO}:stable"
 
-          echo "$GH_TOKEN" | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          printf '%s' "$REGISTRY_PASSWORD" | skopeo login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
           skopeo copy --all "$SRC_IMG" "$TEST_IMG"
 
           if [ "${{ github.event.inputs.promote_to_stable }}" = "true" ] || ! skopeo inspect "$STABLE_IMG" >/dev/null 2>&1; then
             skopeo copy --all "$SRC_IMG" "$STABLE_IMG"
+          fi
+
+      # Guard persistent self-hosted runner disk space without discarding build cache prematurely
+      - name: Guard Runner Disk Space
+        if: always()
+        run: |
+          DISK_PCT=$(df --output=pcent / | tail -1 | tr -dc '0-9')
+          echo "Root filesystem usage: ${DISK_PCT}%"
+          if [ "${DISK_PCT:-0}" -gt 75 ]; then
+            echo "Disk usage above 75%; pruning unused Podman/Buildah storage..."
+            sudo podman system prune --all --force 2>/dev/null || true
+            sudo buildah rmi --prune 2>/dev/null || true
+            df -h /
           fi

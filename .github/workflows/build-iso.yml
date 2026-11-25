@@ -9,45 +9,35 @@ concurrency:
 
 jobs:
   build-iso:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: write
-      packages: read
       id-token: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Reclaim runner disk space before pulling container layers
-      - name: Free Disk Space
+      # 1. Check runner disk space and prune stale container layers only when usage exceeds 70%
+      - name: Check Runner Disk Space
         run: |
-          echo "Free disk space before cleanup:"
+          echo "Runner disk usage before build:"
           df -h /
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /usr/share/miniconda
-          sudo rm -rf /usr/local/aws*
-          sudo rm -rf /usr/local/lib/node_modules
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo docker system prune --all --force --volumes 2>/dev/null || true
-          sudo apt-get clean
-          echo "Free disk space after cleanup:"
-          df -h /
+          DISK_PCT=$(df --output=pcent / | tail -1 | tr -dc '0-9')
+          if [ "${DISK_PCT:-0}" -gt 70 ]; then
+            echo "Disk usage above 70%; pruning unused container images..."
+            sudo podman system prune --all --force 2>/dev/null || true
+            sudo docker system prune --all --force --volumes 2>/dev/null || true
+            df -h /
+          fi
 
-      # 2. Normalize image reference and detect Fedora VERSION_ID
+      # 2. Target self-hosted Zot registry image and detect Fedora VERSION_ID
       - name: Detect Image Metadata
         id: meta
         run: |
-          IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_NAME="ghcr.io/${IMAGE_OWNER}/sourceless-os:latest"
-          echo "owner=${IMAGE_OWNER}" >> "$GITHUB_OUTPUT"
+          IMAGE_NAME="updates.srcdev.site/sourceless/sourceless-os:latest"
           echo "image=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
 
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
           sudo podman pull "$IMAGE_NAME"
           FEDORA_VER=$(sudo podman run --rm "$IMAGE_NAME" sh -c 'grep -E "^VERSION_ID=" /etc/os-release | cut -d= -f2 | tr -d "\""')
           if [ -z "$FEDORA_VER" ]; then
