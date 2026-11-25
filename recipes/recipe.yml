@@ -8,15 +8,9 @@ description: Hardened immutable desktop OS image (SourceLess OS) with KDE Plasma
 base-image: ghcr.io/ublue-os/kinoite-main
 image-version: latest
 
-# Build modules executed sequentially in order
+# Build modules executed sequentially in order (heavy package layers first to maximize Podman cache)
 modules:
-  # 1. Overlay custom system configs, scripts, systemd units, themes, and wallpapers onto /
-  - type: files
-    files:
-      - source: system
-        destination: /
-
-  # 2. Install security tooling, desktop utilities, Qt6/KF6 build deps, and Live ISO packages; remove unmanaged updaters
+  # 1. Install security tooling, desktop utilities, Qt6/KF6 build deps, and Live ISO packages; remove unmanaged updaters
   - type: dnf
     repos:
       copr:
@@ -93,7 +87,7 @@ modules:
         - plasma-discover-offline-updates
         - PackageKit
 
-  # 3. Configure verified Flathub Flatpaks for all users and enable user-scope Flathub remote
+  # 2. Configure verified Flathub Flatpaks for all users and enable user-scope Flathub remote
   - type: default-flatpaks
     configurations:
       - notify: true
@@ -103,8 +97,14 @@ modules:
           - com.github.tchx84.Flatseal
       - scope: user
 
-  # 4. Install Cosign container verification policies and keys
+  # 3. Install Cosign container verification policies and keys
   - type: signing
+
+  # 4. Overlay custom system configs, scripts, systemd units, themes, and wallpapers onto /
+  - type: files
+    files:
+      - source: system
+        destination: /
 
   # 5. Enable Sourceless security/desktop services and mask conflicting upstream units
   - type: systemd

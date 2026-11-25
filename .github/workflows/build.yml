@@ -57,18 +57,21 @@ jobs:
           SRC_IMG="docker://${IMAGE_REPO}:latest"
           TEST_IMG="docker://${IMAGE_REPO}:testing"
           STABLE_IMG="docker://${IMAGE_REPO}:stable"
+          AUTH_FILE="${RUNNER_TEMP}/skopeo-auth.json"
+          trap 'rm -f "$AUTH_FILE"' EXIT
 
-          printf '%s' "$REGISTRY_PASSWORD" | skopeo login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
-          skopeo copy --all "$SRC_IMG" "$TEST_IMG"
+          printf '%s' "$REGISTRY_PASSWORD" | skopeo login --authfile "$AUTH_FILE" "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
+          skopeo copy --authfile "$AUTH_FILE" --all "$SRC_IMG" "$TEST_IMG"
 
-          if [ "${{ github.event.inputs.promote_to_stable }}" = "true" ] || ! skopeo inspect "$STABLE_IMG" >/dev/null 2>&1; then
-            skopeo copy --all "$SRC_IMG" "$STABLE_IMG"
+          if [ "${{ github.event.inputs.promote_to_stable }}" = "true" ] || ! skopeo inspect --authfile "$AUTH_FILE" "$STABLE_IMG" >/dev/null 2>&1; then
+            skopeo copy --authfile "$AUTH_FILE" --all "$SRC_IMG" "$STABLE_IMG"
           fi
 
       # Guard persistent self-hosted runner disk space without discarding build cache prematurely
       - name: Guard Runner Disk Space
         if: always()
         run: |
+          sudo rm -f "/run/containers/$(id -u)/auth.json" 2>/dev/null || true
           DISK_PCT=$(df --output=pcent / | tail -1 | tr -dc '0-9')
           echo "Root filesystem usage: ${DISK_PCT}%"
           if [ "${DISK_PCT:-0}" -gt 75 ]; then

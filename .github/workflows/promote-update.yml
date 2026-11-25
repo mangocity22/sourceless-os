@@ -32,11 +32,13 @@ jobs:
           SOURCE_TAG="${{ github.event.inputs.source_tag }}"
           SRC_REF="${IMAGE_REPO}:${SOURCE_TAG}"
           STABLE_REF="${IMAGE_REPO}:stable"
+          AUTH_FILE="${RUNNER_TEMP}/skopeo-auth.json"
+          trap 'rm -f "$AUTH_FILE"' EXIT
 
-          printf '%s' "$REGISTRY_PASSWORD" | skopeo login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
-          skopeo copy --all "docker://${SRC_REF}" "docker://${STABLE_REF}"
+          printf '%s' "$REGISTRY_PASSWORD" | skopeo login --authfile "$AUTH_FILE" "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
+          skopeo copy --authfile "$AUTH_FILE" --all "docker://${SRC_REF}" "docker://${STABLE_REF}"
 
-          STABLE_DIGEST=$(skopeo inspect "docker://${STABLE_REF}" | jq -r '.Digest')
+          STABLE_DIGEST=$(skopeo inspect --authfile "$AUTH_FILE" "docker://${STABLE_REF}" | jq -r '.Digest')
           echo "Promoted ${SRC_REF} -> ${STABLE_REF} (${STABLE_DIGEST})"
 
           if [ -n "$COSIGN_PRIVATE_KEY" ] && [ -n "$STABLE_DIGEST" ] && [ "$STABLE_DIGEST" != "null" ]; then
