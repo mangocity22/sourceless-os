@@ -9,7 +9,7 @@ bar.hiding = "windowsgobelow";
 bar.currentConfigGroup = [];
 bar.writeConfig("thickness", 52);
 bar.writeConfig("floating", 1);
-bar.writeConfig("panelVisibility", 3);
+bar.writeConfig("panelVisibility", 2);
 bar.writeConfig("panelOpacity", 2);
 bar.writeConfig("panelLengthMode", 0);
 

@@ -591,19 +591,19 @@ void SystemBackend::chooseUserAvatar()
     const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
     const QString uname = m_userName.isEmpty() ? qEnvironmentVariable("USER") : m_userName;
     const QString accountsIconPath = QStringLiteral("/var/lib/AccountsService/icons/") + uname;
-    if (!QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty()) {
-        runCommand(QStringLiteral("qdbus6"),
+    if (!QStandardPaths::findExecutable(QStringLiteral("busctl")).isEmpty()) {
+        runCommand(QStringLiteral("busctl"),
+            {QStringLiteral("call"), QStringLiteral("org.freedesktop.Accounts"),
+             userObj, QStringLiteral("org.freedesktop.Accounts.User"),
+             QStringLiteral("SetIconFile"), QStringLiteral("s"), faceIcon}, 2500);
+    }
+    const QString qdbusBin = !QStandardPaths::findExecutable(QStringLiteral("qdbus-qt6")).isEmpty()
+        ? QStringLiteral("qdbus-qt6")
+        : QStringLiteral("qdbus6");
+    if (!QFileInfo::exists(accountsIconPath) && !QStandardPaths::findExecutable(qdbusBin).isEmpty()) {
+        runCommand(qdbusBin,
             {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
              userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), faceIcon}, 2500);
-    }
-    if ((QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty() || !QFileInfo::exists(accountsIconPath)) &&
-        !QStandardPaths::findExecutable(QStringLiteral("gdbus")).isEmpty()) {
-        runCommand(QStringLiteral("gdbus"),
-            {QStringLiteral("call"), QStringLiteral("--system"),
-             QStringLiteral("--dest"), QStringLiteral("org.freedesktop.Accounts"),
-             QStringLiteral("--object-path"), userObj,
-             QStringLiteral("--method"), QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"),
-             faceIcon}, 2500);
     }
 
     m_userAvatar = QUrl::fromLocalFile(cachePath).toString();
@@ -626,19 +626,19 @@ void SystemBackend::clearUserAvatar()
     const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
     const QString uname = m_userName.isEmpty() ? qEnvironmentVariable("USER") : m_userName;
     const QString accountsIconPath = QStringLiteral("/var/lib/AccountsService/icons/") + uname;
-    if (!QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty()) {
-        runCommand(QStringLiteral("qdbus6"),
+    if (!QStandardPaths::findExecutable(QStringLiteral("busctl")).isEmpty()) {
+        runCommand(QStringLiteral("busctl"),
+            {QStringLiteral("call"), QStringLiteral("org.freedesktop.Accounts"),
+             userObj, QStringLiteral("org.freedesktop.Accounts.User"),
+             QStringLiteral("SetIconFile"), QStringLiteral("s"), QString()}, 2500);
+    }
+    const QString qdbusBin = !QStandardPaths::findExecutable(QStringLiteral("qdbus-qt6")).isEmpty()
+        ? QStringLiteral("qdbus-qt6")
+        : QStringLiteral("qdbus6");
+    if (QFileInfo::exists(accountsIconPath) && !QStandardPaths::findExecutable(qdbusBin).isEmpty()) {
+        runCommand(qdbusBin,
             {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
              userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), QString()}, 2500);
-    }
-    if ((QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty() || QFileInfo::exists(accountsIconPath)) &&
-        !QStandardPaths::findExecutable(QStringLiteral("gdbus")).isEmpty()) {
-        runCommand(QStringLiteral("gdbus"),
-            {QStringLiteral("call"), QStringLiteral("--system"),
-             QStringLiteral("--dest"), QStringLiteral("org.freedesktop.Accounts"),
-             QStringLiteral("--object-path"), userObj,
-             QStringLiteral("--method"), QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"),
-             QString()}, 2500);
     }
 
     m_userAvatar.clear();

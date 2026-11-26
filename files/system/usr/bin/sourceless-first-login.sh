@@ -26,16 +26,19 @@ if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
     plasma-apply-colorscheme SourcelessGlass >/dev/null 2>&1 || plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
 fi
 
-# Wait up to 10 seconds for plasmashell to register on DBus
-for i in {1..20}; do
-    if qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1; then
-        break
-    fi
-    sleep 0.5
-done
+QDBUS="$(command -v qdbus-qt6 || command -v qdbus6 || true)"
 
-# Ensure bottom panels keep floating + windows-go-below behavior on first session initialization
-qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
+# Wait up to 10 seconds for plasmashell to register on DBus
+if [[ -n "$QDBUS" ]]; then
+    for i in {1..20}; do
+        if "$QDBUS" org.kde.plasmashell /PlasmaShell >/dev/null 2>&1; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # Ensure bottom panels keep floating + windows-go-below behavior on first session initialization
+    "$QDBUS" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript '
 var ps = panels();
 for (var i = 0; i < ps.length; i++) {
     if (ps[i].location === "bottom") {
@@ -46,7 +49,8 @@ for (var i = 0; i < ps.length; i++) {
 }
 ' >/dev/null 2>&1 || true
 
-qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+    "$QDBUS" org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+fi
 
 WALLPAPER_TARGET="/usr/share/wallpapers/SourceLess/contents/images_dark/3840x2160.jpg"
 if [[ -f "$WALLPAPER_TARGET" ]] && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then

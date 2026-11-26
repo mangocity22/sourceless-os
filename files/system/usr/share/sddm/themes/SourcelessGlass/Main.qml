@@ -415,8 +415,8 @@ Item {
                         anchors.centerIn: parent
                         width: 104
                         height: 104
-                        source: root.manualUserMode ? "" : root.currentUserIcon()
-                        name: root.manualUserMode ? (usernameInput.text || "User") : root.currentUserDisplay()
+                        source: root.manualUserMode ? "" : root.activeUserAvatar
+                        name: root.manualUserMode ? (usernameInput.text || "User") : root.activeUserDisplay
                     }
                 }
 

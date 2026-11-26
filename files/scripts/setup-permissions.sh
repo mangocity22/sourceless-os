@@ -102,6 +102,9 @@ chmod +x /usr/bin/sourceless-fix-home.sh 2>/dev/null || true
 chmod +x /usr/bin/sourceless-support-dialog.py 2>/dev/null || true
 chmod 755 /usr/bin/sourceless-installer-helper.py /usr/bin/sourceless-oobe.py /usr/bin/sourceless-oobe-apply /usr/bin/sourceless-direct-installer /usr/bin/sourceless-direct-installer-inner 2>/dev/null || true
 chmod 755 /etc/xdg/plasma-workspace/env/sourceless-vm-cursor.sh 2>/dev/null || true
+if [ -x /usr/bin/qdbus-qt6 ] && [ ! -e /usr/bin/qdbus6 ]; then
+    ln -sf /usr/bin/qdbus-qt6 /usr/bin/qdbus6
+fi
 
 # -----------------------------------------------------------------------------
 # 3. User Privilege and Clean Home Directory Permissions
