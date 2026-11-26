@@ -480,6 +480,13 @@ if [ -f "$SOURCELESS_LOGOUT/Logout.qml" ] && [ -d "$SHELL_LOGOUT" ]; then
     cp -f "$SOURCELESS_LOGOUT/Logout.qml" "$SHELL_LOGOUT/Logout.qml" 2>/dev/null || true
 fi
 
+# Keep floating Plasma 6 panels permanently floating even when a window touches or maximizes against them
+SHELL_PANEL="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml"
+if [ -f "$SHELL_PANEL" ] && grep -q 'if (panel\.visibilityMode != Panel\.NormalPanel && floating)' "$SHELL_PANEL"; then
+    sed -i 's/if (panel\.visibilityMode != Panel\.NormalPanel && floating)/if (floating)/' "$SHELL_PANEL"
+    echo "[Sourceless] Patched Plasma 6 Panel.qml to keep floating panels permanently floating."
+fi
+
 # Switch Display Manager from plasmalogin (no custom QML themes) to SDDM (SourcelessGlass Liquid Glass theme)
 systemctl disable plasmalogin.service 2>/dev/null || true
 systemctl enable sddm.service 2>/dev/null || true
