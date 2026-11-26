@@ -109,10 +109,18 @@ jobs:
           scp "${SSH_OPTS[@]}" "$ISO_FILE" "${REMOTE_HOST}:${REMOTE_DIR}/${ISO_FILE}.tmp"
           scp "${SSH_OPTS[@]}" "${ISO_FILE}.sha256" "${REMOTE_HOST}:${REMOTE_DIR}/${ISO_FILE}.sha256.tmp"
           scp "${SSH_OPTS[@]}" "build-info.txt" "${REMOTE_HOST}:${REMOTE_DIR}/build-info.txt.tmp"
+
+          PORTAL_INDEX="${GITHUB_WORKSPACE}/files/iso-portal/index.html"
+          if [ -f "$PORTAL_INDEX" ]; then
+            scp "${SSH_OPTS[@]}" "$PORTAL_INDEX" "${REMOTE_HOST}:${REMOTE_DIR}/index.html.tmp"
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "chmod 644 '${REMOTE_DIR}/index.html.tmp' && mv -f '${REMOTE_DIR}/index.html.tmp' '${REMOTE_DIR}/index.html'"
+          fi
+
           ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "chmod 644 '${REMOTE_DIR}/${ISO_FILE}.tmp' '${REMOTE_DIR}/${ISO_FILE}.sha256.tmp' '${REMOTE_DIR}/build-info.txt.tmp' && mv -f '${REMOTE_DIR}/${ISO_FILE}.tmp' '${REMOTE_DIR}/${ISO_FILE}' && mv -f '${REMOTE_DIR}/${ISO_FILE}.sha256.tmp' '${REMOTE_DIR}/${ISO_FILE}.sha256' && mv -f '${REMOTE_DIR}/build-info.txt.tmp' '${REMOTE_DIR}/build-info.txt'"
 
           {
             echo "### Self-Hosted ISO Published (LXC 106)"
+            echo "- **Portal:** https://updates.srcdev.site/iso/"
             echo "- **Public HTTPS:** https://updates.srcdev.site/iso/${ISO_FILE}"
             echo "- **Fast LAN HTTP:** http://192.168.1.158/iso/${ISO_FILE}"
             echo "- **SHA256:** \`${ISO_SHA256}\` (${ISO_SIZE})"
