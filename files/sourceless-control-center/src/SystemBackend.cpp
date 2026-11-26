@@ -589,9 +589,22 @@ void SystemBackend::chooseUserAvatar()
 
     const uid_t uid = getuid();
     const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
-    runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
-         userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), faceIcon}, 2500);
+    const QString uname = m_userName.isEmpty() ? qEnvironmentVariable("USER") : m_userName;
+    const QString accountsIconPath = QStringLiteral("/var/lib/AccountsService/icons/") + uname;
+    if (!QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty()) {
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+             userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), faceIcon}, 2500);
+    }
+    if ((QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty() || !QFileInfo::exists(accountsIconPath)) &&
+        !QStandardPaths::findExecutable(QStringLiteral("gdbus")).isEmpty()) {
+        runCommand(QStringLiteral("gdbus"),
+            {QStringLiteral("call"), QStringLiteral("--system"),
+             QStringLiteral("--dest"), QStringLiteral("org.freedesktop.Accounts"),
+             QStringLiteral("--object-path"), userObj,
+             QStringLiteral("--method"), QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"),
+             faceIcon}, 2500);
+    }
 
     m_userAvatar = QUrl::fromLocalFile(cachePath).toString();
     notifyStatus(QStringLiteral("Profile picture updated"));
@@ -611,9 +624,22 @@ void SystemBackend::clearUserAvatar()
 
     const uid_t uid = getuid();
     const QString userObj = QStringLiteral("/org/freedesktop/Accounts/User%1").arg(uid);
-    runCommand(QStringLiteral("qdbus6"),
-        {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
-         userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), QString()}, 2500);
+    const QString uname = m_userName.isEmpty() ? qEnvironmentVariable("USER") : m_userName;
+    const QString accountsIconPath = QStringLiteral("/var/lib/AccountsService/icons/") + uname;
+    if (!QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty()) {
+        runCommand(QStringLiteral("qdbus6"),
+            {QStringLiteral("--system"), QStringLiteral("org.freedesktop.Accounts"),
+             userObj, QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"), QString()}, 2500);
+    }
+    if ((QStandardPaths::findExecutable(QStringLiteral("qdbus6")).isEmpty() || QFileInfo::exists(accountsIconPath)) &&
+        !QStandardPaths::findExecutable(QStringLiteral("gdbus")).isEmpty()) {
+        runCommand(QStringLiteral("gdbus"),
+            {QStringLiteral("call"), QStringLiteral("--system"),
+             QStringLiteral("--dest"), QStringLiteral("org.freedesktop.Accounts"),
+             QStringLiteral("--object-path"), userObj,
+             QStringLiteral("--method"), QStringLiteral("org.freedesktop.Accounts.User.SetIconFile"),
+             QString()}, 2500);
+    }
 
     m_userAvatar.clear();
     notifyStatus(QStringLiteral("Profile picture reset to initials"));

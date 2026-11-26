@@ -3,12 +3,13 @@ var bar = new Panel("org.kde.panel");
 bar.location = "bottom";
 bar.height = 52;
 bar.floating = true;
+bar.hiding = "windowsgobelow";
 
 // Write native Plasma 6 containment keys directly in the root config group
 bar.currentConfigGroup = [];
 bar.writeConfig("thickness", 52);
 bar.writeConfig("floating", 1);
-bar.writeConfig("panelVisibility", 2);
+bar.writeConfig("panelVisibility", 3);
 bar.writeConfig("panelOpacity", 2);
 bar.writeConfig("panelLengthMode", 0);
 

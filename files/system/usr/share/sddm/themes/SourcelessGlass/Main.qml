@@ -61,28 +61,41 @@ Item {
         interval: 1000
     }
 
+    readonly property string activeUserLogin: root.manualUserMode
+        ? usernameInput.text.trim()
+        : ((userListView.currentItem && userListView.currentItem.userLogin !== "")
+            ? userListView.currentItem.userLogin
+            : (userModel.lastUser || ""))
+    readonly property string activeUserDisplay: (userListView.currentItem && userListView.currentItem.userDisplay !== "")
+        ? userListView.currentItem.userDisplay
+        : (userModel.lastUser || "sourceless")
+    readonly property string activeModelIcon: userListView.currentItem ? userListView.currentItem.userAvatar : ""
+    readonly property string activeUserAvatar: (accountsAvatarProbe.status === Image.Ready)
+        ? String(accountsAvatarProbe.source)
+        : ((root.activeModelIcon !== "" && root.activeModelIcon.indexOf("faces/.face.icon") === -1)
+            ? root.activeModelIcon
+            : "")
+
+    Image {
+        id: accountsAvatarProbe
+        visible: false
+        cache: false
+        asynchronous: false
+        source: (!root.manualUserMode && root.activeUserLogin !== "")
+            ? ("file:///var/lib/AccountsService/icons/" + root.activeUserLogin)
+            : ""
+    }
+
     function currentUserName() {
-        if (root.manualUserMode) {
-            return usernameInput.text.trim();
-        }
-        if (userListView.currentItem) {
-            return userListView.currentItem.userLogin;
-        }
-        return userModel.lastUser || "";
+        return root.activeUserLogin;
     }
 
     function currentUserDisplay() {
-        if (userListView.currentItem) {
-            return userListView.currentItem.userDisplay;
-        }
-        return userModel.lastUser || "sourceless";
+        return root.activeUserDisplay;
     }
 
     function currentUserIcon() {
-        if (userListView.currentItem) {
-            return userListView.currentItem.userAvatar;
-        }
-        return "";
+        return root.activeUserAvatar;
     }
 
     function startLogin() {
@@ -326,10 +339,11 @@ Item {
                 }
             }
 
-            // Hidden ListView to track SDDM userModel
+            // Keep ListView active at opacity 0 so SDDM userModel always populates currentItem
             ListView {
                 id: userListView
-                visible: false
+                opacity: 0
+                enabled: false
                 width: 1
                 height: 1
                 model: userModel
