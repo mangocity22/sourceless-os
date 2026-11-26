@@ -32,18 +32,32 @@ jobs:
         recipe:
           - recipe.yml
     steps:
-      # Build, sign with Cosign, and push the OCI image via BlueBuild GitHub Action
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Build, sign with Cosign, and push the OCI image via local BlueBuild CLI on self-hosted runner
       - name: Build Custom Image
-        uses: blue-build/github-action@v1.11
-        with:
-          recipe: ${{ matrix.recipe }}
-          registry: updates.srcdev.site
-          registry_namespace: sourceless
-          registry_username: ${{ secrets.REGISTRY_USER }}
-          registry_token: ${{ secrets.REGISTRY_PASSWORD }}
-          cosign_private_key: ${{ secrets.SIGNING_SECRET }}
-          pr_event_number: ${{ github.event.number }}
-          build_opts: "--build-driver podman"
+        env:
+          BB_REGISTRY: updates.srcdev.site
+          BB_REGISTRY_NAMESPACE: sourceless
+          BB_USERNAME: ${{ secrets.REGISTRY_USER }}
+          BB_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          BB_BUILD_DRIVER: podman
+          BB_SIGNING_DRIVER: cosign
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ""
+          PR_EVENT_NUMBER: ${{ github.event.number }}
+        run: |
+          set -euo pipefail
+          command -v bluebuild >/dev/null 2>&1 || { echo "bluebuild CLI not found on runner" >&2; exit 1; }
+          command -v cosign >/dev/null 2>&1 || { echo "cosign binary not found on runner" >&2; exit 1; }
+          sudo rm -f "/run/containers/$(id -u)/auth.json" 2>/dev/null || true
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            bluebuild build --push --retry-push --retry-count 3 "recipes/${{ matrix.recipe }}"
+          else
+            bluebuild build "recipes/${{ matrix.recipe }}"
+          fi
 
       # Tag testing channel for validation; promote to stable only when explicitly requested
       - name: Tag Testing Channel (and Optional Stable Channel)
