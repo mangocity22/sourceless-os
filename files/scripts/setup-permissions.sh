@@ -60,6 +60,19 @@ if [ -f "$KONSOLE_DESKTOP" ]; then
 fi
 flatpak mask org.kde.konsole 2>/dev/null || true
 
+# Install Starship prompt binary directly from GitHub Releases (avoids Fedora COPR outages)
+if [ ! -x /usr/bin/starship ]; then
+    echo "[Sourceless] Installing Starship binary from GitHub Releases..."
+    STARSHIP_TMP="$(mktemp -d)"
+    curl --retry 4 --retry-delay 3 --connect-timeout 15 -fsSL \
+        "https://github.com/starship/starship/releases/latest/download/starship-x86_64-unknown-linux-gnu.tar.gz" \
+        -o "${STARSHIP_TMP}/starship.tar.gz"
+    tar -xzf "${STARSHIP_TMP}/starship.tar.gz" -C "${STARSHIP_TMP}" starship
+    install -m 0755 "${STARSHIP_TMP}/starship" /usr/bin/starship
+    rm -rf "${STARSHIP_TMP}"
+    echo "[Sourceless] Installed Starship to /usr/bin/starship"
+fi
+
 # Force global Starship config for all users
 if ! grep -q "STARSHIP_CONFIG" /etc/bashrc; then
     echo 'export STARSHIP_CONFIG="/etc/starship.toml"' >> /etc/bashrc

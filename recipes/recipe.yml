@@ -12,9 +12,6 @@ image-version: latest
 modules:
   # 1. Install security tooling, desktop utilities, Qt6/KF6 build deps, and Live ISO packages; remove unmanaged updaters
   - type: dnf
-    repos:
-      copr:
-        - atim/starship
     install:
       packages:
         - audit
@@ -24,7 +21,6 @@ modules:
         - policycoreutils-python-utils
         - tcpdump
         - micro
-        - starship
         - fastfetch
         - https://github.com/rustdesk/rustdesk/releases/download/1.4.9/rustdesk-1.4.9-0.x86_64.rpm
         - zenity
