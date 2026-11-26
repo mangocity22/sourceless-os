@@ -2,6 +2,12 @@ name: Build ISO
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_github_release:
+        description: "Also split into 7z volumes and publish to GitHub Releases (slower WAN upload)"
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: build-iso-${{ github.ref || github.run_id }}
@@ -54,16 +60,68 @@ jobs:
           image-ref: ${{ steps.meta.outputs.image }}
           iso-dest: ${{ runner.temp }}/sourceless-os-live.iso
 
-      # 4. Prune container images before archiving to free disk space
-      - name: Reclaim Container Storage Before Compression
+      # 4. Guard runner disk space without wiping cached BlueBuild layers unless usage exceeds 75%
+      - name: Guard Runner Disk Space
         run: |
-          sudo podman rmi --all --force 2>/dev/null || true
-          sudo podman system prune --all --force 2>/dev/null || true
-          sudo docker system prune --all --force 2>/dev/null || true
-          df -h /
+          DISK_PCT=$(df --output=pcent / | tail -1 | tr -dc '0-9')
+          echo "Root filesystem usage after ISO build: ${DISK_PCT}%"
+          if [ "${DISK_PCT:-0}" -gt 75 ]; then
+            echo "Disk usage above 75%; pruning unused Podman/Docker storage..."
+            sudo podman system prune --all --force 2>/dev/null || true
+            sudo docker system prune --all --force 2>/dev/null || true
+            df -h /
+          fi
 
-      # 5. Split ISO into 1.8 GB 7-Zip volumes and remove raw ISO
+      # 5. Publish raw ISO + SHA256 directly over Proxmox LAN to LXC 106 (updates.srcdev.site/iso/)
+      - name: Publish ISO to Self-Hosted Server (LXC 106)
+        run: |
+          ISO_PATH="${{ steps.build.outputs.iso-dest }}"
+          ISO_DIR="$(dirname "$ISO_PATH")"
+          ISO_FILE="$(basename "$ISO_PATH")"
+          KEY_PATH="${HOME}/.ssh/iso_upload_ed25519"
+          REMOTE_HOST="iso-upload@192.168.1.158"
+          REMOTE_DIR="/var/www/sourceless-iso"
+
+          if [ ! -f "$KEY_PATH" ]; then
+            echo "ERROR: Missing SSH deploy key at ${KEY_PATH} for ${REMOTE_HOST}" >&2
+            exit 1
+          fi
+
+          sudo chown -R "$USER:$USER" "$ISO_DIR"
+          cd "$ISO_DIR"
+
+          sha256sum "$ISO_FILE" > "${ISO_FILE}.sha256"
+          ISO_SHA256="$(cut -d' ' -f1 "${ISO_FILE}.sha256")"
+          ISO_SIZE="$(ls -lh "$ISO_FILE" | awk '{print $5}')"
+          BUILD_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          cat << EOF > build-info.txt
+          built_utc=${BUILD_UTC}
+          commit=${{ github.sha }}
+          fedora_version=${{ steps.meta.outputs.version }}
+          image=${{ steps.meta.outputs.image }}
+          iso_file=${ISO_FILE}
+          iso_size=${ISO_SIZE}
+          sha256=${ISO_SHA256}
+          EOF
+
+          SSH_OPTS=(-i "$KEY_PATH" -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new)
+          scp "${SSH_OPTS[@]}" "$ISO_FILE" "${REMOTE_HOST}:${REMOTE_DIR}/${ISO_FILE}.tmp"
+          scp "${SSH_OPTS[@]}" "${ISO_FILE}.sha256" "${REMOTE_HOST}:${REMOTE_DIR}/${ISO_FILE}.sha256.tmp"
+          scp "${SSH_OPTS[@]}" "build-info.txt" "${REMOTE_HOST}:${REMOTE_DIR}/build-info.txt.tmp"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "chmod 644 '${REMOTE_DIR}/${ISO_FILE}.tmp' '${REMOTE_DIR}/${ISO_FILE}.sha256.tmp' '${REMOTE_DIR}/build-info.txt.tmp' && mv -f '${REMOTE_DIR}/${ISO_FILE}.tmp' '${REMOTE_DIR}/${ISO_FILE}' && mv -f '${REMOTE_DIR}/${ISO_FILE}.sha256.tmp' '${REMOTE_DIR}/${ISO_FILE}.sha256' && mv -f '${REMOTE_DIR}/build-info.txt.tmp' '${REMOTE_DIR}/build-info.txt'"
+
+          {
+            echo "### Self-Hosted ISO Published (LXC 106)"
+            echo "- **Public HTTPS:** https://updates.srcdev.site/iso/${ISO_FILE}"
+            echo "- **Fast LAN HTTP:** http://192.168.1.158/iso/${ISO_FILE}"
+            echo "- **SHA256:** \`${ISO_SHA256}\` (${ISO_SIZE})"
+            echo "- **Metadata:** https://updates.srcdev.site/iso/build-info.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # 6. Optional: Split ISO into 1.8 GB 7-Zip volumes for GitHub Releases
       - name: Split and Compress ISO
+        if: inputs.publish_github_release == true
         run: |
           if ! command -v 7z >/dev/null 2>&1; then
             sudo apt-get update && sudo apt-get install -y p7zip-full
@@ -78,15 +136,17 @@ jobs:
           rm -f "$ISO_FILE"
           ls -lh sourceless-os.7z.*
 
-      # 6. Delete previous latest-iso release and tag to avoid stale volume parts
+      # 7. Optional: Delete previous latest-iso release and tag to avoid stale volume parts
       - name: Clean Previous Release Assets
+        if: inputs.publish_github_release == true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete latest-iso -y --cleanup-tag 2>/dev/null || true
 
-      # 7. Publish split 7-Zip ISO volumes to GitHub Releases
+      # 8. Optional: Publish split 7-Zip ISO volumes to GitHub Releases
       - name: Publish to GitHub Releases
+        if: inputs.publish_github_release == true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-iso
@@ -96,3 +156,11 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 9. Clean temporary ISO artifacts from persistent runner temp directory
+      - name: Cleanup Temp ISO
+        if: always()
+        run: |
+          ISO_PATH="${{ steps.build.outputs.iso-dest }}"
+          ISO_DIR="$(dirname "$ISO_PATH")"
+          rm -f "$ISO_PATH" "${ISO_PATH}.sha256" "${ISO_DIR}/build-info.txt" "${ISO_DIR}"/sourceless-os.7z.* 2>/dev/null || true

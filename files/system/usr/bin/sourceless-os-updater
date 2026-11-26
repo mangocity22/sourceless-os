@@ -15,6 +15,8 @@ PENDING_FILE="${STATE_DIR}/pending"
 STAGING_DIR="${CACHE_DIR}/staged-rootfs"
 STAGING_TMP="${CACHE_DIR}/staged-rootfs.tmp"
 LOCK_FILE="/run/sourceless-os-updater.lock"
+LOCAL_CACHE_TAG="localhost/sourceless-os-installed:current"
+MIN_CACHE_FREE_KB=$((8 * 1024 * 1024))
 
 UPDATE_REPO="updates.srcdev.site/sourceless/sourceless-os"
 UPDATE_CHANNEL="stable"
@@ -457,7 +459,18 @@ cmd_apply_on_shutdown() {
     if command -v podman >/dev/null 2>&1; then
         [ "$mounted_podman" -eq 1 ] && podman image unmount "${UPDATE_REPO}@${pending_digest}" >/dev/null 2>&1 || true
         podman image unmount --all >/dev/null 2>&1 || true
-        podman image prune -f >/dev/null 2>&1 || true
+        local cache_fs="/var/lib/containers"
+        [ -d "$cache_fs" ] || cache_fs="/"
+        local avail_kb
+        avail_kb="$(df -Pk "$cache_fs" 2>/dev/null | awk 'NR==2 {print $4}')"
+        if [ "${avail_kb:-0}" -ge "$MIN_CACHE_FREE_KB" ] && podman image exists "${UPDATE_REPO}@${pending_digest}" >/dev/null 2>&1; then
+            # Keep current installed image tagged so Podman reuses shared OCI base layers on future incremental updates
+            podman tag "${UPDATE_REPO}@${pending_digest}" "$LOCAL_CACHE_TAG" >/dev/null 2>&1 || true
+            podman image prune -f >/dev/null 2>&1 || true
+        else
+            podman rmi -f "$LOCAL_CACHE_TAG" >/dev/null 2>&1 || true
+            podman image prune -f >/dev/null 2>&1 || true
+        fi
     fi
 
     local new_ver
