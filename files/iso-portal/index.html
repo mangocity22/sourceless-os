@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SourceLess OS // Release &amp; Update Portal</title>
+  <title>SourceLess OS // Release &amp; OCI Registry Hub</title>
   <style>
     :root {
       --bg: #070910;
-      --bg-elev: rgba(15, 19, 32, 0.82);
-      --bg-card: rgba(18, 23, 39, 0.86);
-      --bg-input: rgba(8, 11, 20, 0.94);
+      --bg-elev: rgba(15, 19, 32, 0.84);
+      --bg-card: rgba(18, 23, 39, 0.88);
+      --bg-input: rgba(8, 11, 20, 0.95);
       --border: rgba(255, 255, 255, 0.09);
       --border-bright: rgba(96, 84, 242, 0.55);
       --indigo: #6054F2;
@@ -39,16 +39,16 @@
         var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 28px 20px 56px;
+      padding: 24px 18px 56px;
       line-height: 1.5;
     }
 
     .shell {
-      max-width: 1040px;
+      max-width: 1120px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 18px;
     }
 
     .topbar {
@@ -114,21 +114,27 @@
     }
 
     .pill.ok {
-      border-color: rgba(42, 195, 162, 0.35);
+      border-color: rgba(42, 195, 162, 0.38);
       background: rgba(42, 195, 162, 0.12);
       color: var(--green);
     }
 
     .pill.warn {
-      border-color: rgba(245, 166, 35, 0.35);
+      border-color: rgba(245, 166, 35, 0.38);
       background: rgba(245, 166, 35, 0.12);
       color: var(--amber);
     }
 
     .pill.err {
-      border-color: rgba(242, 84, 109, 0.35);
+      border-color: rgba(242, 84, 109, 0.38);
       background: rgba(242, 84, 109, 0.12);
       color: var(--red);
+    }
+
+    .pill.info {
+      border-color: rgba(96, 84, 242, 0.45);
+      background: rgba(96, 84, 242, 0.16);
+      color: #c2bcff;
     }
 
     .dot {
@@ -139,11 +145,58 @@
       box-shadow: 0 0 8px currentColor;
     }
 
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 6px;
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: fit-content;
+    }
+
+    .tab-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--indigo), #4a3ee0);
+      border-color: rgba(167, 255, 82, 0.25);
+      box-shadow: 0 4px 16px rgba(96, 84, 242, 0.28);
+    }
+
+    .tab-panel[hidden] {
+      display: none;
+    }
+
+    .tab-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 18px;
-      padding: 24px;
+      padding: 22px;
       backdrop-filter: blur(14px);
     }
 
@@ -154,7 +207,7 @@
         var(--bg-card);
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 18px;
     }
 
     .hero-head {
@@ -175,7 +228,7 @@
     }
 
     .hero h1 {
-      font-size: 1.65rem;
+      font-size: 1.6rem;
       font-weight: 700;
       letter-spacing: -0.025em;
     }
@@ -183,13 +236,13 @@
     .hero-desc {
       margin-top: 6px;
       color: var(--muted);
-      font-size: 0.94rem;
-      max-width: 640px;
+      font-size: 0.93rem;
+      max-width: 660px;
     }
 
     .size-badge {
       font-family: var(--mono);
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       font-weight: 600;
       padding: 8px 14px;
       border-radius: 12px;
@@ -213,7 +266,7 @@
     }
 
     .meta-label {
-      font-size: 0.73rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--muted);
@@ -222,7 +275,7 @@
 
     .meta-val {
       font-family: var(--mono);
-      font-size: 0.86rem;
+      font-size: 0.84rem;
       color: var(--text);
       word-break: break-word;
     }
@@ -231,7 +284,7 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .btn {
@@ -239,10 +292,10 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 11px 18px;
+      padding: 10px 16px;
       border-radius: 11px;
       font-family: var(--sans);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 600;
       text-decoration: none;
       cursor: pointer;
@@ -272,14 +325,21 @@
 
     .btn-sm {
       padding: 6px 11px;
-      font-size: 0.78rem;
+      font-size: 0.77rem;
       border-radius: 8px;
     }
 
     .two-col {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .reg-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 18px;
+      align-items: start;
     }
 
     .card-title {
@@ -287,6 +347,7 @@
       font-weight: 700;
       margin-bottom: 12px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
@@ -297,7 +358,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 10px 12px;
+      padding: 9px 12px;
       background: var(--bg-input);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -310,7 +371,7 @@
 
     .code-text {
       font-family: var(--mono);
-      font-size: 0.8rem;
+      font-size: 0.79rem;
       color: var(--cyan);
       overflow-x: auto;
       white-space: nowrap;
@@ -318,7 +379,7 @@
     }
 
     .code-label {
-      font-size: 0.76rem;
+      font-size: 0.75rem;
       color: var(--muted);
       margin-bottom: 5px;
     }
@@ -331,13 +392,27 @@
     }
 
     .tag-chip {
+      appearance: none;
       font-family: var(--mono);
       font-size: 0.78rem;
-      padding: 5px 10px;
+      padding: 6px 11px;
       border-radius: 8px;
       background: var(--bg-input);
       border: 1px solid var(--border);
       color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.14s ease, transform 0.12s ease, background 0.14s ease;
+    }
+
+    .tag-chip:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .tag-chip.selected {
+      background: rgba(96, 84, 242, 0.24);
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 1px rgba(96, 84, 242, 0.35);
     }
 
     .tag-chip.stable {
@@ -352,7 +427,123 @@
 
     .tag-chip.latest {
       border-color: rgba(96, 84, 242, 0.55);
-      color: #b7b0ff;
+      color: #c2bcff;
+    }
+
+    .repo-item {
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .repo-item:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .repo-item.active {
+      border-color: var(--indigo);
+      background: rgba(96, 84, 242, 0.18);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--indigo);
+    }
+
+    .layer-table-wrap {
+      max-height: 320px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-input);
+      margin-top: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #0b0f1b;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    td.mono {
+      font-family: var(--mono);
+      color: var(--cyan);
+    }
+
+    .sync-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .endpoint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .endpoint-item {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+    }
+
+    .endpoint-title {
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .endpoint-path {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--cyan);
     }
 
     .muted-note {
@@ -368,9 +559,13 @@
       padding-top: 6px;
     }
 
+    @media (max-width: 860px) {
+      .reg-layout { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 600px) {
-      .hero h1 { font-size: 1.35rem; }
-      .card { padding: 18px; }
+      .hero h1 { font-size: 1.32rem; }
+      .card { padding: 17px; }
     }
   </style>
 </head>
@@ -391,7 +586,7 @@
         </div>
         <div>
           <div class="brand-title">SourceLess OS</div>
-          <div class="brand-sub">Self-Hosted ISO &amp; OCI Release Portal (LXC 106)</div>
+          <div class="brand-sub">Self-Hosted ISO &amp; OCI Registry Hub (LXC 106)</div>
         </div>
       </div>
       <div class="pills">
@@ -401,93 +596,276 @@
       </div>
     </header>
 
-    <section class="card hero">
-      <div class="hero-head">
-        <div>
-          <div class="eyebrow">2-in-1 Live Environment + Btrfs Installer</div>
-          <h1 id="isoTitle">sourceless-os-live.iso</h1>
-          <p class="hero-desc">
-            Direct self-hosted installer image built from the signed OCI stream. Ready for USB boot (Ventoy / Rufus / dd) and Proxmox VM installation.
-          </p>
-        </div>
-        <div class="size-badge" id="isoSizeBadge">Size: loading...</div>
-      </div>
+    <nav class="nav-tabs" aria-label="Portal Navigation">
+      <button class="tab-btn active" type="button" data-tab="iso">Live ISO Release</button>
+      <button class="tab-btn" type="button" data-tab="registry">OCI Registry Explorer (/v2)</button>
+      <button class="tab-btn" type="button" data-tab="endpoints">Endpoints &amp; CLI</button>
+    </nav>
 
-      <div class="meta-grid">
-        <div class="meta-box">
-          <div class="meta-label">Built (Local / UTC)</div>
-          <div class="meta-val" id="metaBuilt">Loading...</div>
+    <!-- TAB 1: LIVE ISO RELEASE -->
+    <section class="tab-panel" id="panel-iso">
+      <section class="card hero">
+        <div class="hero-head">
+          <div>
+            <div class="eyebrow">2-in-1 Live Environment + Btrfs Installer</div>
+            <h1 id="isoTitle">sourceless-os-live.iso</h1>
+            <p class="hero-desc">
+              Direct self-hosted installer image built from the signed OCI stream. Ready for USB boot (Ventoy / Rufus / dd) and Proxmox VM installation.
+            </p>
+          </div>
+          <div class="size-badge" id="isoSizeBadge">Size: loading...</div>
         </div>
-        <div class="meta-box">
-          <div class="meta-label">Git Commit</div>
-          <div class="meta-val" id="metaCommit">Loading...</div>
-        </div>
-        <div class="meta-box">
-          <div class="meta-label">Base Platform</div>
-          <div class="meta-val" id="metaFedora">Loading...</div>
-        </div>
-        <div class="meta-box">
-          <div class="meta-label">OCI Source Image</div>
-          <div class="meta-val" id="metaImage">Loading...</div>
-        </div>
-      </div>
 
-      <div class="actions">
-        <a class="btn btn-primary" id="downloadIsoBtn" href="sourceless-os-live.iso" download>
-          Download Live ISO
-        </a>
-        <a class="btn" id="downloadShaBtn" href="sourceless-os-live.iso.sha256" download>
-          Download .sha256
-        </a>
-        <a class="btn" href="build-info.txt" target="_blank" rel="noopener">
-          View build-info.txt
-        </a>
-        <a class="btn" id="lanMirrorBtn" href="http://192.168.1.158/iso/" hidden>
-          Switch to LAN Mirror (192.168.1.158)
-        </a>
+        <div class="meta-grid">
+          <div class="meta-box">
+            <div class="meta-label">Built (Local / UTC)</div>
+            <div class="meta-val" id="metaBuilt">Loading...</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">Git Commit</div>
+            <div class="meta-val" id="metaCommit">Loading...</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">Base Platform</div>
+            <div class="meta-val" id="metaFedora">Loading...</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">OCI Source Image</div>
+            <div class="meta-val" id="metaImage">Loading...</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a class="btn btn-primary" id="downloadIsoBtn" href="/iso/sourceless-os-live.iso" download>
+            Download Live ISO
+          </a>
+          <a class="btn" id="downloadShaBtn" href="/iso/sourceless-os-live.iso.sha256" download>
+            Download .sha256
+          </a>
+          <a class="btn" href="/iso/build-info.txt" target="_blank" rel="noopener">
+            View build-info.txt
+          </a>
+          <a class="btn" id="lanMirrorBtn" href="http://192.168.1.158/" hidden>
+            Switch to LAN Mirror (192.168.1.158)
+          </a>
+        </div>
+      </section>
+
+      <div class="two-col">
+        <section class="card">
+          <div class="card-title">
+            <span>SHA-256 Integrity Check</span>
+            <span class="pill ok" id="shaStatusPill" hidden>Verified Metadata</span>
+          </div>
+          <div class="code-label">Expected SHA-256 Digest</div>
+          <div class="code-row">
+            <code class="code-text" id="shaDigest">Loading /iso/build-info.txt...</code>
+            <button class="btn btn-sm" type="button" data-copy-target="shaDigest">Copy</button>
+          </div>
+
+          <div class="code-label">Windows PowerShell Verify</div>
+          <div class="code-row">
+            <code class="code-text" id="cmdPsVerify">Get-FileHash .\sourceless-os-live.iso -Algorithm SHA256</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cmdPsVerify">Copy</button>
+          </div>
+
+          <div class="code-label">Linux / Proxmox Verify</div>
+          <div class="code-row">
+            <code class="code-text" id="cmdLinuxVerify">sha256sum -c sourceless-os-live.iso.sha256</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cmdLinuxVerify">Copy</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">
+            <span>OCI Update Channels (Zot)</span>
+            <span class="pill" id="channelSyncPill">Checking sync...</span>
+          </div>
+          <div class="sync-row">
+            <div class="meta-box">
+              <div class="meta-label">Stable Channel (:stable)</div>
+              <div class="meta-val" id="stableDigestShort">Checking...</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Testing Channel (:testing)</div>
+              <div class="meta-val" id="testingDigestShort">Checking...</div>
+            </div>
+          </div>
+          <p class="muted-note" id="registrySummary">Querying signed channels on this host...</p>
+          <div class="tag-list" id="overviewTagList"></div>
+          <div class="actions">
+            <button class="btn btn-sm" type="button" id="openExplorerBtn">Open Registry &amp; Layer Explorer</button>
+            <span class="pill" id="cosignPill">Cosign: checking...</span>
+          </div>
+        </section>
       </div>
     </section>
 
-    <div class="two-col">
-      <section class="card">
-        <div class="card-title">
-          <span>SHA-256 Integrity Check</span>
-          <span class="pill ok" id="shaStatusPill" hidden>Verified Metadata</span>
-        </div>
-        <div class="code-label">Expected SHA-256 Digest</div>
-        <div class="code-row">
-          <code class="code-text" id="shaDigest">Loading build-info.txt...</code>
-          <button class="btn btn-sm" type="button" data-copy-target="shaDigest">Copy</button>
+    <!-- TAB 2: OCI REGISTRY EXPLORER -->
+    <section class="tab-panel" id="panel-registry" hidden>
+      <div class="reg-layout">
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <section class="card">
+            <div class="card-title">
+              <span>Catalog (/v2/_catalog)</span>
+              <span class="pill info" id="repoCountPill">0 repos</span>
+            </div>
+            <div id="repoList">
+              <p class="muted-note">Loading repository catalog...</p>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-title">
+              <span>Tags (<span id="selectedRepoLabel">...</span>)</span>
+              <span class="pill" id="tagCountPill">0 tags</span>
+            </div>
+            <input class="search-input" type="search" id="tagSearch" placeholder="Filter tags (e.g. stable, 2026)...">
+            <div class="tag-list" id="explorerTagList"></div>
+            <p class="muted-note" id="sigCountNote">Checking Cosign signatures...</p>
+          </section>
         </div>
 
-        <div class="code-label">Windows PowerShell Verify</div>
-        <div class="code-row">
-          <code class="code-text" id="cmdPsVerify">Get-FileHash .\sourceless-os-live.iso -Algorithm SHA256</code>
-          <button class="btn btn-sm" type="button" data-copy-target="cmdPsVerify">Copy</button>
-        </div>
+        <section class="card">
+          <div class="card-title">
+            <span>Manifest &amp; Layer Inspector: <code id="selectedTagLabel" style="color:var(--lime)">-</code></span>
+            <span class="pill" id="manifestSigPill">Select a tag</span>
+          </div>
 
-        <div class="code-label">Linux / Proxmox Verify</div>
-        <div class="code-row">
-          <code class="code-text" id="cmdLinuxVerify">sha256sum -c sourceless-os-live.iso.sha256</code>
-          <button class="btn btn-sm" type="button" data-copy-target="cmdLinuxVerify">Copy</button>
-        </div>
-      </section>
+          <div class="meta-grid" style="margin-bottom:14px;">
+            <div class="meta-box">
+              <div class="meta-label">Total Layer Size</div>
+              <div class="meta-val" id="manifestSize">-</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Layers Count</div>
+              <div class="meta-val" id="manifestLayersCount">-</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Platform / OS</div>
+              <div class="meta-val" id="manifestPlatform">-</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Image Created</div>
+              <div class="meta-val" id="manifestCreated">-</div>
+            </div>
+          </div>
 
-      <section class="card">
-        <div class="card-title">
-          <span>OCI Update Channels (Zot)</span>
-          <span class="pill" id="cosignPill">Cosign: checking...</span>
-        </div>
-        <p class="muted-note" id="registrySummary">Querying signed channels on this host...</p>
-        <div class="tag-list" id="tagList"></div>
+          <div class="code-label">Manifest Digest (Docker-Content-Digest)</div>
+          <div class="code-row">
+            <code class="code-text" id="manifestDigest">Select a tag on the left to inspect its manifest...</code>
+            <button class="btn btn-sm" type="button" data-copy-target="manifestDigest">Copy</button>
+          </div>
 
-        <div class="code-label">Client Station Manual Update Command</div>
-        <div class="code-row">
-          <code class="code-text" id="cmdClientUpdate">sudo sourceless-os-updater upgrade</code>
-          <button class="btn btn-sm" type="button" data-copy-target="cmdClientUpdate">Copy</button>
-        </div>
-      </section>
-    </div>
+          <div class="code-label">Skopeo Inspect Command</div>
+          <div class="code-row">
+            <code class="code-text" id="cmdSkopeoInspect">skopeo inspect docker://updates.srcdev.site/sourceless/sourceless-os:stable</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cmdSkopeoInspect">Copy</button>
+          </div>
+
+          <div class="code-label">Podman Pull Command</div>
+          <div class="code-row">
+            <code class="code-text" id="cmdPodmanPull">podman pull updates.srcdev.site/sourceless/sourceless-os:stable</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cmdPodmanPull">Copy</button>
+          </div>
+
+          <div class="layer-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Layer Digest</th>
+                  <th>Media Type</th>
+                  <th>Size</th>
+                </tr>
+              </thead>
+              <tbody id="layerTableBody">
+                <tr>
+                  <td colspan="4" class="muted-note">No manifest loaded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- TAB 3: ENDPOINTS & CLI -->
+    <section class="tab-panel" id="panel-endpoints" hidden>
+      <div class="two-col">
+        <section class="card">
+          <div class="card-title">
+            <span>Direct Server Endpoints</span>
+          </div>
+          <div class="endpoint-list">
+            <div class="endpoint-item">
+              <div>
+                <div class="endpoint-title">OCI Registry Catalog (Raw JSON)</div>
+                <div class="endpoint-path">/v2/_catalog</div>
+              </div>
+              <a class="btn btn-sm" href="/v2/_catalog" target="_blank" rel="noopener">Open JSON</a>
+            </div>
+            <div class="endpoint-item">
+              <div>
+                <div class="endpoint-title">SourceLess OS Tags List (Raw JSON)</div>
+                <div class="endpoint-path">/v2/sourceless/sourceless-os/tags/list</div>
+              </div>
+              <a class="btn btn-sm" href="/v2/sourceless/sourceless-os/tags/list" target="_blank" rel="noopener">Open JSON</a>
+            </div>
+            <div class="endpoint-item">
+              <div>
+                <div class="endpoint-title">ISO Build Metadata</div>
+                <div class="endpoint-path">/iso/build-info.txt</div>
+              </div>
+              <a class="btn btn-sm" href="/iso/build-info.txt" target="_blank" rel="noopener">Open TXT</a>
+            </div>
+            <div class="endpoint-item">
+              <div>
+                <div class="endpoint-title">ISO Direct File Listing Mirror</div>
+                <div class="endpoint-path">http://192.168.1.158/iso/</div>
+              </div>
+              <a class="btn btn-sm" href="http://192.168.1.158/iso/" target="_blank" rel="noopener">Open LAN</a>
+            </div>
+            <div class="endpoint-item">
+              <div>
+                <div class="endpoint-title">SourceLess Fleet Console</div>
+                <div class="endpoint-path">https://api.srcdev.site</div>
+              </div>
+              <a class="btn btn-sm" href="https://api.srcdev.site" target="_blank" rel="noopener">Open Console</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">
+            <span>Client Station Updater CLI</span>
+          </div>
+          <div class="code-label">Check Current Update Status &amp; Channel</div>
+          <div class="code-row">
+            <code class="code-text" id="cliStatus">sourceless-os-updater status</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cliStatus">Copy</button>
+          </div>
+
+          <div class="code-label">Force Check &amp; Stage Immediate Update</div>
+          <div class="code-row">
+            <code class="code-text" id="cliUpgrade">sudo sourceless-os-updater upgrade</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cliUpgrade">Copy</button>
+          </div>
+
+          <div class="code-label">Switch Workstation to Testing Channel</div>
+          <div class="code-row">
+            <code class="code-text" id="cliTesting">sudo sourceless-os-updater set-channel testing</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cliTesting">Copy</button>
+          </div>
+
+          <div class="code-label">Return Workstation to Production Stable Channel</div>
+          <div class="code-row">
+            <code class="code-text" id="cliStable">sudo sourceless-os-updater set-channel stable</code>
+            <button class="btn btn-sm" type="button" data-copy-target="cliStable">Copy</button>
+          </div>
+        </section>
+      </div>
+    </section>
 
     <footer class="foot">
       SOURCELESS OS INFRASTRUCTURE • SIGNED WITH COSIGN • SERVED FROM LXC 106
@@ -498,9 +876,76 @@
     (function () {
       const $ = (id) => document.getElementById(id);
 
+      const MANIFEST_ACCEPT = [
+        "application/vnd.oci.image.manifest.v1+json",
+        "application/vnd.oci.image.index.v1+json",
+        "application/vnd.docker.distribution.manifest.v2+json",
+        "application/vnd.docker.distribution.manifest.list.v2+json",
+        "application/json",
+      ].join(", ");
+
+      const state = {
+        repos: [],
+        selectedRepo: "",
+        allTags: [],
+        imageTags: [],
+        sigTags: new Set(),
+        selectedTag: "",
+      };
+
       function setPill(el, cls, textEl, label) {
         el.className = "pill " + cls;
         textEl.textContent = label;
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes < 0) return "-";
+        if (bytes < 1024) return bytes + " B";
+        const units = ["KiB", "MiB", "GiB", "TiB"];
+        let val = bytes / 1024;
+        let idx = 0;
+        while (val >= 1024 && idx < units.length - 1) {
+          val /= 1024;
+          idx++;
+        }
+        return val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2) + " " + units[idx];
+      }
+
+      function shortDigest(digest) {
+        if (!digest || typeof digest !== "string") return "-";
+        const idx = digest.indexOf(":");
+        if (idx > 0) {
+          return digest.slice(0, idx + 1) + digest.slice(idx + 1, idx + 13);
+        }
+        return digest.slice(0, 14);
+      }
+
+      function formatTimestamp(utcStr) {
+        if (!utcStr) return "Unavailable";
+        const d = new Date(utcStr);
+        if (Number.isNaN(d.getTime())) return utcStr;
+        const localStr = d.toLocaleString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        return localStr + " (" + utcStr + ")";
+      }
+
+      function switchTab(tabName) {
+        const valid = ["iso", "registry", "endpoints"];
+        const target = valid.includes(tabName) ? tabName : "iso";
+        document.querySelectorAll(".tab-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.getAttribute("data-tab") === target);
+        });
+        valid.forEach((name) => {
+          $("panel-" + name).hidden = name !== target;
+        });
+        if (window.location.hash !== "#" + target) {
+          history.replaceState(null, "", "#" + target);
+        }
       }
 
       function detectRoute() {
@@ -528,30 +973,16 @@
         return map;
       }
 
-      function formatTimestamp(utcStr) {
-        if (!utcStr) return "Unavailable";
-        const d = new Date(utcStr);
-        if (Number.isNaN(d.getTime())) return utcStr;
-        const localStr = d.toLocaleString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        return localStr + " (" + utcStr + ")";
-      }
-
       async function loadBuildInfo() {
         try {
-          const res = await fetch("build-info.txt", { cache: "no-store" });
+          const res = await fetch("/iso/build-info.txt", { cache: "no-store" });
           if (!res.ok) throw new Error("HTTP " + res.status);
           const info = parseBuildInfo(await res.text());
           const isoFile = info.iso_file || "sourceless-os-live.iso";
 
           $("isoTitle").textContent = isoFile;
-          $("downloadIsoBtn").setAttribute("href", isoFile);
-          $("downloadShaBtn").setAttribute("href", isoFile + ".sha256");
+          $("downloadIsoBtn").setAttribute("href", "/iso/" + isoFile);
+          $("downloadShaBtn").setAttribute("href", "/iso/" + isoFile + ".sha256");
           $("isoSizeBadge").textContent = "Size: " + (info.iso_size || "Unknown");
           $("metaBuilt").textContent = formatTimestamp(info.built_utc);
           $("metaCommit").textContent = info.commit ? info.commit.slice(0, 12) : "Unknown";
@@ -575,43 +1006,305 @@
         }
       }
 
-      async function loadRegistryTags() {
-        const tagList = $("tagList");
-        tagList.textContent = "";
+      function sortTags(tags) {
+        const prio = { stable: 0, testing: 1, latest: 2 };
+        return tags.slice().sort((a, b) => {
+          const pa = a in prio ? prio[a] : 99;
+          const pb = b in prio ? prio[b] : 99;
+          return pa !== pb ? pa - pb : b.localeCompare(a);
+        });
+      }
+
+      function tagClass(tag) {
+        if (tag === "stable" || tag === "testing" || tag === "latest") return " " + tag;
+        return "";
+      }
+
+      async function fetchManifestDigestOnly(repo, tag) {
         try {
-          const res = await fetch("/v2/sourceless/sourceless-os/tags/list", { cache: "no-store" });
+          const res = await fetch("/v2/" + repo + "/manifests/" + encodeURIComponent(tag), {
+            method: "GET",
+            headers: { Accept: MANIFEST_ACCEPT },
+            cache: "no-store",
+          });
+          if (!res.ok) return "";
+          return res.headers.get("Docker-Content-Digest") || "";
+        } catch (_) {
+          return "";
+        }
+      }
+
+      async function updateChannelSync(repo) {
+        const stableEl = $("stableDigestShort");
+        const testingEl = $("testingDigestShort");
+        const pillEl = $("channelSyncPill");
+
+        const [stableDigest, testingDigest] = await Promise.all([
+          fetchManifestDigestOnly(repo, "stable"),
+          fetchManifestDigestOnly(repo, "testing"),
+        ]);
+
+        stableEl.textContent = stableDigest ? shortDigest(stableDigest) : "Not published";
+        testingEl.textContent = testingDigest ? shortDigest(testingDigest) : "Not published";
+
+        if (stableDigest && testingDigest) {
+          if (stableDigest === testingDigest) {
+            pillEl.className = "pill ok";
+            pillEl.textContent = "Stable & Testing In Sync";
+          } else {
+            pillEl.className = "pill warn";
+            pillEl.textContent = "Testing Ahead of Stable";
+          }
+        } else if (stableDigest || testingDigest) {
+          pillEl.className = "pill info";
+          pillEl.textContent = "Partial Channels";
+        } else {
+          pillEl.className = "pill warn";
+          pillEl.textContent = "Unavailable";
+        }
+      }
+
+      function renderTagChips(container, tags, interactive) {
+        container.textContent = "";
+        if (!tags.length) {
+          const note = document.createElement("span");
+          note.className = "muted-note";
+          note.textContent = "No matching tags.";
+          container.appendChild(note);
+          return;
+        }
+        tags.forEach((tag) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className =
+            "tag-chip" + tagClass(tag) + (interactive && tag === state.selectedTag ? " selected" : "");
+          btn.textContent = ":" + tag;
+          btn.addEventListener("click", () => {
+            switchTab("registry");
+            inspectTag(state.selectedRepo, tag);
+          });
+          container.appendChild(btn);
+        });
+      }
+
+      function renderExplorerTags() {
+        const q = $("tagSearch").value.trim().toLowerCase();
+        const filtered = q
+          ? state.imageTags.filter((t) => t.toLowerCase().includes(q))
+          : state.imageTags;
+        renderTagChips($("explorerTagList"), filtered, true);
+      }
+
+      async function inspectTag(repo, tag) {
+        if (!repo || !tag) return;
+        state.selectedRepo = repo;
+        state.selectedTag = tag;
+        renderExplorerTags();
+
+        const host = window.location.host || "updates.srcdev.site";
+        $("selectedTagLabel").textContent = repo + ":" + tag;
+        $("cmdSkopeoInspect").textContent = "skopeo inspect docker://" + host + "/" + repo + ":" + tag;
+        $("cmdPodmanPull").textContent = "podman pull " + host + "/" + repo + ":" + tag;
+        $("manifestDigest").textContent = "Fetching manifest...";
+        $("manifestSize").textContent = "...";
+        $("manifestLayersCount").textContent = "...";
+        $("manifestPlatform").textContent = "...";
+        $("manifestCreated").textContent = "...";
+        $("manifestSigPill").className = "pill";
+        $("manifestSigPill").textContent = "Checking...";
+
+        const tbody = $("layerTableBody");
+        tbody.textContent = "";
+
+        try {
+          const res = await fetch("/v2/" + repo + "/manifests/" + encodeURIComponent(tag), {
+            headers: { Accept: MANIFEST_ACCEPT },
+            cache: "no-store",
+          });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+
+          const rootDigest = res.headers.get("Docker-Content-Digest") || "";
+          let manifest = await res.json();
+          let activeDigest = rootDigest;
+
+          if (Array.isArray(manifest.manifests) && manifest.manifests.length > 0) {
+            const preferred =
+              manifest.manifests.find(
+                (m) => m.platform && m.platform.os === "linux" && m.platform.architecture === "amd64"
+              ) || manifest.manifests[0];
+            if (preferred && preferred.digest) {
+              const childRes = await fetch(
+                "/v2/" + repo + "/manifests/" + encodeURIComponent(preferred.digest),
+                { headers: { Accept: MANIFEST_ACCEPT }, cache: "no-store" }
+              );
+              if (childRes.ok) {
+                activeDigest = childRes.headers.get("Docker-Content-Digest") || preferred.digest;
+                manifest = await childRes.json();
+              }
+            }
+          }
+
+          $("manifestDigest").textContent = rootDigest || activeDigest || "Unknown";
+
+          const sigTagName = rootDigest
+            ? rootDigest.replace(":", "-") + ".sig"
+            : activeDigest.replace(":", "-") + ".sig";
+          const isSigned = state.sigTags.has(sigTagName);
+          $("manifestSigPill").className = isSigned ? "pill ok" : "pill warn";
+          $("manifestSigPill").textContent = isSigned ? "Cosign Verified (.sig present)" : "No .sig tag found";
+
+          const layers = Array.isArray(manifest.layers) ? manifest.layers : [];
+          const totalBytes = layers.reduce((acc, item) => acc + (Number(item.size) || 0), 0);
+          $("manifestSize").textContent = formatBytes(totalBytes);
+          $("manifestLayersCount").textContent = String(layers.length);
+
+          if (!layers.length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 4;
+            td.className = "muted-note";
+            td.textContent = "Manifest contains 0 layers.";
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+          } else {
+            layers.forEach((layer, idx) => {
+              const tr = document.createElement("tr");
+              const c1 = document.createElement("td");
+              c1.textContent = String(idx + 1);
+              const c2 = document.createElement("td");
+              c2.className = "mono";
+              c2.textContent = shortDigest(layer.digest);
+              c2.title = layer.digest || "";
+              const c3 = document.createElement("td");
+              c3.textContent = (layer.mediaType || "").replace("application/vnd.", "");
+              const c4 = document.createElement("td");
+              c4.className = "mono";
+              c4.textContent = formatBytes(Number(layer.size) || 0);
+              tr.append(c1, c2, c3, c4);
+              tbody.appendChild(tr);
+            });
+          }
+
+          if (manifest.config && manifest.config.digest) {
+            try {
+              const cfgRes = await fetch(
+                "/v2/" + repo + "/blobs/" + encodeURIComponent(manifest.config.digest),
+                { cache: "no-store" }
+              );
+              if (cfgRes.ok) {
+                const cfg = await cfgRes.json();
+                const plat = [cfg.os || "linux", cfg.architecture || "amd64"].join("/");
+                $("manifestPlatform").textContent = plat;
+                $("manifestCreated").textContent = formatTimestamp(cfg.created || "");
+              } else {
+                $("manifestPlatform").textContent = "linux/amd64";
+                $("manifestCreated").textContent = "-";
+              }
+            } catch (_) {
+              $("manifestPlatform").textContent = "linux/amd64";
+              $("manifestCreated").textContent = "-";
+            }
+          }
+        } catch (err) {
+          $("manifestDigest").textContent = "Failed to inspect manifest (" + err.message + ")";
+          $("manifestSigPill").className = "pill err";
+          $("manifestSigPill").textContent = "Inspect Error";
+        }
+      }
+
+      async function selectRepo(repo) {
+        state.selectedRepo = repo;
+        $("selectedRepoLabel").textContent = repo;
+        document.querySelectorAll(".repo-item").forEach((el) => {
+          el.classList.toggle("active", el.getAttribute("data-repo") === repo);
+        });
+
+        try {
+          const res = await fetch("/v2/" + repo + "/tags/list", { cache: "no-store" });
           if (!res.ok) throw new Error("HTTP " + res.status);
           const data = await res.json();
-          const tags = Array.isArray(data.tags) ? data.tags : [];
-          const sigCount = tags.filter((t) => t.endsWith(".sig")).length;
-          const visibleTags = tags
-            .filter((t) => !t.endsWith(".sig"))
-            .sort((a, b) => {
-              const prio = { stable: 0, testing: 1, latest: 2 };
-              const pa = a in prio ? prio[a] : 99;
-              const pb = b in prio ? prio[b] : 99;
-              return pa !== pb ? pa - pb : b.localeCompare(a);
-            });
+          const rawTags = Array.isArray(data.tags) ? data.tags : [];
+          state.allTags = rawTags;
+          state.sigTags = new Set(rawTags.filter((t) => t.endsWith(".sig")));
+          state.imageTags = sortTags(rawTags.filter((t) => !t.endsWith(".sig")));
+
+          $("tagCountPill").textContent = state.imageTags.length + " tags";
+          $("sigCountNote").textContent =
+            state.sigTags.size + " Cosign signature artifact(s) stored in this repository.";
 
           setPill($("registryPill"), "ok", $("registryText"), "Zot Registry Online");
-          $("cosignPill").className = sigCount > 0 ? "pill ok" : "pill warn";
+          $("cosignPill").className = state.sigTags.size > 0 ? "pill ok" : "pill warn";
           $("cosignPill").textContent =
-            sigCount > 0 ? "Cosign: " + sigCount + " sig(s)" : "Cosign: unsigned";
+            state.sigTags.size > 0 ? "Cosign: " + state.sigTags.size + " sig(s)" : "Cosign: unsigned";
           $("registrySummary").textContent =
-            visibleTags.length + " image tag(s) published in sourceless/sourceless-os:";
+            state.imageTags.length + " image tag(s) published in " + repo + ". Click any tag to inspect layers:";
 
-          visibleTags.slice(0, 12).forEach((tag) => {
-            const chip = document.createElement("span");
-            const extra = tag === "stable" || tag === "testing" || tag === "latest" ? " " + tag : "";
-            chip.className = "tag-chip" + extra;
-            chip.textContent = ":" + tag;
-            tagList.appendChild(chip);
-          });
+          renderTagChips($("overviewTagList"), state.imageTags.slice(0, 10), false);
+          renderExplorerTags();
+
+          const defaultTag =
+            state.imageTags.includes("stable")
+              ? "stable"
+              : state.imageTags.includes("testing")
+                ? "testing"
+                : state.imageTags[0] || "";
+          if (defaultTag) {
+            inspectTag(repo, defaultTag);
+          }
+          if (repo === "sourceless/sourceless-os") {
+            updateChannelSync(repo);
+          }
         } catch (err) {
           setPill($("registryPill"), "err", $("registryText"), "Zot Offline");
-          $("cosignPill").className = "pill warn";
-          $("cosignPill").textContent = "Cosign: unknown";
-          $("registrySummary").textContent = "Could not query /v2/sourceless/sourceless-os/tags/list (" + err.message + ").";
+          $("registrySummary").textContent = "Could not load tags for " + repo + " (" + err.message + ").";
+        }
+      }
+
+      async function loadCatalog() {
+        const repoListEl = $("repoList");
+        repoListEl.textContent = "";
+        try {
+          const res = await fetch("/v2/_catalog", { cache: "no-store" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          const repos = Array.isArray(data.repositories) ? data.repositories : [];
+          state.repos = repos;
+          $("repoCountPill").textContent = repos.length + " repo" + (repos.length === 1 ? "" : "s");
+
+          if (!repos.length) {
+            const p = document.createElement("p");
+            p.className = "muted-note";
+            p.textContent = "No repositories published yet.";
+            repoListEl.appendChild(p);
+            return;
+          }
+
+          repos.forEach((repo) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "repo-item";
+            btn.setAttribute("data-repo", repo);
+
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = repo;
+            const badgeSpan = document.createElement("span");
+            badgeSpan.className = "pill info";
+            badgeSpan.textContent = "OCI";
+            btn.append(nameSpan, badgeSpan);
+            btn.addEventListener("click", () => selectRepo(repo));
+            repoListEl.appendChild(btn);
+          });
+
+          const targetRepo = repos.includes("sourceless/sourceless-os")
+            ? "sourceless/sourceless-os"
+            : repos[0];
+          await selectRepo(targetRepo);
+        } catch (err) {
+          setPill($("registryPill"), "err", $("registryText"), "Zot Offline");
+          const p = document.createElement("p");
+          p.className = "muted-note";
+          p.textContent = "Failed to query /v2/_catalog (" + err.message + ").";
+          repoListEl.appendChild(p);
         }
       }
 
@@ -639,6 +1332,13 @@
         }, 1400);
       }
 
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => switchTab(btn.getAttribute("data-tab")));
+      });
+
+      $("openExplorerBtn").addEventListener("click", () => switchTab("registry"));
+      $("tagSearch").addEventListener("input", renderExplorerTags);
+
       document.querySelectorAll("[data-copy-target]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const target = $(btn.getAttribute("data-copy-target"));
@@ -648,12 +1348,14 @@
 
       $("refreshBtn").addEventListener("click", () => {
         loadBuildInfo();
-        loadRegistryTags();
+        loadCatalog();
       });
 
+      const initialHash = window.location.hash.replace("#", "").toLowerCase();
+      switchTab(initialHash || "iso");
       detectRoute();
       loadBuildInfo();
-      loadRegistryTags();
+      loadCatalog();
     })();
   </script>
 </body>
