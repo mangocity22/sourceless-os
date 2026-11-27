@@ -267,5 +267,9 @@ PYEOF
         pkill -f zenity 2>/dev/null || true
     fi
 
-    sleep 5
+    if [ -f /tmp/sourceless_support_active ] || [ "$CMD" = "start_support" ]; then
+        sleep 5
+    else
+        sleep $((30 + RANDOM % 5))
+    fi
 done

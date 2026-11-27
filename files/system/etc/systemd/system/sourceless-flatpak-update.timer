@@ -6,6 +6,7 @@ Description=Periodic trigger for SourceLess OS Package Updates
 OnBootSec=10min
 # Re-runs silently every 4 hours
 OnUnitActiveSec=4h
+RandomizedDelaySec=30min
 # Catches up if the laptop/VM was powered off during the scheduled run
 Persistent=true
 
